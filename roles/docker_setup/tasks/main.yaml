@@ -1,0 +1,66 @@
+# Set Docker architecture fact based on Ansible architecture
+- name: set docker architecture fact
+  ansible.builtin.set_fact:
+    docker_arch: "{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}"
+
+# Extract VERSION_CODENAME from /etc/os-release
+- name: get OS codename from /etc/os-release
+  ansible.builtin.shell: ". /etc/os-release && echo $VERSION_CODENAME"
+  register: os_codename
+  changed_when: false
+
+# Show detected system info
+- name: show detected architecture and OS codename
+  ansible.builtin.debug:
+    msg:
+      - "Ansible architecture: {{ ansible_architecture }}"
+      - "Docker architecture: {{ docker_arch }}"
+      - "OS codename: {{ os_codename.stdout }}"
+
+# Install base packages needed for Docker setup
+- name: install required packages for Docker setup
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+    state: present
+    update_cache: yes
+
+# Create directory for apt keyrings
+- name: create /etc/apt/keyrings directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+# Download Docker's GPG key
+- name: download Docker GPG key
+  ansible.builtin.get_url:
+    url: https://download.docker.com/linux/debian/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: '0644'
+
+# Add Docker's APT repository
+- name: add Docker APT repository
+  ansible.builtin.apt_repository:
+    repo: "deb [arch={{ docker_arch }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian {{ os_codename.stdout }} stable"
+    filename: docker
+    update_cache: yes
+
+# Install Docker packages
+- name: install Docker packages
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+
+# Add admin user to docker group
+- name: add admin user to docker group
+  ansible.builtin.user:
+    name: "{{ admin_user }}"
+    groups: docker
+    append: yes

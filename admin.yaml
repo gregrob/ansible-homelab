@@ -1,0 +1,13 @@
+- name: Configure Debian LXC Container
+  hosts: all
+  become: yes
+  vars_files:
+    - group_vars/all/vault.yml
+  roles:
+    #- packages
+    #- timezone
+    - admin_user
+    - git_setup
+    #- docker_setup
+    #- lxc_shares
+    #- srv

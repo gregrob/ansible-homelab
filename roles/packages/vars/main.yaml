@@ -1,0 +1,7 @@
+common_packages:
+  - sudo    # Allows permitted users to run commands as another user (typically root)
+  - iperf3  # Network bandwidth measurement tool
+  - age     # Simple, modern, and secure file encryption tool (used for secrets)
+  - jq      # Command-line JSON processor, great for parsing and manipulating JSON data (used for infisical)
+  - git     # Distributed version control system for source code management
+  - htop    # Interactive process viewer and system monitor (an improved 'top')

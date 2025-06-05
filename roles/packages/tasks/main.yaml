@@ -1,0 +1,27 @@
+# Refresh the apt package index and perform a full system upgrade (dist-upgrade)
+- name: Update apt cache and upgrade packages
+  ansible.builtin.apt:
+    update_cache: yes
+    upgrade: dist
+
+# Remove packages that were automatically installed but are no longer needed
+- name: Autoremove unused packages
+  ansible.builtin.apt:
+    autoremove: yes
+
+# Check if the system flagged that a reboot is needed
+- name: Check if reboot is required
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: reboot_flag
+
+# Reboot the system only if the reboot-required flag file exists
+- name: Reboot if required
+  ansible.builtin.reboot:
+  when: reboot_flag.stat.exists
+
+# Install the predefined list of common packages
+- name: Install common / default packages
+  ansible.builtin.apt:
+    name: "{{ common_packages }}"
+    state: present
