@@ -1,11 +1,11 @@
 - name: Generate ansible github keys
-  hosts: all
+  hosts: local
   vars:
     admin_user: admin
     admin_group: admin
   become: yes
   remote_user: root
   vars_files:
-    - group_vars/all/vault.yml
+    - ../group_vars/all/vault.yaml
   roles:
     - github_keygen_ansible

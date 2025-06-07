@@ -2,7 +2,7 @@
   hosts: lxcs
   become: yes
   vars_files:
-    - group_vars/all/vault.yaml
+    - ../group_vars/all/vault.yaml
   roles:
     - packages
     - timezone
