@@ -15,7 +15,7 @@
       path: "/home/{{ admin_user }}/.ssh/github-repo_{{ github_repo_name }}"
       type: ed25519
       force: false   # do not overwrite if key already exists
-      comment: "{{ github_key_comment | default(github_repo_name ~ '@' ~ inventory_hostname) }}"
+      comment: "{{ github_key_comment | default(admin_user ~ '@' ~ inventory_hostname ~ ' (repo: ' ~ github_repo_name ~ ')') }}"
       mode: '0600'   # private key permission
 
   # Fix permissions on the public key to be world-readable  
