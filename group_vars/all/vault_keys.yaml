@@ -1,0 +1,7 @@
+admin_password: ''
+ansible_controller_pubkey: ''
+ansible_ssh_pass: ''
+ansible_ssh_private_key_file: ''
+ansible_user: ''
+git_email: ''
+git_name: ''

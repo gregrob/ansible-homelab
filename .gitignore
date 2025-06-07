@@ -1,0 +1,3 @@
+# Ignore all vault files with .yml or .yaml extension
+**/vault.yml
+**/vault.yaml
