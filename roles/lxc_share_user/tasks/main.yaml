@@ -1,0 +1,26 @@
+# Message how this mapping will work
+- name: Show info about lxc_shares group and GID mapping
+  ansible.builtin.debug:
+    msg:    
+      - LXC Share Setup
+      - ┌──────────────────────────────────────────────────────────────┐
+      - │ Create the group lxc_shares with GID=10000 in the            │
+      - │ unprivileged LXC, which will match GID=110000 on the         │
+      - │ Proxmox host (as set in /etc/fstab with uid/gid mount opts). │
+      - └──────────────────────────────────────────────────────────────┘
+
+# Ensure the lxc_share group exists with the specified GID
+- name: Ensure lxc_shares group exists with gid 10000
+  ansible.builtin.group:
+    name: lxc_shares
+    gid: 10000
+    state: present
+
+# Add admin user to lxc_share group
+- name: Add admin user to lxc_shares group
+  ansible.builtin.user:
+    name: "{{ admin_user }}"
+    groups: lxc_shares
+    append: yes
+
+# Add additional users to the lxc_share group as necessary (i.e. jellyfin, etc)

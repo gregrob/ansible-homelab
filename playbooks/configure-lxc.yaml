@@ -9,5 +9,4 @@
     - admin_user
     - git_setup
     - docker_setup
-    #- lxc_shares
-    #- srv
+    - lxc_share_user
