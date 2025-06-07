@@ -1,6 +1,6 @@
 # Ensure the admin group exists with the specified GID
 - name: Ensure admin group exists with correct gid
-  group:
+  ansible.builtin.group:
     name: "{{ admin_group }}"
     gid: "{{ admin_gid }}"
     state: present
@@ -8,7 +8,7 @@
 # Create the admin user with the specified UID, add to primary and supplementary groups,
 # set password, shell, and ensure home directory is created
 - name: Create admin user and add to appropriate groups (if not existing)
-  user:
+  ansible.builtin.user:
     name: "{{ admin_user }}"
     uid: "{{ admin_uid }}"
     comment: "{{ admin_full_name }}"
@@ -22,7 +22,7 @@
 
 # Ensure the .ssh directory exists in the admin user's home directory with correct permissions
 - name: Ensure .ssh directory exists for admin user
-  file:
+  ansible.builtin.file:
     path: "/home/{{ admin_user }}/.ssh"
     state: directory
     mode: '0700'
@@ -32,7 +32,7 @@
 # Copy the Ansible controller's public SSH key into the admin user's authorized_keys
 # allowing passwordless SSH login from the control machine
 - name: Copy the ansible controller public key to admin user authorized_keys
-  authorized_key:
+  ansible.builtin.authorized_key:
     user: "{{ admin_user }}"
     key: "{{ ansible_controller_pubkey }}"
     state: present
@@ -40,7 +40,7 @@
 # Pre-create the .ansible/tmp directory to avoid warnings from become_user tasks
 - name: Ensure .ansible/tmp directory exists for admin user
   become: true
-  file:
+  ansible.builtin.file:
     path: "/home/{{ admin_user }}/.ansible/tmp"
     state: directory
     owner: "{{ admin_user }}"
