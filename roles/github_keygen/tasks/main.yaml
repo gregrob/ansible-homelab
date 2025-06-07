@@ -32,19 +32,20 @@
       owner: "{{ admin_user }}"
       group: "{{ admin_group }}"
 
-  - name: Add GitHub SSH config entry
+  - name: Add GitHub SSH config entry for repo {{ github_repo_name }}
     ansible.builtin.blockinfile:
       path: "/home/{{ admin_user }}/.ssh/config"
+      owner: "{{ admin_user }}"
+      group: "{{ admin_group }}"
+      mode: '0600'
+      create: yes
+      marker: "# {mark} ANSIBLE MANAGED GITHUB KEY {{ github_repo_name }}"
       block: |
         Host github.com-{{ github_repo_name }}
           HostName github.com
           User git
           IdentityFile /home/{{ admin_user }}/.ssh/github-repo_{{ github_repo_name }}
           IdentitiesOnly yes
-      owner: "{{ admin_user }}"
-      group: "{{ admin_group }}"
-      mode: '0600'
-      create: yes
 
   # Read the public key content from remote to display it
   - name: Read public key from remote
