@@ -1,0 +1,11 @@
+all:
+  children:
+
+    local:
+      hosts:
+        localhost:
+          ansible_connection: local
+
+    lxcs:
+      hosts:
+        10.24.4.101: {}
