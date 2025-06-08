@@ -34,7 +34,7 @@ def save_keys_to_file(keys_dict, vault_file):
     # Prepare output filename in same dir as vault_file
     vault_dir = os.path.dirname(os.path.abspath(vault_file))
     vault_base = os.path.splitext(os.path.basename(vault_file))[0]
-    output_file = os.path.join(vault_dir, f"{vault_base}_keys.yaml")
+    output_file = os.path.join(vault_dir, f"{vault_base}_keys.txt")
 
     try:
         with open(output_file, 'w') as f:

@@ -8,7 +8,7 @@
 
 ## Notes
 
-- `python3 vault-keys2.py group_vars/all/vault.yaml` to generate a list of all the vault keys.
+- `python3 vault-keys.py group_vars/all/vault.yaml` to generate a list of all the vault keys.
 - `ansible-playbook playbooks/configure-lxc.yaml --ask-vault-pass` to configure a lxc.
 - `ansible-playbook playbooks/create-admin.yaml --ask-vault-pass` to create a admin user.
 - `ansible-playbook playbooks/ansible-git.yaml --ask-vault-pass` to create a ansible github keys.
