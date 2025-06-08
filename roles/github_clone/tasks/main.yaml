@@ -1,0 +1,7 @@
+- name: Loop over repos and run tasks
+  include_tasks: looped_repo.yaml
+  loop: "{{ github_repos }}"
+  loop_control:
+    label: "{{ item.name }}"
+  vars:
+    current_repo: "{{ item }}"

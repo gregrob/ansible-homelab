@@ -1,0 +1,47 @@
+- block:
+    - name: Set repo variables
+      ansible.builtin.set_fact:
+        github_repo_name: "{{ current_repo.name }}"
+        github_repo_dest: "{{ current_repo.dest }}"
+        github_key_comment: "{{ admin_user }}@{{ inventory_hostname }} (repo: {{ current_repo.name }})"
+
+    - name: Include github_keygen role for {{ github_repo_name }}
+      ansible.builtin.include_role:
+        name: github_keygen
+
+    - name: Display confirmation box and public key
+      ansible.builtin.debug:
+        msg:
+          - "┌──────────────────────────────────────────────────────────────┐"
+          - "│ Please confirm that the SSH public key has been added to the │"
+          - "│ GitHub repository's deploy keys or your account SSH keys.    │"
+          - "│                                                              │"
+          - "│ Press Enter to continue or Ctrl+C to abort.                  │"
+          - "└──────────────────────────────────────────────────────────────┘"
+          - "SSH public key for {{ github_repo_name }}:"
+          - "{{ public_key_content.content | b64decode | trim }}"
+
+    - name: Wait for user to confirm
+      ansible.builtin.pause:
+        prompt: "Press Enter to continue..."
+
+    - name: Ensure repo folder exists
+      ansible.builtin.file:
+        path: "{{ github_repo_dest }}"
+        state: directory
+        owner: "{{ admin_user }}"
+        group: "{{ admin_group }}"
+        mode: '0755'
+      become: yes
+      become_user: root # incase the root directory is not owned by the admin user
+
+    - name: Clone GitHub repo
+      ansible.builtin.git:
+        repo: "git@github.com-{{ github_repo_name }}:{{ github_user }}/{{ github_repo_name }}.git"
+        dest: "{{ github_repo_dest }}"
+        version: main
+        accept_hostkey: yes
+        key_file: "/home/{{ admin_user }}/.ssh/github-repo_{{ github_repo_name }}"
+
+  become: yes
+  become_user: "{{ admin_user }}"    
