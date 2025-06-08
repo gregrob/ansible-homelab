@@ -1,8 +1,10 @@
 admin_user: admin               # Username for the administrative user
+admin_password: password        # Password for the admin user (should be added to the VAULT)
 admin_group: admin              # Group name for the administrative user
 admin_full_name: Administrator  # Full name for the admin user (for GECOS or display)
 admin_uid: 1000                 # User ID for the admin user
 admin_gid: 1000                 # Group ID for the admin group
+ansible_controller_pubkey: sec  # Public key for the Ansible controller (to be added to the VAULT)
 admin_supplementary_groups:     # List of supplementary groups the admin user should belong to
   - adm
   - sudo
