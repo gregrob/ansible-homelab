@@ -1,0 +1,10 @@
+- name: Generate ansible github keys
+  hosts: lxcs
+  vars:
+    admin_user: admin
+    admin_group: admin
+  become: yes
+  vars_files:
+    - group_vars/all/vault.yaml
+  roles:
+    - github_clone
