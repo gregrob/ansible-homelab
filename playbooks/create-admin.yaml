@@ -5,4 +5,4 @@
     - ../group_vars/all/vault.yaml
   roles:
     - admin_user # create admin user with sudo privileges
-    - git_setup # configure git user details and keys for 
+    - git_setup # configure git user details and keys 
