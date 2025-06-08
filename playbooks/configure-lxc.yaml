@@ -10,3 +10,4 @@
     - git_setup
     - docker_setup
     - lxc_share_user
+    - github_clone
