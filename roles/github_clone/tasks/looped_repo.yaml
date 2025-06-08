@@ -1,14 +1,18 @@
 - block:
+
+    # Set repo-specific variables based on current_repo loop item
     - name: Set repo variables
       ansible.builtin.set_fact:
         github_repo_name: "{{ current_repo.name }}"
         github_repo_dest: "{{ current_repo.dest }}"
         github_key_comment: "{{ admin_user }}@{{ inventory_hostname }} (repo: {{ current_repo.name }})"
 
+    # Generate an SSH key for the repo if it doesn't exist
     - name: Include github_keygen role for {{ github_repo_name }}
       ansible.builtin.include_role:
         name: github_keygen
 
+    # Display a user-friendly message with the public key and confirmation instructions
     - name: Display confirmation box and public key
       ansible.builtin.debug:
         msg:
@@ -21,10 +25,13 @@
           - "SSH public key for {{ github_repo_name }}:"
           - "{{ public_key_content.content | b64decode | trim }}"
 
+    # Pause the playbook until the user confirms the key has been added
     - name: Wait for user to confirm
       ansible.builtin.pause:
         prompt: "Press Enter to continue..."
 
+    # Ensure the repo directory exists with the correct permissions
+    # Run as root in case parent directory (e.g. /srv) is not owned by admin_user
     - name: Ensure repo folder exists
       ansible.builtin.file:
         path: "{{ github_repo_dest }}"
@@ -33,8 +40,9 @@
         group: "{{ admin_group }}"
         mode: '0755'
       become: yes
-      become_user: root # incase the root directory is not owned by the admin user
+      become_user: root
 
+    # Clone the GitHub repository using the generated SSH key
     - name: Clone GitHub repo
       ansible.builtin.git:
         repo: "git@github.com-{{ github_repo_name }}:{{ github_user }}/{{ github_repo_name }}.git"
@@ -43,5 +51,6 @@
         accept_hostkey: yes
         key_file: "/home/{{ admin_user }}/.ssh/github-repo_{{ github_repo_name }}"
 
+  # Run the entire block with escalated privileges as the admin user
   become: yes
-  become_user: "{{ admin_user }}"    
+  become_user: "{{ admin_user }}"

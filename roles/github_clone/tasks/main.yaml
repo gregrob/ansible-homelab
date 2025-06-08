@@ -1,7 +1,8 @@
+# Loop through the list of GitHub repositories and perform tasks for each
 - name: Loop over repos and run tasks
-  include_tasks: looped_repo.yaml
-  loop: "{{ github_repos }}"
+  include_tasks: looped_repo.yaml   # Includes tasks from a separate YAML file
+  loop: "{{ github_repos }}"        # Iterates over the list of repos defined in 'github_repos'
   loop_control:
-    label: "{{ item.name }}"
+    label: "{{ item.name }}"        # Displays the current repo name in task output for clarity
   vars:
-    current_repo: "{{ item }}"
+    current_repo: "{{ item }}"      # Sets the current repo item to 'current_repo' for use in the included tasks
