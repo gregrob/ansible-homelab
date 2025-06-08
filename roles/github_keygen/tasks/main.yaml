@@ -60,7 +60,5 @@
         - "SSH public key for {{ github_repo_name }}:"
         - "{{ public_key_content.content | b64decode | trim }}"
 
-
-
   become: yes
   become_user: "{{ admin_user }}"
