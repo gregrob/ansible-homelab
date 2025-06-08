@@ -36,6 +36,18 @@
     user: "{{ admin_user }}"
     key: "{{ ansible_controller_pubkey }}"
     state: present
+    exclusive: false  # Do not want to overwrite other keys
+    manage_dir: false  # We already ensured the directory exists
+
+# Copy the Generic controller's public SSH key into the admin user's authorized_keys
+# allowing passwordless SSH login from the control machine
+- name: Copy the generic controller public key to admin user authorized_keys
+  ansible.builtin.authorized_key:
+    user: "{{ admin_user }}"
+    key: "{{ generic_controller_pubkey }}"
+    state: present
+    exclusive: false  # Do not want to overwrite other keys
+    manage_dir: false  # We already ensured the directory exists
 
 # Pre-create the .ansible/tmp directory to avoid warnings from become_user tasks
 - name: Ensure .ansible/tmp directory exists for admin user
