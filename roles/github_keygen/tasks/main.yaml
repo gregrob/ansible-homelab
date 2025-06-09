@@ -1,5 +1,10 @@
 - block:
 
+  # Create a variable for the filename base for the GitHub repo SSH key    
+  - name: Set SSH key base path for GitHub repo
+    ansible.builtin.set_fact:
+      github_key_filename_base: "/home/{{ admin_user }}/.ssh/id_ed25519_github-repo_{{ github_repo_name }}"
+
   # Ensure the .ssh directory exists with correct permissions and ownership
   - name: ensure ~/.ssh directory exists
     ansible.builtin.file:
@@ -12,7 +17,7 @@
   # Generate a new SSH key for the GitHub repo if one doesn't already exist
   - name: generate SSH key for GitHub repo
     ansible.builtin.openssh_keypair:
-      path: "/home/{{ admin_user }}/.ssh/github-repo_{{ github_repo_name }}"
+      path: "{{ github_key_filename_base }}"
       type: ed25519
       force: false   # do not overwrite if key already exists
       comment: "{{ github_key_comment | default(admin_user ~ '@' ~ inventory_hostname ~ ' (repo: ' ~ github_repo_name ~ ')') }}"
@@ -21,7 +26,7 @@
   # Fix permissions on the public key to be world-readable  
   - name: Set correct permissions on public key
     ansible.builtin.file:
-      path: "/home/{{ admin_user }}/.ssh/github-repo_{{ github_repo_name }}.pub"
+      path: "{{ github_key_filename_base }}.pub"
       mode: '0644'
 
   - name: Ensure SSH config file exists with proper permissions
@@ -44,13 +49,13 @@
         Host github.com-{{ github_repo_name }}
           HostName github.com
           User git
-          IdentityFile /home/{{ admin_user }}/.ssh/github-repo_{{ github_repo_name }}
+          IdentityFile {{ github_key_filename_base }}
           IdentitiesOnly yes
 
   # Read the public key content from remote to display it
   - name: Read public key from remote
     ansible.builtin.slurp:
-      src: "/home/{{ admin_user }}/.ssh/github-repo_{{ github_repo_name }}.pub"
+      src: "{{ github_key_filename_base }}.pub"
     register: public_key_content
 
   # Show the public key for GitHub (decoded and trimmed)
