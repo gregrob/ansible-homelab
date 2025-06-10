@@ -1,0 +1,5 @@
+secret_server:
+  hostname: secrets.com              # DNS hostname or IP address of the secrets server
+  admin_user: admin                  # Admin user with privileges to perform setup or configuration
+  admin_password: password           # Admin user's password (to be added to the VAULT)
+  secrets_user: secrets              # The non-admin user account used to run secrets-related services

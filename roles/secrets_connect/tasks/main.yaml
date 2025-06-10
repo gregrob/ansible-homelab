@@ -1,0 +1,83 @@
+# assumes age is installed on the target system
+
+- block:
+
+  # Create a variable for the filename base for the secrets server SSH key    
+  - name: Set SSH key base path for secrets key
+    ansible.builtin.set_fact:
+      secrets_key_filename_base: "/home/{{ admin_user }}/.ssh/id_ed25519_secrets-server"
+
+  # Ensure the .ssh directory exists with correct permissions and ownership
+  - name: ensure ~/.ssh directory exists
+    ansible.builtin.file:
+      path: "/home/{{ admin_user }}/.ssh"
+      state: directory
+      mode: '0700'
+      owner: "{{ admin_user }}"
+      group: "{{ admin_group }}"
+
+  # Generate a new SSH key for the secrets server if one doesn't already exist
+  - name: generate SSH key for Secrets server
+    ansible.builtin.openssh_keypair:
+      path: "{{ secrets_key_filename_base }}"
+      type: ed25519
+      force: false   # do not overwrite if key already exists
+      comment: "{{ secrets_key_comment | default(admin_user ~ '@' ~ inventory_hostname ~ ' (secrets server)') }}"
+      mode: '0600'   # private key permission
+
+  # Read the generated public key into a variable
+  - name: Read generated public key
+    ansible.builtin.slurp:
+      src: "{{ secrets_key_filename_base }}.pub"
+    register: secrets_pubkey_content
+
+  # Fix permissions on the public key to be world-readable  
+  - name: Set correct permissions on public key
+    ansible.builtin.file:
+      path: "{{ secrets_key_filename_base }}.pub"
+      mode: '0644'
+
+  # Add the secrets server host to the inventory dynamically
+  - name: Add secret server host dynamically
+    ansible.builtin.add_host:
+      name: secrets_server
+      ansible_host: "{{ secret_server.hostname }}"
+      ansible_user: "{{ secret_server.admin_user }}"
+      ansible_ssh_pass: "{{ secret_server.admin_password }}"
+      ansible_become_password: "{{ secret_server.admin_password }}"
+      groups:
+        - secrets_access
+
+  # Run additional secrets server operations on the dynamically added secrets_server host
+  - name: Run secrets server operations on secrets_server
+    ansible.builtin.include_tasks: secrets_server_tasks.yaml
+    vars:
+      ansible_host: "{{ secret_server.hostname }}"
+      ansible_user: "{{ secret_server.admin_user }}"
+      ansible_ssh_pass: "{{ secret_server.admin_password }}"
+      ansible_become_password: "{{ secret_server.admin_password }}"
+
+  # Register the secrets file path for decryption
+  - name: Register secrets file path for decryption
+    ansible.builtin.set_fact:
+      secrets_file_path: "/srv/secrets/encrypted/test/test-code-string.secret.age"
+
+  # Construct the command using a template
+  - name: Construct command for decrypting secrets
+    ansible.builtin.set_fact:
+      decrypt_command: >-
+        ssh {{ secret_server.secrets_user }}@{{ secret_server.hostname }}
+        'cat {{ secrets_file_path }}' | age -d -i {{ secrets_key_filename_base }}
+
+  # Decrypt the secrets using the constructed command
+  - name: Decrypt the secrets using the constructed command
+    ansible.builtin.shell: "{{ decrypt_command }}"
+    register: decrypted_output
+
+  # Display the output of the decryption command
+  - name: Display output of encryption command
+    ansible.builtin.debug:
+      var: decrypted_output.stdout
+
+  become: yes
+  become_user: "{{ admin_user }}"
