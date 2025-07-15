@@ -13,6 +13,12 @@
 - `ansible-playbook playbooks/create-admin.yaml --ask-vault-pass` to create a admin user.
 - `ansible-playbook playbooks/ansible-git.yaml --ask-vault-pass` to create a ansible github keys.
 
+## TODO
+
+- ☐ Fix Docker log spammer - `fix_docker_log_spammer()`
+- ☐ Network tuning for 10GbE
+- ☐ Break out proper playbooks
+
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

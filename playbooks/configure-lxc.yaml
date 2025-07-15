@@ -1,3 +1,5 @@
+---
+
 - name: Configure Debian LXC Container
   hosts: lxcs
   become: yes
@@ -5,11 +7,11 @@
     - ../group_vars/all/vault.yaml
   roles:
     - disable_systemd_networkd # lxc uses ifupdown, not systemd-networkd
-    - packages
-    - timezone
-    - admin_user
-    - git_setup
-    - docker_setup
-    - lxc_share_user
-    - github_clone
-    - secrets_connect
+    - packages                 # update system and install common packages
+    - timezone                 # configure system timezone
+    - admin_user               # create admin user with SSH access
+    - git_setup                # configure git settings and GitHub SSH key
+    - docker_setup             # install and configure Docker with admin access
+    - lxc_share_user           # setup LXC shared folder access with proper GID mapping
+    - github_clone             # clone GitHub repositories with SSH key authentication
+    - secrets_connect          # setup SSH connection to secrets server and decrypt secrets
