@@ -1,4 +1,18 @@
-# assumes age is installed on the target system
+---
+# Role to set up SSH key-based authentication with a secrets server and decrypt secrets using age encryption.
+# Assumes age is installed on the target system.
+#
+# Steps performed:
+#  1. Set SSH key base path for secrets server connection
+#  2. Ensure .ssh directory exists with proper permissions
+#  3. Generate ED25519 SSH key pair for secrets server (if not exists)
+#  4. Read the generated public key into a variable
+#  5. Set correct permissions on the public key file
+#  6. Add secrets server host dynamically to inventory
+#  7. Run secrets server operations (add SSH key to authorized_keys, encrypt secrets) - done under included tasks
+#  8. Register secrets file path for decryption
+#  9. Construct SSH command for decrypting secrets via age
+#  10. Execute decryption command and display output
 
 - block:
 

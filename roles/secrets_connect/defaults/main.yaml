@@ -1,3 +1,6 @@
+--- 
+# Default variables for the secrets_connect role
+
 secret_server:
   hostname: secrets.com              # DNS hostname or IP address of the secrets server
   admin_user: admin                  # Admin user with privileges to perform setup or configuration
