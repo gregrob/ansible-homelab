@@ -1,0 +1,20 @@
+---
+# Role to stop systemd-networkd and systemd-networkd-wait-online services in LXC containers
+# to avoid apt-daily.service being blocked due to network connectivity timeouts.
+#
+# LXC uses ifupdown (/etc/network/interfaces) for networking, so systemd-networkd is unnecessary.
+# Reference: https://forum.proxmox.com/threads/lxc-debian-12-brand-new-issue-with-systemd-networkd-wait-online-and-apt.139404/
+
+- name: Stop systemd-networkd service
+  ansible.builtin.systemd:
+    name: systemd-networkd.service
+    state: stopped
+  become: yes
+  ignore_errors: yes   # Continue play even if this task fails (e.g., service not present)
+
+- name: Stop systemd-networkd-wait-online service
+  ansible.builtin.systemd:
+    name: systemd-networkd-wait-online.service
+    state: stopped
+  become: yes
+  ignore_errors: yes   # Continue play even if this task fails (e.g., service not present)
