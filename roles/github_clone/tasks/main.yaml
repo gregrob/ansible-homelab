@@ -1,3 +1,15 @@
+---
+# Included tasks to handle individual GitHub repository cloning with SSH key generation.
+# This file is called in a loop for each repository defined in the github_clone role.
+#
+# Steps performed:
+#  1. Set repository-specific variables from the current loop item
+#  2. Include github_keygen role to generate SSH keys for the repository - included tasks
+#  3. Display confirmation message with public key for manual GitHub setup - included tasks
+#  4. Pause execution for user to confirm SSH key has been added to GitHub - included tasks
+#  5. Ensure repository destination directory exists with correct permissions - included tasks
+#  6. Clone the GitHub repository using the generated SSH key - included tasks
+
 # Loop through the list of GitHub repositories and perform tasks for each
 - name: Loop over repos and run tasks
   include_tasks: looped_repo.yaml   # Includes tasks from a separate YAML file

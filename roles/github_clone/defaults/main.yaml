@@ -1,3 +1,6 @@
+--- 
+# Default variables for the github_clone role
+
 # Github user name
 github_user: "johnsmith"
 

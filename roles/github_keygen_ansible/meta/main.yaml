@@ -1,3 +1,10 @@
+---
+# Role meta file to generate SSH keys specifically for the ansible-homelab repository.
+# This role depends on the github_keygen role and passes the repository name as a variable.
+#
+# Steps performed:
+#  1. Calls github_keygen role with github_repo_name set to "ansible-homelab"
+
 dependencies:
   - role: github_keygen
     vars:

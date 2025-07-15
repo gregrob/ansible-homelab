@@ -1,3 +1,17 @@
+---
+# Role to generate SSH keys for GitHub repository access and configure SSH client settings.
+# Creates repository-specific SSH keys and configures SSH client to use them for GitHub connections.
+#
+# Steps performed:
+#  1. Set SSH key base path for the specific GitHub repository
+#  2. Ensure .ssh directory exists with proper permissions
+#  3. Generate ED25519 SSH key pair for GitHub repository (if not exists)
+#  4. Set correct permissions on the public key file
+#  5. Ensure SSH config file exists with proper permissions
+#  6. Add GitHub SSH config entry for repository-specific key usage
+#  7. Read the generated public key content
+#  8. Display the public key for manual addition to GitHub repository settings
+
 - block:
 
   # Create a variable for the filename base for the GitHub repo SSH key    
