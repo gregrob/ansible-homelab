@@ -1,6 +1,7 @@
 ---
 # Role to create an admin user on a target system.
-# It performs the following steps:
+#
+# Steps performed:
 #  1. Creates the admin group with specified GID
 #  2. Creates the admin user with specified UID, groups, password, and shell
 #  3. Sets up SSH directory with proper permissions

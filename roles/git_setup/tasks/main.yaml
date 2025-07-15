@@ -1,7 +1,7 @@
 ---
 # Role to configure Git settings and SSH connectivity for the admin user
 #
-# This role performs the following steps:
+# Steps performed:
 #  1. Configures Git global user.name and user.email settings for the admin user
 #  2. Adds GitHub's SSH public key to known_hosts to avoid SSH authenticity prompts
 

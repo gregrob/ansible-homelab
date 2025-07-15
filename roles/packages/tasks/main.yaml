@@ -1,3 +1,14 @@
+---
+# Role to update the system and install common packages.
+# Performs system maintenance including package updates, cleanup, and installation of essential tools.
+#
+# Steps performed:
+#  1. Update apt package cache and perform full system upgrade (dist-upgrade)
+#  2. Remove automatically installed packages that are no longer needed
+#  3. Check if a system reboot is required after updates
+#  4. Reboot the system if the reboot-required flag is present
+#  5. Install predefined list of common/default packages
+
 # Refresh the apt package index and perform a full system upgrade (dist-upgrade)
 - name: Update apt cache and upgrade packages
   ansible.builtin.apt:

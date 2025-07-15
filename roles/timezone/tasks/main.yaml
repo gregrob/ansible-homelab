@@ -1,3 +1,9 @@
+---
+# Role to configure the system timezone.
+#
+# Steps performed:
+#  1. Set the system timezone using the timezone_name variable
+
 # Set the system timezone using the specified variable
 - name: Set timezone
   ansible.builtin.timezone:

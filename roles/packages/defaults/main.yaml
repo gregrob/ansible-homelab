@@ -1,3 +1,7 @@
+--- 
+# Default variables for the packages role
+
+# List of common packages to be installed on the system
 common_packages:
   - sudo    # Allows permitted users to run commands as another user (typically root)
   - iperf3  # Network bandwidth measurement tool

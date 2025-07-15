@@ -1,7 +1,7 @@
 ---
 # Role to install and configure Docker on Debian/Ubuntu systems
 # 
-# This role performs the following steps:
+# Steps performed:
 #  1. Sets Docker architecture fact based on system architecture
 #  2. Extracts OS codename from /etc/os-release
 #  3. Shows detected system information for verification

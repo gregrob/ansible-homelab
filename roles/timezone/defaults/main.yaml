@@ -1,1 +1,4 @@
+--- 
+# Default variables for the timezone role
+
 timezone_name: Australia/Melbourne   # Timezone to set on the target hosts

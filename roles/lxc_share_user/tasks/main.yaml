@@ -1,3 +1,13 @@
+---
+# Role to set up LXC shared folder access by creating a lxc_shares group with GID 10000
+# (which maps to GID 110000 on the Proxmox host) and adding users to this group.
+# This enables proper file permissions for mounted shared folders in unprivileged LXC containers.
+#
+# Steps performed:
+# 1. Display information about GID mapping between LXC container and Proxmox host
+# 2. Create the lxc_shares group with GID 10000
+# 3. Add the admin user to the lxc_shares group
+
 # Message how this mapping will work
 - name: Show info about lxc_shares group and GID mapping
   ansible.builtin.debug:
