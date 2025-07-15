@@ -1,3 +1,12 @@
+---
+# Role to create an admin user on a target system.
+# It performs the following steps:
+#  1. Creates the admin group with specified GID
+#  2. Creates the admin user with specified UID, groups, password, and shell
+#  3. Sets up SSH directory with proper permissions
+#  4. Adds Ansible controller and generic controller (i.e. main systems access) SSH keys for passwordless access
+#  5. Pre-creates .ansible/tmp directory to avoid become_user warnings
+
 # Ensure the admin group exists with the specified GID
 - name: Ensure admin group exists with correct gid
   ansible.builtin.group:

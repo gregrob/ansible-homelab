@@ -1,3 +1,6 @@
+--- 
+# Default variables for the git_setup role
+
 # git user email
 git_email: "john@home.com"
 

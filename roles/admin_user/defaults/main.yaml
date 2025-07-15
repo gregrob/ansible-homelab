@@ -1,3 +1,6 @@
+--- 
+# Default variables for the admin_user role
+
 admin_user: admin               # Username for the administrative user
 admin_password: password        # Password for the admin user (should be added to the VAULT)
 admin_group: admin              # Group name for the administrative user

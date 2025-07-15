@@ -1,3 +1,17 @@
+---
+# Role to install and configure Docker on Debian/Ubuntu systems
+# 
+# This role performs the following steps:
+#  1. Sets Docker architecture fact based on system architecture
+#  2. Extracts OS codename from /etc/os-release
+#  3. Shows detected system information for verification
+#  4. Installs required packages (ca-certificates, curl) for Docker setup
+#  5. Creates /etc/apt/keyrings directory for GPG keys
+#  6. Downloads Docker's official GPG key
+#  7. Adds Docker's APT repository to package sources
+#  8. Installs Docker CE packages and plugins (docker-ce, docker-ce-cli, containerd.io, buildx, compose)
+#  9. Adds the admin user to the docker group for non-root Docker access
+
 # Set Docker architecture fact based on Ansible architecture
 - name: set docker architecture fact
   ansible.builtin.set_fact:
