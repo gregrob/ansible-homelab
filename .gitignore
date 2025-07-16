@@ -1,4 +1,5 @@
-# Ignore all vault files with .yml or .yaml extension
-**/vault.yml
+# Ignore all vault files or private group_vars with .yaml extension
 **/vault.yaml
+**/git-user.yaml
+**/github-ansible.yaml
 .ansible_vault_pass.txt

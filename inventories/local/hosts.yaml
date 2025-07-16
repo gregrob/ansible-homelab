@@ -4,11 +4,15 @@
 all:
   children:
 
+    ansible:
+      hosts:
+        ansible-001.containers.max.lan: {}
+
+    lxcs:
+      children:
+        ansible:
+
     local:
       hosts:
         localhost:
           ansible_connection: local
-
-    lxcs:
-      hosts:
-        10.24.4.101: {}
