@@ -12,6 +12,10 @@ all:
       children:
         ansible:
 
+    test:
+      hosts:
+        10.24.4.101: {}
+        
     local:
       hosts:
         localhost:
