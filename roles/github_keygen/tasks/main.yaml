@@ -7,10 +7,9 @@
 #  2. Ensure .ssh directory exists with proper permissions
 #  3. Generate ED25519 SSH key pair for GitHub repository (if not exists)
 #  4. Set correct permissions on the public key file
-#  5. Ensure SSH config file exists with proper permissions
-#  6. Add GitHub SSH config entry for repository-specific key usage
-#  7. Read the generated public key content
-#  8. Display the public key for manual addition to GitHub repository settings
+#  5. Add GitHub SSH config entry for repository-specific key usage
+#  6. Read the generated public key content
+#  7. Display the public key for manual addition to GitHub repository settings
 
 - block:
 
@@ -43,14 +42,7 @@
       path: "{{ github_key_filename_base }}.pub"
       mode: '0644'
 
-  - name: Ensure SSH config file exists with proper permissions
-    ansible.builtin.file:
-      path: "/home/{{ admin_user }}/.ssh/config"
-      state: touch
-      mode: '0600'
-      owner: "{{ admin_user }}"
-      group: "{{ admin_group }}"
-
+  # Add github.com specific SSH config entry for the repository
   - name: Add GitHub SSH config entry for repo {{ github_repo_name }}
     ansible.builtin.blockinfile:
       path: "/home/{{ admin_user }}/.ssh/config"
