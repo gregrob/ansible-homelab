@@ -4,8 +4,8 @@
 # Steps performed:
 #  1. Install ansible
 
-# Install the predefined list of common packages
-- name: Install common / default packages
+# Install ansible package
+- name: Install ansible package
   ansible.builtin.apt:
     name: "ansible"
     state: present
