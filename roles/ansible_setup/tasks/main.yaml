@@ -2,10 +2,12 @@
 # Role to install and configure Ansible on Debian/Ubuntu systems
 #
 # Steps performed:
-#  1. Install ansible
+#  1. Install required packages for Ansible
 
-# Install ansible package
-- name: Install ansible package
+- name: Install required packages for Ansible
   ansible.builtin.apt:
-    name: "ansible"
+    name:
+      - ansible
+      - sshpass # only if playbook tries to use password authentication
     state: present
+    update_cache: yes
