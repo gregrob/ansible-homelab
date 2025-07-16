@@ -82,7 +82,7 @@
   - name: Add secrets server to known_hosts
     ansible.builtin.known_hosts:
       name: "{{ secret_server.hostname }}"
-      key: "{{ lookup('pipe', 'ssh-keyscan -H ' + secret_server.hostname) }}"
+      key: "{{ lookup('pipe', 'ssh-keyscan ' + secret_server.hostname) }}"
       path: "/home/{{ admin_user }}/.ssh/known_hosts"
 
   # Add the secrets server host to the inventory dynamically
