@@ -8,11 +8,14 @@
 #  3. Generate ED25519 SSH key pair for secrets server (if not exists)
 #  4. Read the generated public key into a variable
 #  5. Set correct permissions on the public key file
-#  6. Add secrets server host dynamically to inventory
-#  7. Run secrets server operations (add SSH key to authorized_keys, encrypt secrets) - done under included tasks
-#  8. Register secrets file path for decryption
-#  9. Construct SSH command for decrypting secrets via age
-#  10. Execute decryption command and display output
+#  6. Create SSH config file with secure permissions if it doesn't exist
+#  7. Add SSH config entry to automatically use the secrets server key and user
+#  8. Add secrets server to known_hosts to avoid SSH host key verification prompts
+#  9. Add secrets server host dynamically to inventory
+#  10. Run secrets server operations (add SSH key to authorized_keys, encrypt secrets) - done under included tasks
+#  11. Register secrets file path for decryption
+#  12. Construct SSH command for decrypting secrets via age
+#  13. Execute decryption command and display output
 
 - block:
 
@@ -50,6 +53,37 @@
     ansible.builtin.file:
       path: "{{ secrets_key_filename_base }}.pub"
       mode: '0644'
+
+  # Create SSH config file with secure permissions if it doesn't exist
+  - name: Ensure SSH config file exists with proper permissions
+    ansible.builtin.file:
+      path: "/home/{{ admin_user }}/.ssh/config"
+      state: touch
+      mode: '0600'
+      owner: "{{ admin_user }}"
+      group: "{{ admin_group }}"
+
+  # Add SSH config entry to automatically use the secrets server key and user
+  - name: Add SSH config entry for secrets.max.lan
+    ansible.builtin.blockinfile:
+      path: "/home/{{ admin_user }}/.ssh/config"
+      owner: "{{ admin_user }}"
+      group: "{{ admin_group }}"
+      mode: '0600'
+      create: yes
+      marker: "# {mark} ANSIBLE MANAGED SSH CONFIG for {{ secret_server.hostname }}"
+      block: |
+        Host {{ secret_server.hostname }}
+          User {{ secret_server.secrets_user }}
+          IdentityFile {{ secrets_key_filename_base }}
+          IdentitiesOnly yes
+
+  # Add secrets server to known_hosts to avoid SSH host key verification prompts
+  - name: Add secrets server to known_hosts
+    ansible.builtin.known_hosts:
+      name: "{{ secret_server.hostname }}"
+      key: "{{ lookup('pipe', 'ssh-keyscan -H ' + secret_server.hostname) }}"
+      path: "/home/{{ admin_user }}/.ssh/known_hosts"
 
   # Add the secrets server host to the inventory dynamically
   - name: Add secret server host dynamically
