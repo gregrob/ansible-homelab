@@ -7,6 +7,7 @@
 #  3. Sets up SSH directory with proper permissions
 #  4. Adds Ansible controller and generic controller (i.e. main systems access) SSH keys for passwordless access
 #  5. Pre-creates .ansible/tmp directory to avoid become_user warnings
+#  6. Sets the default text editor to nano by adding EDITOR environment variable to .bashrc
 
 # Ensure the admin group exists with the specified GID
 - name: Ensure admin group exists with correct gid
@@ -68,3 +69,15 @@
     owner: "{{ admin_user }}"
     group: "{{ admin_user }}"
     mode: '0700'
+
+# Set the default text editor to nano for the admin user by adding EDITOR environment variable to .bashrc
+- name: Set EDITOR environment variable to nano for admin_user
+  ansible.builtin.lineinfile:
+    path: "/home/{{ admin_user }}/.bashrc"
+    regexp: '^export EDITOR='
+    line: 'export EDITOR=nano'
+    state: present
+    create: yes
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: '0644'
