@@ -17,4 +17,6 @@
     - lxc_share_user           # setup LXC shared folder access with proper GID mapping
     - github_clone             # clone GitHub repositories with SSH key authentication
     - secrets_connect          # setup SSH connection to secrets server and decrypt secrets
+
+    - ansible_setup           # install and configure Ansible on the container
   
