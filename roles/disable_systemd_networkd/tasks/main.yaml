@@ -6,13 +6,15 @@
 # Reference: https://forum.proxmox.com/threads/lxc-debian-12-brand-new-issue-with-systemd-networkd-wait-online-and-apt.139404/
 #
 # Steps performed:
-#  1. Stops the systemd-networkd service (ignores errors if service doesn't exist)
-#  2. Stops the systemd-networkd-wait-online service (ignores errors if service doesn't exist)
+#  1. Stops the systemd-networkd service — not used with ifupdown and may interfere with LXC networking.
+#  2. Stops the systemd-networkd-wait-online service — prevents delays from waiting on unused networkd interfaces (e.g. apt-daily).
+#  3. Stops the systemd-networkd.socket unit — prevents systemd from restarting systemd-networkd via socket activation.
 
 - name: Stop systemd-networkd service
   ansible.builtin.systemd:
     name: systemd-networkd.service
     state: stopped
+    enabled: no        # Make sure the service is not enabled to start on boot
   become: yes
   ignore_errors: yes   # Continue play even if this task fails (e.g., service not present)
 
@@ -20,5 +22,14 @@
   ansible.builtin.systemd:
     name: systemd-networkd-wait-online.service
     state: stopped
+    enabled: no        # Make sure the service is not enabled to start on boot
+  become: yes
+  ignore_errors: yes   # Continue play even if this task fails (e.g., service not present)
+
+- name: Stop and disable systemd-networkd.socket
+  ansible.builtin.systemd:
+    name: systemd-networkd.socket
+    state: stopped
+    enabled: no        # Make sure the service is not enabled to start on boot
   become: yes
   ignore_errors: yes   # Continue play even if this task fails (e.g., service not present)
