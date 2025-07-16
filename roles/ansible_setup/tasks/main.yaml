@@ -1,0 +1,11 @@
+---
+# Role to install and configure Ansible on Debian/Ubuntu systems
+#
+# Steps performed:
+#  1. Install ansible
+
+# Install the predefined list of common packages
+- name: Install common / default packages
+  ansible.builtin.apt:
+    name: "ansible"
+    state: present
