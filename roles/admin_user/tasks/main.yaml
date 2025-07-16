@@ -6,8 +6,9 @@
 #  2. Creates the admin user with specified UID, groups, password, and shell
 #  3. Sets up SSH directory with proper permissions
 #  4. Adds Ansible controller and generic controller (i.e. main systems access) SSH keys for passwordless access
-#  5. Pre-creates .ansible/tmp directory to avoid become_user warnings
-#  6. Sets the default text editor to nano by adding EDITOR environment variable to .bashrc
+#  5. Disables HashKnownHosts in SSH config for easier known_hosts management
+#  6. Pre-creates .ansible/tmp directory to avoid become_user warnings
+#  7. Sets the default text editor to nano by adding EDITOR environment variable to .bashrc
 
 # Ensure the admin group exists with the specified GID
 - name: Ensure admin group exists with correct gid
@@ -49,6 +50,19 @@
     state: present
     exclusive: false  # Do not want to overwrite other keys
     manage_dir: false  # We already ensured the directory exists
+
+# Disable HashKnownHosts in SSH config to keep known_hosts file readable for easier management
+- name: Disable HashKnownHosts for admin user
+  ansible.builtin.blockinfile:
+    path: "/home/{{ admin_user }}/.ssh/config"
+    create: yes
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+    mode: '0600'
+    marker: "# {mark} ANSIBLE MANAGED HASHKNOWNHOSTS BLOCK"
+    block: |
+      Host *
+        HashKnownHosts no
 
 # Copy the Generic controller's public SSH key into the admin user's authorized_keys
 # allowing passwordless SSH login from the control machine
