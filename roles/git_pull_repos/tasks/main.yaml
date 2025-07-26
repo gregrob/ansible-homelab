@@ -1,0 +1,109 @@
+---
+# Role to perform git pull on all Git repositories in subdirectories of a base folder
+#
+# Steps performed:
+#  1. Display configuration
+#  2. Validate that the base folder exists
+#  3. Find all first-level subdirectories
+#  4. Check which subdirectories are Git repositories
+#  5. Perform git pull on each Git repository
+#  6. Display results summary
+
+# Display the configuration being used
+- name: Display git pull configuration
+  ansible.builtin.debug:
+    msg:
+      - "=== Git Pull Configuration ==="
+      - "Base folder: {{ git_base_folder }}"
+      - "Default branch: {{ git_default_branch }}"
+      - "Force pull: {{ git_force_pull }}"
+      - "Target host: {{ inventory_hostname }}"
+
+# Ensure the base folder exists
+- name: Check if base folder exists
+  ansible.builtin.stat:
+    path: "{{ git_base_folder }}"
+  register: base_folder_stat
+
+# Fail if base folder doesn't exist
+- name: Fail if base folder does not exist
+  ansible.builtin.fail:
+    msg: "Base folder {{ git_base_folder }} does not exist!"
+  when: not base_folder_stat.stat.exists or not base_folder_stat.stat.isdir
+
+# Find all first-level subdirectories
+- name: Find first-level subdirectories
+  ansible.builtin.find:
+    paths: "{{ git_base_folder }}"
+    file_type: directory
+    depth: 1
+  register: subdirectories
+
+# Display found subdirectories
+- name: Display found subdirectories
+  ansible.builtin.debug:
+    msg: "Found {{ subdirectories.files | length }} subdirectories in {{ git_base_folder }}"
+
+# Check which subdirectories are Git repositories
+- name: Check for Git repositories
+  ansible.builtin.stat:
+    path: "{{ item.path }}/.git"
+  register: git_repos_check
+  loop: "{{ subdirectories.files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+
+# Create list of Git repositories
+- name: Create list of Git repositories
+  ansible.builtin.set_fact:
+    git_repositories: "{{ git_repositories | default([]) + [item.item.path] }}"
+  when: item.stat.exists
+  loop: "{{ git_repos_check.results }}"
+  loop_control:
+    label: "{{ item.item.path | basename }}"
+
+# Display Git repositories found
+- name: Display Git repositories found
+  ansible.builtin.debug:
+    msg: 
+      - "Found {{ git_repositories | default([]) | length }} Git repositories:"
+      - "{{ git_repositories | default([]) | map('basename') | list }}"
+
+# Perform git pull on each repository as the repository owner
+- name: Perform git pull on repositories
+  ansible.builtin.git:
+    repo: "{{ item }}"
+    dest: "{{ item }}"
+    version: "{{ git_default_branch }}"
+    force: "{{ git_force_pull }}"
+  register: git_pull_results
+  loop: "{{ git_repositories | default([]) }}"
+  loop_control:
+    label: "{{ item | basename }}"
+  when: git_repositories is defined and git_repositories | length > 0
+  become: yes
+  become_user: "{{ git_user }}"
+
+# Display results summary
+- name: Display git pull results
+  ansible.builtin.debug:
+    msg:
+      - "Repository: {{ item.item | basename }}"
+      - "Status: {{ 'Changed' if item.changed else 'Up to date' }}"
+      - "Before: {{ item.before if item.before is defined else 'N/A' }}"
+      - "After: {{ item.after if item.after is defined else 'N/A' }}"
+  loop: "{{ git_pull_results.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item | basename }}"
+  when: git_pull_results is defined and git_pull_results.results is defined
+
+# Display final summary
+- name: Display final summary
+  ansible.builtin.debug:
+    msg:
+      - "=== Git Pull Summary ==="
+      - "Base folder: {{ git_base_folder }}"
+      - "Total subdirectories: {{ subdirectories.files | length }}"
+      - "Git repositories found: {{ git_repositories | default([]) | length }}"
+      - "Repositories updated: {{ git_pull_results.results | default([]) | selectattr('changed') | list | length }}"
+      - "Repositories up to date: {{ git_pull_results.results | default([]) | rejectattr('changed') | list | length }}"

@@ -1,0 +1,21 @@
+---
+# Git Pull Repositories playbook
+# Performs git pull on all Git repositories in subdirectories of a specified base folder
+#
+# Usage:
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/git-pull-repos.yaml
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/git-pull-repos.yaml -e git_base_folder=/home/user/projects
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/git-pull-repos.yaml -e "git_base_folder=/srv git_force_pull=true"
+
+- name: Git Pull All Repositories in Base Folder
+  hosts: git_hosts
+  gather_facts: yes
+  become: false
+  
+  vars_files:
+    - ../group_vars/all/vault.yaml  
+
+  tasks:
+    - name: Include git_pull_repos role
+      ansible.builtin.include_role:
+        name: git_pull_repos

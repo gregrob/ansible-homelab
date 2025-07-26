@@ -8,10 +8,6 @@ all:
       hosts:
         ansible-001.containers.max.lan: {}
 
-    lxcs:
-      children:
-        ansible:
-
     test:
       hosts:
         10.24.4.101: {}
@@ -20,3 +16,12 @@ all:
       hosts:
         localhost:
           ansible_connection: local
+
+    lxcs:
+      children:
+        ansible:
+    
+    git_hosts:
+      children:
+        test:
+        
