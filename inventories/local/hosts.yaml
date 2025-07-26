@@ -23,5 +23,5 @@ all:
     
     git_hosts:
       children:
-        test:
+        ansible:
         
