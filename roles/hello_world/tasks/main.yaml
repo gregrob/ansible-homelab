@@ -1,0 +1,46 @@
+---
+# Simple hello world role that demonstrates basic Ansible functionality
+#
+# Steps performed:
+#  1. Display a greeting message
+#  2. Show current working directory
+#  3. Execute ls -la command and display results
+#  4. Display system information
+
+# Display a friendly greeting message
+- name: Display hello world message
+  ansible.builtin.debug:
+    msg: 
+      - "Hello World from Ansible!"
+      - "This is a simple demonstration role."
+      - "Target host: {{ inventory_hostname }}"
+      - "Current user: {{ ansible_user_id }}"
+
+# Show the current working directory
+- name: Display current working directory
+  ansible.builtin.debug:
+    msg: "Current working directory: {{ ansible_env.PWD }}"
+
+# Execute ls -la command and capture output
+- name: Execute ls -la command
+  ansible.builtin.command:
+    cmd: ls -la
+  register: ls_output
+  changed_when: false  # This command doesn't change anything
+
+# Display the ls -la results
+- name: Display ls -la output
+  ansible.builtin.debug:
+    msg: 
+      - "Contents of current directory (ls -la):"
+      - "{{ ls_output.stdout_lines }}"
+
+# Display some basic system information
+- name: Display system information
+  ansible.builtin.debug:
+    msg:
+      - "System: {{ ansible_system }}"
+      - "Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+      - "Architecture: {{ ansible_architecture }}"
+      - "Date/Time: {{ ansible_date_time.iso8601 }}"
+      

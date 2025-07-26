@@ -1,0 +1,8 @@
+---
+# Default variables for hello_world role
+
+# Directory to list (defaults to current directory)
+list_directory: "."
+
+# Whether to show detailed output
+show_details: true

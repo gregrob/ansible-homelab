@@ -1,0 +1,13 @@
+---
+# Hello World playbook - demonstrates basic Ansible functionality
+# This playbook runs the hello_world role which displays a greeting and executes ls -la
+
+- name: Hello World Playbook
+  hosts: all
+  become: false
+
+  vars_files:
+    - ../group_vars/all/vault.yaml  
+    
+  roles:
+    - hello_world
