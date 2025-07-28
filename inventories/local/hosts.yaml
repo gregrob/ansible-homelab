@@ -24,4 +24,8 @@ all:
     git_hosts:
       children:
         ansible:
+    
+    update_hosts:
+      children:
+        ansible:
         

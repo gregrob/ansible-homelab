@@ -1,0 +1,128 @@
+---
+# Role to perform apt update and upgrade operations on Debian/Ubuntu systems
+#
+# Steps performed:
+#  1. Display configuration
+#  2. Update apt package cache
+#  3. Upgrade packages based on strategy
+#  4. Clean up package cache (optional)
+#  5. Check if reboot is required
+#  6. Display upgrade summary
+
+# Display the configuration being used
+- name: Display apt upgrade configuration
+  ansible.builtin.debug:
+    msg:
+      - "=== APT Upgrade Configuration ==="
+      - "Upgrade strategy: {{ apt_upgrade_strategy }}"
+      - "Auto remove unused packages: {{ apt_autoremove }}"
+      - "Clean package cache: {{ apt_clean_cache }}"
+      - "Auto reboot if required: {{ apt_auto_reboot }}"
+      - "Target host: {{ inventory_hostname }}"
+
+# Update apt package cache
+- name: Update apt package cache
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: "{{ apt_cache_valid_time }}"
+  register: apt_update_result
+  become: yes
+
+# Display cache update result
+- name: Display cache update result
+  ansible.builtin.debug:
+    msg: "APT cache updated: {{ 'Yes' if apt_update_result.changed else 'Cache was up to date' }}"
+
+# Get list of upgradable packages before upgrade
+- name: Check upgradable packages
+  ansible.builtin.command:
+    cmd: apt list --upgradable
+  register: upgradable_packages
+  changed_when: false
+  become: yes
+  when: apt_show_upgradable
+
+# Display upgradable packages
+- name: Display upgradable packages
+  ansible.builtin.debug:
+    msg: 
+      - "Packages available for upgrade:"
+      - "{{ upgradable_packages.stdout_lines[1:] if upgradable_packages.stdout_lines | length > 1 else ['No packages to upgrade'] }}"
+  when: apt_show_upgradable and upgradable_packages is defined
+
+# Perform upgrade based on strategy - safe upgrade
+- name: Perform safe upgrade (upgrade)
+  ansible.builtin.apt:
+    upgrade: yes
+    autoremove: "{{ apt_autoremove }}"
+    autoclean: "{{ apt_clean_cache }}"
+  register: apt_upgrade_result
+  become: yes
+  when: apt_upgrade_strategy == "safe"
+
+# Perform upgrade based on strategy - full upgrade
+- name: Perform full upgrade (dist-upgrade)
+  ansible.builtin.apt:
+    upgrade: full
+    autoremove: "{{ apt_autoremove }}"
+    autoclean: "{{ apt_clean_cache }}"
+  register: apt_upgrade_result
+  become: yes
+  when: apt_upgrade_strategy == "full"
+
+# Perform upgrade based on strategy - security only
+- name: Perform security upgrade only
+  ansible.builtin.apt:
+    upgrade: yes
+    autoremove: "{{ apt_autoremove }}"
+    autoclean: "{{ apt_clean_cache }}"
+    # Note: This requires unattended-upgrades package for proper security-only filtering
+  register: apt_upgrade_result
+  become: yes
+  when: apt_upgrade_strategy == "security"
+
+# Clean package cache if requested and not done above
+- name: Clean apt package cache
+  ansible.builtin.apt:
+    autoclean: yes
+  become: yes
+  when: apt_clean_cache and apt_upgrade_strategy == "none"
+
+# Auto-remove unused packages if requested and not done above
+- name: Remove unused packages
+  ansible.builtin.apt:
+    autoremove: yes
+  become: yes
+  when: apt_autoremove and apt_upgrade_strategy == "none"
+
+# Check if reboot is required
+- name: Check if reboot is required
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: reboot_required
+
+# Display reboot requirement
+- name: Display reboot requirement
+  ansible.builtin.debug:
+    msg: "{{ 'System reboot is REQUIRED' if reboot_required.stat.exists else 'No reboot required' }}"
+
+# Auto-reboot if configured and required
+- name: Reboot system if required and auto-reboot is enabled
+  ansible.builtin.reboot:
+    reboot_timeout: "{{ apt_reboot_timeout }}"
+    msg: "Rebooting due to package upgrades"
+  become: yes
+  when: 
+    - apt_auto_reboot
+    - reboot_required.stat.exists
+
+# Display upgrade summary
+- name: Display upgrade summary
+  ansible.builtin.debug:
+    msg:
+      - "=== APT Upgrade Summary ==="
+      - "Strategy used: {{ apt_upgrade_strategy }}"
+      - "Packages changed: {{ apt_upgrade_result.changed if apt_upgrade_result is defined else 'N/A' }}"
+      - "Cache updated: {{ apt_update_result.changed }}"
+      - "Reboot required: {{ 'Yes' if reboot_required.stat.exists else 'No' }}"
+      - "Auto-reboot performed: {{ 'Yes' if (apt_auto_reboot and reboot_required.stat.exists) else 'No' }}"

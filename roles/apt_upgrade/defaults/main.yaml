@@ -1,0 +1,30 @@
+---
+# Default variables for apt_upgrade role
+
+# Upgrade strategy:
+# "safe" - standard upgrade (apt upgrade)
+# "full" - full upgrade including new dependencies (apt dist-upgrade)  
+# "security" - security updates only
+# "none" - only update cache, no upgrades
+apt_upgrade_strategy: "safe"
+
+# Whether to show list of upgradable packages before upgrade
+apt_show_upgradable: true
+
+# Whether to automatically remove unused packages
+apt_autoremove: true
+
+# Whether to clean the apt package cache
+apt_clean_cache: true
+
+# Cache validity time in seconds (3600 = 1 hour)
+apt_cache_valid_time: 3600
+
+# Whether to automatically reboot if required
+apt_auto_reboot: true
+
+# Reboot timeout in seconds
+apt_reboot_timeout: 600
+
+# Whether to show verbose output
+apt_verbose: true

@@ -1,0 +1,37 @@
+---
+# APT Upgrade playbook
+# Performs apt update and upgrade operations on Debian/Ubuntu systems
+#
+# Usage:
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/apt-upgrade.yaml
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/apt-upgrade.yaml -e apt_upgrade_strategy=full
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/apt-upgrade.yaml -e "apt_upgrade_strategy=safe apt_auto_reboot=true"
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/apt-upgrade.yaml -e apt_upgrade_strategy=security
+
+- name: APT Update and Upgrade
+  hosts: update_hosts
+  gather_facts: yes
+  become: false  # Role handles privilege escalation as needed
+  
+  vars_files:
+    - ../group_vars/all/vault.yaml
+
+  pre_tasks:
+    - name: Verify target is Debian/Ubuntu
+      ansible.builtin.fail:
+        msg: "This playbook only supports Debian/Ubuntu systems"
+      when: ansible_os_family != "Debian"
+
+    - name: Display target information
+      ansible.builtin.debug:
+        msg:
+          - "=== Target System Information ==="
+          - "Host: {{ inventory_hostname }}"
+          - "Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Architecture: {{ ansible_architecture }}"
+          - "Current time: {{ ansible_date_time.iso8601 }}"
+
+  tasks:
+    - name: Include apt_upgrade role
+      ansible.builtin.include_role:
+        name: apt_upgrade

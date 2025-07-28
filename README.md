@@ -19,6 +19,7 @@ Container configuration:
 Jobs:
 - `ansible-playbook playbooks/hello-world.yaml --ask-vault-pass` hello world test.
 - `ansible-playbook playbooks/git-pull-repos.yaml --ask-vault-pass` git pull on repos under `/srv`.
+- `ansible-playbook playbooks/apt-upgrade.yaml --ask-vault-pass` update and upgrade packages on Debian/Ubuntu systems.
 
 ## TODO
 
