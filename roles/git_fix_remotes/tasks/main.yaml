@@ -1,0 +1,66 @@
+---
+# Role to fix corrupted Git remote URLs to proper SSH format with repository-specific keys
+#
+# Steps performed:
+#  1. Find Git repositories
+#  2. Fix corrupted file:// remotes to SSH format with repo-specific hostnames
+
+# Find all first-level subdirectories
+- name: Find first-level subdirectories
+  ansible.builtin.find:
+    paths: "{{ git_base_folder }}"
+    file_type: directory
+    depth: 1
+  register: subdirectories
+
+# Check which subdirectories are Git repositories
+- name: Check for Git repositories
+  ansible.builtin.stat:
+    path: "{{ item.path }}/.git"
+  register: git_repos_check
+  loop: "{{ subdirectories.files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+
+# Create list of Git repositories
+- name: Create list of Git repositories
+  ansible.builtin.set_fact:
+    git_repositories: "{{ git_repositories | default([]) + [item.item.path] }}"
+  when: item.stat.exists
+  loop: "{{ git_repos_check.results }}"
+  loop_control:
+    label: "{{ item.item.path | basename }}"
+
+# Get current remote URLs for each Git repository
+- name: Check current remote URLs
+  ansible.builtin.command:
+    cmd: git remote get-url origin
+    chdir: "{{ item }}"
+  register: current_remotes
+  loop: "{{ git_repositories | default([]) }}"
+  loop_control:
+    label: "{{ item | basename }}"
+  become: yes
+  become_user: "{{ git_user }}"
+  failed_when: false
+  changed_when: false
+
+# Fix corrupted file:// remotes to SSH format with repository-specific hostnames
+- name: Fix corrupted remotes to SSH with repo-specific keys
+  ansible.builtin.command:
+    cmd: git remote set-url origin git@github.com-{{ item.item | basename }}:{{ github_user }}/{{ item.item | basename }}.git
+    chdir: "{{ item.item }}"
+  loop: "{{ current_remotes.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item | basename }}"
+  when: 
+    - item.rc == 0
+    - "'file://' in item.stdout"
+  become: yes
+  become_user: "{{ git_user }}"
+
+# Display summary
+- name: Display results
+  ansible.builtin.debug:
+    msg: "Fixed {{ current_remotes.results | default([]) | selectattr('stdout', 'search', 'file://') | list | length }} corrupted remotes to use repository-specific SSH keys"
+    

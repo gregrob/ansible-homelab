@@ -1,0 +1,11 @@
+---
+# Default variables for git_fix_remotes role
+
+# Base folder containing Git repositories
+git_base_folder: "/srv"
+
+# GitHub username for constructing repository URLs
+github_user: "john"
+
+# User who owns the Git repositories
+git_user: "admin"

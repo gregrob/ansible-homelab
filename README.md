@@ -19,6 +19,7 @@ Targeted container configurations
 - `ansible-playbook playbooks/clone-git.yaml --ask-vault-pass` to clone git repositories.
 - `ansible-playbook playbooks/connect-secrets.yaml --ask-vault-pass` to connect to secrets server.
 - `ansible-playbook playbooks/create-admin.yaml --ask-vault-pass` to create a admin user.
+- `ansible-playbook playbooks/fix-git-remotes.yaml --ask-vault-pass` fix corrupted Git remote URLs to proper SSH format.
 
 Jobs:
 - `ansible-playbook playbooks/apt-upgrade.yaml --ask-vault-pass` update and upgrade packages on Debian/Ubuntu systems.

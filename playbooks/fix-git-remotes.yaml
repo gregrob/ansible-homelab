@@ -1,0 +1,18 @@
+---
+# Fix Git Remotes playbook
+# Fixes corrupted Git remote URLs to proper SSH format
+#
+# Usage:
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/fix-git-remotes.yaml --ask-vault-pass
+
+- name: Fix corrupted Git remote URLs
+  hosts: configure_target
+  gather_facts: yes
+  become: false  # Role handles privilege escalation as needed
+  
+  vars_files:
+    - ../group_vars/all/vault.yaml
+    - ../group_vars/all/github-user.yaml
+        
+  roles:
+    - git_fix_remotes
