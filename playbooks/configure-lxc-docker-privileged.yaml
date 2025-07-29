@@ -1,0 +1,30 @@
+---
+# Configure LXC Docker Privileged Container playbook
+# Sets up a complete PRODUCTION Debian privileged LXC container for Docker operations
+# This includes system configuration, user setup, Git/GitHub access, and Docker installation
+#
+# Usage:
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/configure-lxc-docker-privileged.yaml --ask-vault-pass
+
+- name: Configure a Debian Privileged LXC Container for Docker
+  hosts: configure_target
+  gather_facts: yes
+  become: yes
+  
+  vars_files:
+    - ../group_vars/all/vault.yaml
+    - ../group_vars/all/git-user.yaml
+    - ../group_vars/all/github-user.yaml
+    - ../group_vars/all/github-repos-docker.yaml
+    
+  roles:
+    - disable_systemd_networkd # lxc uses ifupdown, not systemd-networkd
+    - packages                 # update system and install common packages
+    - timezone                 # configure system timezone
+    - admin_user               # create admin user with SSH access
+    - git_setup                # configure git settings and GitHub SSH key
+    - docker_setup             # install and configure Docker with admin access
+    #- lxc_share_user           # setup LXC shared folder access with proper GID mapping
+    - github_clone             # clone GitHub repositories with SSH key authentication
+    - secrets_connect          # setup SSH connection to secrets server and decrypt secrets
+    #- ansible_setup            # install and configure Ansible on the container
