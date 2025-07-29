@@ -1,14 +1,18 @@
 ---
-# Hello World playbook - demonstrates basic Ansible functionality
-# This playbook runs the hello_world role which displays a greeting and executes ls -la
+# Hello World playbook
+# Demonstrates basic Ansible functionality with system information display and directory listing
+# This playbook runs the hello_world role which displays greetings and executes ls -la for testing
+#
+# Usage:
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/hello-world.yaml --ask-vault-pass
 
 - name: Hello World Playbook
   hosts: all
   gather_facts: yes
   become: false
-
+  
   vars_files:
-    - ../group_vars/all/vault.yaml  
+    - ../group_vars/all/vault.yaml
     
   roles:
     - hello_world

@@ -1,5 +1,4 @@
 ---
-
 # Configure LXC Ansible Test Container playbook
 # Sets up a complete TEST Debian unprivileged LXC container for Ansible operations
 # This includes system configuration, user setup, Git/GitHub access, Docker, and Ansible installation

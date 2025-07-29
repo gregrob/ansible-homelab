@@ -1,8 +1,19 @@
+---
+# Create Admin User playbook
+# Creates an admin user with sudo privileges and configures Git settings
+# This sets up a standard administrative user for system management and Git operations
+#
+# Usage:
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/create-admin.yaml --ask-vault-pass
+
 - name: Create admin user with git configured
-  hosts: lxcs
+  hosts: configure_target
+  gather_facts: yes
   become: yes
+  
   vars_files:
     - ../group_vars/all/vault.yaml
+    
   roles:
     - admin_user # create admin user with sudo privileges
-    - git_setup # configure git user details and keys 
+    - git_setup  # configure git user details and keys
