@@ -10,16 +10,20 @@
 Housekeeping:
 - `python3 vault-keys.py group_vars/all/vault.yaml` to generate a list of all the vault keys.
 
-Container configuration:
+General container configuration:
+- `ansible-playbook playbooks/configure-lxc-ansible-test.yaml --ask-vault-pass` to configure a lxc for ansible testing.
 - `ansible-playbook playbooks/configure-lxc-ansible.yaml --ask-vault-pass` to configure a lxc for an ansible server.
-- `ansible-playbook playbooks/configure-lxc.yaml --ask-vault-pass` to configure a generic lxc.
-- `ansible-playbook playbooks/create-admin.yaml --ask-vault-pass` to create a admin user.
+
+Targeted container configurations
 - `ansible-playbook playbooks/ansible-git.yaml --ask-vault-pass` to create a ansible github keys.
+- `ansible-playbook playbooks/clone-git.yaml --ask-vault-pass` to clone git repositories.
+- `ansible-playbook playbooks/connect-secrets.yaml --ask-vault-pass` to connect to secrets server.
+- `ansible-playbook playbooks/create-admin.yaml --ask-vault-pass` to create a admin user.
 
 Jobs:
-- `ansible-playbook playbooks/hello-world.yaml --ask-vault-pass` hello world test.
-- `ansible-playbook playbooks/git-pull-repos.yaml --ask-vault-pass` git pull on repos under `/srv`.
 - `ansible-playbook playbooks/apt-upgrade.yaml --ask-vault-pass` update and upgrade packages on Debian/Ubuntu systems.
+- `ansible-playbook playbooks/git-pull-repos.yaml --ask-vault-pass` git pull on repos under `/srv`.
+- `ansible-playbook playbooks/hello-world.yaml --ask-vault-pass` hello world test.
 
 ## TODO
 
