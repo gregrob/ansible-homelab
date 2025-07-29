@@ -1,10 +1,22 @@
+---
+# Ansible GitHub SSH Keys playbook
+# Generates SSH keys for GitHub repository access specifically for Ansible operations
+#
+# Usage:
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/ansible-git.yaml --ask-vault-pass
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/ansible-git.yaml --ask-vault-pass -e admin_user=myuser
+
 - name: Generate ansible github keys
-  hosts: local
+  hosts: configure_target
+  gather_facts: yes
+  become: yes
+  
   vars:
     admin_user: admin
     admin_group: admin
-  become: yes
+    
   vars_files:
     - ../group_vars/all/vault.yaml
+    
   roles:
     - github_keygen_ansible

@@ -1,10 +1,22 @@
-- name: Generate ansible github keys
-  hosts: lxcs
+---
+# Clone Git Repositories playbook
+# Clones GitHub repositories using SSH keys for secure access
+#
+# Usage:
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/clone-git.yaml --ask-vault-pass
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/clone-git.yaml --ask-vault-pass -e admin_user=myuser
+
+- name: Clone GitHub repositories
+  hosts: configure_target
+  gather_facts: yes
+  become: yes
+  
   vars:
     admin_user: admin
     admin_group: admin
-  become: yes
+    
   vars_files:
     - ../group_vars/all/vault.yaml
+    
   roles:
     - github_clone
