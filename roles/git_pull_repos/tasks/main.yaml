@@ -16,7 +16,7 @@
       - "=== Git Pull Configuration ==="
       - "Base folder: {{ git_base_folder }}"
       - "Default branch: {{ git_default_branch }}"
-      - "Force pull: {{ git_force_pull }}"
+      - "Git user: {{ git_user }}"
       - "Target host: {{ inventory_hostname }}"
 
 # Ensure the base folder exists
@@ -71,11 +71,9 @@
 
 # Perform git pull on each repository as the repository owner
 - name: Perform git pull on repositories
-  ansible.builtin.git:
-    repo: "{{ item }}"
-    dest: "{{ item }}"
-    version: "{{ git_default_branch }}"
-    force: "{{ git_force_pull }}"
+  ansible.builtin.command:
+    cmd: git pull origin {{ git_default_branch }}
+    chdir: "{{ item }}"
   register: git_pull_results
   loop: "{{ git_repositories | default([]) }}"
   loop_control:
@@ -83,6 +81,8 @@
   when: git_repositories is defined and git_repositories | length > 0
   become: yes
   become_user: "{{ git_user }}"
+  changed_when: "'Already up to date' not in git_pull_results.stdout"
+  failed_when: git_pull_results.rc != 0
 
 # Display results summary
 - name: Display git pull results
@@ -90,8 +90,7 @@
     msg:
       - "Repository: {{ item.item | basename }}"
       - "Status: {{ 'Changed' if item.changed else 'Up to date' }}"
-      - "Before: {{ item.before if item.before is defined else 'N/A' }}"
-      - "After: {{ item.after if item.after is defined else 'N/A' }}"
+      - "Output: {{ item.stdout if item.stdout is defined else 'N/A' }}"
   loop: "{{ git_pull_results.results | default([]) }}"
   loop_control:
     label: "{{ item.item | basename }}"

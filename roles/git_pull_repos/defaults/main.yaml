@@ -7,9 +7,6 @@ git_base_folder: "/srv"
 # Default branch to pull (usually main or master)
 git_default_branch: "HEAD"
 
-# Whether to force pull (reset local changes)
-git_force_pull: false
-
 # User who owns the Git repositories
 git_user: "admin"
 

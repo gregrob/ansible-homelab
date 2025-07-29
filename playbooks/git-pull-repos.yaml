@@ -5,7 +5,7 @@
 # Usage:
 #   ansible-playbook -i inventories/local/hosts.yaml playbooks/git-pull-repos.yaml
 #   ansible-playbook -i inventories/local/hosts.yaml playbooks/git-pull-repos.yaml -e git_base_folder=/home/user/projects
-#   ansible-playbook -i inventories/local/hosts.yaml playbooks/git-pull-repos.yaml -e "git_base_folder=/srv git_force_pull=true"
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/git-pull-repos.yaml -e "git_base_folder=/srv git_user=myuser"
 
 - name: Git Pull All Repositories in Base Folder
   hosts: git_hosts
