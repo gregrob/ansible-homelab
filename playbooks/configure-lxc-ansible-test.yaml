@@ -14,7 +14,8 @@
   vars_files:
     - ../group_vars/all/vault.yaml
     - ../group_vars/all/git-user.yaml
-    - ../group_vars/all/github-ansible.yaml
+    - ../group_vars/all/github-user.yaml
+    - ../group_vars/all/github-repos-ansible.yaml
     
   roles:
     - disable_systemd_networkd # lxc uses ifupdown, not systemd-networkd
