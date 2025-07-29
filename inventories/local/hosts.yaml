@@ -4,11 +4,15 @@
 all:
   children:
 
+    configure_target:
+      hosts:
+        {}
+
     ansible:
       hosts:
         ansible-001.containers.max.lan: {}
 
-    test:
+    test_target:
       hosts:
         10.24.4.101: {}
         

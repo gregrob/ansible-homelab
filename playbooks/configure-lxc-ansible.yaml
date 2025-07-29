@@ -1,7 +1,7 @@
 ---
 
-- name: Configure a Debian LXC Container for Ansible
-  hosts: ansible
+- name: Configure a Debian Unprivileged LXC Container for Ansible
+  hosts: configure_target
   become: yes
   vars_files:
     - ../group_vars/all/vault.yaml

@@ -1,7 +1,7 @@
 ---
 
-- name: Configure a test Debian LXC Container for Ansible
-  hosts: test
+- name: Configure a TEST Debian Unprivileged LXC Container for Ansible
+  hosts: test_target
   become: yes
   vars_files:
     - ../group_vars/all/vault.yaml
