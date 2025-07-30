@@ -16,11 +16,28 @@
   vars_files:
     - ../group_vars/all/vault.yaml
 
+  environment:
+    DEBIAN_FRONTEND: noninteractive  # Prevent interactive prompts during package operations
+    NEEDRESTART_MODE: a              # Automatically restart all services without prompting
+
   pre_tasks:
     - name: Verify target is Debian/Ubuntu
       ansible.builtin.fail:
         msg: "This playbook only supports Debian/Ubuntu systems"
       when: ansible_os_family != "Debian"
+
+    - name: Set non-interactive frontend for apt
+      ansible.builtin.set_fact:
+        ansible_env: "{{ ansible_env | combine({'DEBIAN_FRONTEND': 'noninteractive'}) }}"
+
+    - name: Configure automatic service restarts
+      ansible.builtin.lineinfile:
+        path: /etc/needrestart/needrestart.conf
+        regexp: '^#?\$nrconf\{restart\}'
+        line: '$nrconf{restart} = "a";'
+        create: yes
+      become: yes
+      ignore_errors: yes  # File might not exist on all systems
 
     - name: Display target information
       ansible.builtin.debug:
@@ -30,6 +47,7 @@
           - "Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}"
           - "Architecture: {{ ansible_architecture }}"
           - "Current time: {{ ansible_date_time.iso8601 }}"
+          - "Non-interactive mode: enabled"
 
   tasks:
     - name: Include apt_upgrade role
