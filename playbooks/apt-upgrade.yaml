@@ -53,3 +53,29 @@
     - name: Include apt_upgrade role
       ansible.builtin.include_role:
         name: apt_upgrade
+
+  post_tasks:
+    - name: Check for config file changes
+      ansible.builtin.find:
+        paths: /etc
+        patterns: "*.dpkg-dist"
+        recurse: yes
+      register: dpkg_dist_files
+      become: yes
+
+    - name: Display config file change notification
+      ansible.builtin.debug:
+        msg:
+          - "=== Configuration File Changes Detected ==="
+          - "{{ dpkg_dist_files.files | length }} config files have updates available"
+          - "Files: {{ dpkg_dist_files.files | map(attribute='path') | map('regex_replace', '\\.dpkg-dist$', '') | map('basename') | list }}"
+          - ""
+          - "To review changes later, check for .dpkg-dist files in /etc:"
+          - "  find /etc -name '*.dpkg-dist' -type f"
+          - "  diff /path/to/config /path/to/config.dpkg-dist"
+      when: dpkg_dist_files.files | length > 0
+
+    - name: No config file changes
+      ansible.builtin.debug:
+        msg: "No configuration file conflicts detected."
+      when: dpkg_dist_files.files | length == 0
