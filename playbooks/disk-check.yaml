@@ -1,0 +1,22 @@
+---
+# Disk Check Maintenance playbook  
+# Checks root partition disk usage on target hosts and alerts when usage is above threshold
+# This is useful for regular system maintenance and monitoring
+#
+# Usage:
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/disk-check.yaml --ask-vault-pass
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/disk-check.yaml --ask-vault-pass -e disk_usage_high_threshold=90
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/disk-check.yaml --ask-vault-pass -e disk_show_details=false
+
+- name: Check Disk Usage on Target Hosts
+  hosts: all:!localhost
+  gather_facts: yes
+  become: false
+  
+  vars_files:
+    - ../group_vars/all/vault.yaml
+
+  tasks:
+    - name: Include disk_check role
+      ansible.builtin.include_role:
+        name: disk_check

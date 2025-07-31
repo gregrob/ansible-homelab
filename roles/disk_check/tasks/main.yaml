@@ -1,0 +1,69 @@
+---
+# Role to check root disk usage and alert on high usage
+#
+# Steps performed:
+#  1. Display configuration
+#  2. Get root disk usage
+#  3. Check usage against threshold
+#  4. Display warnings if needed
+#  5. Show summary
+
+# Display the configuration being used
+- name: Display disk check configuration
+  ansible.builtin.debug:
+    msg:
+      - "=== Disk Check Configuration ==="
+      - "Threshold: {{ disk_usage_high_threshold }}%"
+      - "Target host: {{ inventory_hostname }}"
+
+# Get root partition disk usage
+- name: Get root partition disk usage
+  ansible.builtin.shell:
+    cmd: df -h / | awk 'NR==2 {print $5}' | tr -d '%'
+  register: root_disk_usage
+  changed_when: false
+
+# Get detailed disk information if requested
+- name: Get detailed disk usage information
+  ansible.builtin.shell:
+    cmd: df -h
+  register: detailed_disk_info
+  changed_when: false
+  when: disk_show_details
+
+# Display current disk usage
+- name: Display root disk usage
+  ansible.builtin.debug:
+    msg: 
+      - "Root partition (/) usage: {{ root_disk_usage.stdout }}%"
+      - "Status: {{ 'WARNING - Above threshold!' if (root_disk_usage.stdout | int) > disk_usage_high_threshold else 'OK' }}"
+
+# Display detailed disk information
+- name: Display detailed disk usage
+  ansible.builtin.debug:
+    msg: 
+      - "=== Detailed Disk Usage ==="
+      - "{{ detailed_disk_info.stdout_lines }}"
+  when: disk_show_details
+
+# Display warning when over threshold
+- name: Display critical disk usage warning
+  ansible.builtin.debug:
+    msg:
+      - "🚨 CRITICAL DISK USAGE WARNING! 🚨"
+      - "Root partition usage: {{ root_disk_usage.stdout }}%"
+      - "Threshold: {{ disk_usage_high_threshold }}%"
+      - "Host: {{ inventory_hostname }}"
+      - "Please free up disk space immediately!"
+  when: (root_disk_usage.stdout | int) > disk_usage_high_threshold
+
+# Display final summary
+- name: Display disk check summary
+  ansible.builtin.debug:
+    msg:
+      - "=== Disk Check Summary ==="
+      - "Host: {{ inventory_hostname }}"
+      - "Root usage: {{ root_disk_usage.stdout }}%"
+      - "Threshold: {{ disk_usage_high_threshold }}%"
+      - "Status: {{ 'CRITICAL' if (root_disk_usage.stdout | int) > disk_usage_high_threshold else 'OK' }}"
+      - "Timestamp: {{ ansible_date_time.iso8601 }}"

@@ -1,0 +1,8 @@
+---
+# Default variables for disk_check role
+
+# Disk usage threshold percentage (0-100)
+disk_usage_high_threshold: 80
+
+# Whether to display detailed disk information
+disk_show_details: true
