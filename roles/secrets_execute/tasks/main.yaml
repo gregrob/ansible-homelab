@@ -1,0 +1,65 @@
+---
+# Role to execute multiple commands on the secrets server
+# Executes a configurable list of commands directly on the secrets server
+# Assumes proper SSH connection is already established via ansible_user
+#
+# Steps performed:
+#  1. Display configuration
+#  2. Execute each command directly
+#  3. Display results if requested
+
+# Display the configuration being used
+- name: Display secrets execution configuration
+  ansible.builtin.debug:
+    msg:
+      - "=== Secrets Server Command Execution ==="
+      - "Target server: {{ inventory_hostname }}"
+      - "Execution user: {{ ansible_user | default('current') }}"
+      - "Working directory: {{ secrets_working_dir }}"
+      - "Commands to execute: {{ secrets_commands | length }}"
+      - "Show output: {{ secrets_show_output }}"
+
+# Fail if no commands provided
+- name: Validate commands list
+  ansible.builtin.fail:
+    msg: "No commands specified! Please provide secrets_commands list."
+  when: secrets_commands | length == 0
+
+# Execute each command on the secrets server
+- name: "Execute command: {{ item.name }}"
+  ansible.builtin.shell:
+    cmd: "{{ item.cmd }}"
+    chdir: "{{ secrets_working_dir }}"
+  register: command_results
+  loop: "{{ secrets_commands }}"
+  loop_control:
+    label: "{{ item.name }}"
+  changed_when: false
+  environment: "{{ item.environment | default({}) }}"
+  no_log: "{{ item.no_log | default(false) }}"
+
+# Display command outputs
+- name: "Display output for: {{ item.item.name }}"
+  ansible.builtin.debug:
+    msg:
+      - "=== Command: {{ item.item.name }} ==="
+      - "Exit code: {{ item.rc }}"
+      - "Output:"
+      - "{{ item.stdout_lines }}"
+      - "{{ 'Errors:' if item.stderr else '' }}"
+      - "{{ item.stderr_lines if item.stderr else [] }}"
+  loop: "{{ command_results.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: secrets_show_output
+
+# Display execution summary
+- name: Display execution summary
+  ansible.builtin.debug:
+    msg:
+      - "=== Execution Summary ==="
+      - "Server: {{ inventory_hostname }}"
+      - "Total commands: {{ secrets_commands | length }}"
+      - "Successful: {{ command_results.results | selectattr('rc', 'equalto', 0) | list | length }}"
+      - "Failed: {{ command_results.results | rejectattr('rc', 'equalto', 0) | list | length }}"
+      - "Timestamp: {{ ansible_date_time.iso8601 }}"

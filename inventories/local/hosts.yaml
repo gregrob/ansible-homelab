@@ -21,6 +21,10 @@ all:
     test_target:
       hosts:
         {}
+
+    secrets:
+      hosts:
+        secrets.max.lan: {}
         
     local:
       hosts:

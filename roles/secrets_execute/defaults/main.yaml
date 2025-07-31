@@ -1,0 +1,17 @@
+---
+# Default variables for secrets_execute role
+
+# Commands to execute on the secrets server
+# Each command should be a dictionary with 'name' and 'cmd' keys
+secrets_commands: []
+  # Example:
+  # - name: "Check disk usage"
+  #   cmd: "df -h"
+  # - name: "List running processes"
+  #   cmd: "ps aux | head -10"
+
+# Whether to display command output
+secrets_show_output: true
+
+# Working directory for command execution
+secrets_working_dir: "/srv/secrets"

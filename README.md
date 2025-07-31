@@ -23,10 +23,11 @@ Targeted container configurations:
 
 Jobs:
 - `ansible-playbook playbooks/apt-upgrade.yaml --ask-vault-pass` update and upgrade packages on Debian/Ubuntu systems.
-- `ansible-playbook playbooks/disk-check.yaml --ask-vault-pass` check disk usage and alert on high usage.
+- `ansible-playbook playbooks/disk-check.yaml --ask-vault-pass` checks the disk space of the host hasn't exceeded 80% and sends mail notification if it has.
 - `ansible-playbook playbooks/fix-git-remotes.yaml --ask-vault-pass` fix corrupted Git remote URLs to proper SSH format.
 - `ansible-playbook playbooks/git-pull-repos.yaml --ask-vault-pass` git pull on repos under `/srv`.
 - `ansible-playbook playbooks/hello-world.yaml --ask-vault-pass` hello world test.
+- `ansible-playbook playbooks/secrets-execute.yaml --ask-vault-pass` execute multiple commands on the secrets server for maintenance and monitoring.
 
 ## TODO
 

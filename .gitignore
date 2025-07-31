@@ -1,7 +1,4 @@
 # Ignore all vault files or private group_vars with .yaml extension
 **/vault.yaml
 **/git-user.yaml
-**/github-repos-ansible.yaml
-**/github-repos-docker.yaml
-**/github-user.yaml
 .ansible_vault_pass.txt

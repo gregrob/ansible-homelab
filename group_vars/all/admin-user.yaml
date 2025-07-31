@@ -1,0 +1,6 @@
+---
+# Admin user override for specific server connections
+# Overrides vault settings when admin user access is required
+
+# Connect as admin user instead of vault default
+ansible_user: admin
