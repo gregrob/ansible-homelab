@@ -1,4 +1,3 @@
 # Ignore all vault files or private group_vars with .yaml extension
 **/vault.yaml
-**/git-user.yaml
 .ansible_vault_pass.txt
