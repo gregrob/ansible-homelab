@@ -1,0 +1,8 @@
+--- 
+# Variables for the github_clone role for docker
+
+# Repos to clone from github
+github_repos:
+  - name: "docker-homelab"
+    dest: "/srv/docker-homelab"
+  

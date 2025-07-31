@@ -1,0 +1,11 @@
+--- 
+# Variables for the github_clone role for ansible
+
+# Repos to clone from github
+github_repos:
+  - name: "ansible-homelab"
+    dest: "/srv/ansible-homelab"
+
+  - name: "docker-homelab"
+    dest: "/srv/docker-homelab"
+  
