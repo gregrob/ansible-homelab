@@ -1,0 +1,9 @@
+---
+# Default variables for notify_gmail role
+
+# Enable/disable notifications
+notify_enabled: true
+
+# Email formatting defaults
+notify_subject_prefix: "[Ansible Homelab]"
+notify_from_name: "Ansible Homelab Monitor"

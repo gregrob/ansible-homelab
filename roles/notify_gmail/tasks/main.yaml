@@ -1,0 +1,25 @@
+---
+# Gmail notification role
+# Sends email notifications using Gmail SMTP
+#
+# Required variables:
+#   - notify_user: Gmail username
+#   - notify_password: Gmail app password
+#   - notify_from: Sender email address
+#   - notify_to: Recipient email address
+#   - notify_subject: Email subject
+#   - notify_body: Email body content
+
+- name: Send Gmail notification
+  community.general.mail:
+    host: smtp.gmail.com
+    port: 587
+    username: "{{ notify_user }}"
+    password: "{{ notify_password }}"
+    sender: "{{ notify_from_name }} <{{ notify_from }}>"
+    to: "{{ notify_to }}"
+    subject: "{{ notify_subject }}"
+    body: "{{ notify_body }}"
+    secure: starttls
+  delegate_to: localhost
+  when: notify_enabled | default(true)

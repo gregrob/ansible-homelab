@@ -6,3 +6,6 @@ disk_usage_high_threshold: 80
 
 # Whether to display detailed disk information
 disk_show_details: true
+
+# Enable email notifications for critical alerts
+disk_notify_enabled: false
