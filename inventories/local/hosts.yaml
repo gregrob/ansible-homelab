@@ -20,7 +20,7 @@ all:
 
     test_target:
       hosts:
-        10.24.4.101: {}
+        {}
         
     local:
       hosts:
