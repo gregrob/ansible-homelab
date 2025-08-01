@@ -15,6 +15,7 @@
   
   vars_files:
     - ../group_vars/all/vault.yaml
+    - ../group_vars/all/admin-user.yaml  # Override vault to use admin user
 
   environment:
     DEBIAN_FRONTEND: noninteractive  # Prevent interactive prompts during package operations
