@@ -4,3 +4,4 @@
 
 # Connect as admin user instead of vault default
 ansible_user: admin
+ansible_become_password: "{{ admin_password }}"  # Use the admin user's password for privilege escalation
