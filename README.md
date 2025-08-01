@@ -10,18 +10,19 @@
 Housekeeping:
 - `python3 vault-keys.py group_vars/all/vault.yaml` to generate a list of all the vault keys.
 
-General container configuration:
+General container configuration (`user=root` as assumed `admin` user not setup yet):
 - `ansible-playbook playbooks/configure-lxc-ansible-test.yaml --ask-vault-pass` to configure a lxc for ansible testing.
 - `ansible-playbook playbooks/configure-lxc-ansible.yaml --ask-vault-pass` to configure a lxc for an ansible server.
 - `ansible-playbook playbooks/configure-lxc-docker-privileged.yaml --ask-vault-pass` to configure a privileged lxc for docker operations.
+- `ansible-playbook playbooks/configure-lxc-docker-unprivileged.yaml --ask-vault-pass` to configure an unprivileged lxc for docker operations.
 
-Targeted container configurations:
+Targeted container configurations (`user=root` as assumed `admin` user not setup yet):
 - `ansible-playbook playbooks/ansible-git.yaml --ask-vault-pass` to create a ansible github keys.
 - `ansible-playbook playbooks/clone-git.yaml --ask-vault-pass` to clone git repositories.
 - `ansible-playbook playbooks/connect-secrets.yaml --ask-vault-pass` to connect to secrets server.
 - `ansible-playbook playbooks/create-admin.yaml --ask-vault-pass` to create a admin user.
 
-Jobs:
+Jobs (`user=admin`):
 - `ansible-playbook playbooks/apt-upgrade.yaml --ask-vault-pass` update and upgrade packages on Debian/Ubuntu systems.
 - `ansible-playbook playbooks/disk-check.yaml --ask-vault-pass` checks the disk space of the host hasn't exceeded 80% and sends mail notification if it has.
 - `ansible-playbook playbooks/fix-git-remotes.yaml --ask-vault-pass` fix corrupted Git remote URLs to proper SSH format.

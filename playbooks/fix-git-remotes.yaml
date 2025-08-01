@@ -13,6 +13,7 @@
   vars_files:
     - ../group_vars/all/vault.yaml
     - ../group_vars/all/github-user.yaml
+    - ../group_vars/all/admin-user.yaml  # Override vault to use admin user
         
   roles:
     - git_fix_remotes
