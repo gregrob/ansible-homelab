@@ -18,6 +18,10 @@ all:
         jellyfin-001.containers.max.lan: {}
         development-002.containers.max.lan: {}
 
+    docker_unprivileged:
+      hosts:
+        infisical-001.trusted.max.lan: {}
+
     test_target:
       hosts:
         {}
@@ -35,14 +39,17 @@ all:
       children:
         ansible:
         docker_privileged:
+        docker_unprivileged:
     
     git_hosts:
       children:
         ansible:
         docker_privileged:
+        docker_unprivileged:
     
     update_hosts:
       children:
         ansible:
         docker_privileged:
+        docker_unprivileged:
         
