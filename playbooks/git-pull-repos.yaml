@@ -1,22 +1,79 @@
 ---
 # Git Pull Repositories playbook
 # Performs git pull on all Git repositories in subdirectories of a specified base folder
+# Sends email notifications on failure if configured
 #
 # Usage:
 #   ansible-playbook -i inventories/local/hosts.yaml playbooks/git-pull-repos.yaml
 #   ansible-playbook -i inventories/local/hosts.yaml playbooks/git-pull-repos.yaml -e git_base_folder=/home/user/projects
 #   ansible-playbook -i inventories/local/hosts.yaml playbooks/git-pull-repos.yaml -e "git_base_folder=/srv git_user=myuser"
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/git-pull-repos.yaml -e git_notify_enabled=true
 
 - name: Git Pull All Repositories in Base Folder
   hosts: git_hosts
   gather_facts: yes
   become: false
-  
+
   vars_files:
     - ../group_vars/all/vault.yaml
     - ../group_vars/all/admin-user.yaml  # Override vault to use admin user
 
+  vars:
+    git_notify_enabled: false  # Enable notifications on failure (can be overridden)
+
   tasks:
-    - name: Include git_pull_repos role
-      ansible.builtin.include_role:
-        name: git_pull_repos
+    - name: Pull all Git repositories with error handling
+      block:
+        - name: Include git_pull_repos role
+          ansible.builtin.include_role:
+            name: git_pull_repos
+      rescue:
+        - name: Send git pull failure notification
+          ansible.builtin.include_role:
+            name: notify_gmail
+          vars:
+            notify_subject: "{{ notify_subject_prefix }} FAILED: Git Pull Repositories - {{ inventory_hostname }}"
+            notify_body: |
+              ❌ GIT PULL FAILURE ALERT! ❌
+
+              Host: {{ inventory_hostname }}
+              Base folder: {{ git_base_folder | default('/srv') }}
+              Git user: {{ git_user | default('admin') }}
+              Timestamp: {{ ansible_date_time.iso8601 }}
+
+              The git pull operation failed on this host.
+
+              {% if git_repositories is defined %}
+              Repositories found ({{ git_repositories | length }}):
+              {% for repo in git_repositories %}
+              - {{ repo | basename }}
+              {% endfor %}
+              {% endif %}
+
+              {% if git_pull_results is defined and git_pull_results.results is defined %}
+              Failed operations:
+              {% for result in git_pull_results.results %}
+              {% if result.failed is defined and result.failed %}
+              - {{ result.item | basename }}: {{ result.stderr | default('Unknown error') }}
+              {% endif %}
+              {% endfor %}
+              {% endif %}
+
+              Common causes:
+              - Network connectivity issues
+              - SSH key problems
+              - Repository access permissions
+              - Uncommitted local changes
+
+              This is an automated message from Ansible Homelab monitoring.
+          when: git_notify_enabled
+
+        - name: Display failure message
+          ansible.builtin.debug:
+            msg:
+              - "❌ Git pull operation failed!"
+              - "{{ 'Email notification sent!' if git_notify_enabled else 'Email notifications disabled' }}"
+
+        - name: Re-raise the error
+          ansible.builtin.fail:
+            msg: "Git pull repositories task failed. Check the logs above for details."
