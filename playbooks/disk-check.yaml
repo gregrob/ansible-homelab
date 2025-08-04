@@ -21,15 +21,48 @@
   hosts: all:!localhost
   gather_facts: yes
   become: false
-  
+
   vars_files:
     - ../group_vars/all/vault.yaml
     - ../group_vars/all/admin-user.yaml  # Override vault to use admin user
-  
+
   vars:
-    disk_notify_enabled: true
-    
+    disk_notify_enabled: false  # Enable notifications on failure (can be overridden)
+
   tasks:
-    - name: Include disk_check role
-      ansible.builtin.include_role:
-        name: disk_check
+    - name: Disk check with error handling
+      block:
+        - name: Include disk_check role
+          ansible.builtin.include_role:
+            name: disk_check
+      rescue:
+        - name: Send disk check failure notification
+          ansible.builtin.include_role:
+            name: notify_gmail
+          vars:
+            notify_subject: "FAILED: Disk Check - {{ inventory_hostname }}"
+            notify_body: |
+              ❌ DISK CHECK FAILURE ALERT! ❌
+
+              Host: {{ inventory_hostname }}
+              Timestamp: {{ ansible_date_time.iso8601 }}
+
+              The disk check operation failed on this host.
+
+              Common causes:
+              - Insufficient permissions
+              - SSH or connectivity issues
+              - Ansible misconfiguration
+
+              This is an automated message from Ansible Homelab monitoring.
+          when: disk_notify_enabled
+
+        - name: Display failure message
+          ansible.builtin.debug:
+            msg:
+              - "❌ Disk check operation failed!"
+              - "{{ 'Email notification sent!' if disk_notify_enabled else 'Email notifications disabled' }}"
+
+        - name: Re-raise the error
+          ansible.builtin.fail:
+            msg: "Disk check task failed. Check the logs above for details."
