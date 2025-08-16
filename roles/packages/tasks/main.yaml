@@ -1,5 +1,5 @@
 ---
-# Role to update the system and install common packages.
+# Role to update the system and install packages.
 # Performs system maintenance including package updates, cleanup, and installation of essential tools.
 #
 # Steps performed:
@@ -7,7 +7,7 @@
 #  2. Remove automatically installed packages that are no longer needed
 #  3. Check if a system reboot is required after updates
 #  4. Reboot the system if the reboot-required flag is present
-#  5. Install predefined list of common/default packages
+#  5. Install all packages specified in common_packages and specific_packages
 
 # Refresh the apt package index and perform a full system upgrade (dist-upgrade)
 - name: Update apt cache and upgrade packages
@@ -31,8 +31,8 @@
   ansible.builtin.reboot:
   when: reboot_flag.stat.exists
 
-# Install the predefined list of common packages
-- name: Install common / default packages
+# Install all packages from common_packages and specific_packages
+- name: Install common and specific packages
   ansible.builtin.apt:
-    name: "{{ common_packages }}"
+    name: "{{ common_packages + (specific_packages | default([])) }}"
     state: present
