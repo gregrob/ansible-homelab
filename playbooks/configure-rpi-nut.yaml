@@ -1,0 +1,93 @@
+---
+# Configure Raspberry Pi NUT Server Playbook
+# Sets up a complete Network UPS Tools (NUT) server on a Raspberry Pi
+# This includes system configuration, user setup, web interface and Git/GitHub access
+#
+# Usage:
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/configure-rpi-nut.yaml --ask-vault-pass
+
+- name: Configure a Raspberry Pi for Network UPS Tools (NUT)
+  hosts: configure_target
+  gather_facts: yes
+  become: yes
+
+  vars_files:
+    - ../group_vars/all/vault.yaml
+    - ../group_vars/all/admin-user.yaml  # Override vault to use admin user
+    - ../group_vars/all/github-user.yaml
+
+  vars:
+    admin_user: admin
+    admin_group: admin
+
+  pre_tasks:
+    - name: Show manual pre-setup instructions
+      ansible.builtin.debug:
+        msg:
+          - "Manual Pre-Setup Required for Raspberry Pi NUT Container:"
+          - "1. Ensure the network is configured and the device is reachable."
+          - "2. Connect the UPS via USB and verify it is detected (lsusb)."
+          - "3. Set a static IP address if needed."
+          - "4. Confirm SSH access is working for the admin user."
+          - "5. Update /etc/hosts if DNS is not available."
+          - "6. Review any hardware-specific requirements for your UPS model."
+          - "After completing these steps, you can proceed with this playbook."
+
+    - name: Wait for user confirmation before continuing
+      ansible.builtin.pause:
+        prompt: "Press Enter to continue after completing the manual pre-setup steps."
+
+  roles:
+
+    # update system and install common packages
+    - role: packages
+      vars:
+        specific_packages:
+          - nut         # Network UPS Tools core package
+          - nut-client  # NUT client utilities
+          - nut-server  # NUT server daemon
+          - usbutils    # USB device utilities for UPS detection
+          - apache2     # Apache web server for NUT web interface (nut-cgi)
+          - nut-cgi     # NUT CGI utilities for web interface
+
+    - timezone   # configure system timezone
+    - admin_user # create admin user with SSH access (in the case of a rpi, just do the certificate work)
+    - git_setup  # configure git settings and GitHub SSH key
+
+    # Clone the repository containing NUT configuration files
+    - role: github_clone
+      vars:
+        github_repos:
+          - name: "nut-homelab"
+            dest: "/srv/nut-homelab"
+ 
+    # Create symlinks from repository configs to system locations
+    - role: symlink_files
+      vars:
+        symlink_owner: "root"
+        symlink_group: "nut"
+        symlink_src_dir: "/srv/nut-homelab/configs/nut"
+        symlink_dest_dir: "/etc/nut"
+        symlink_files:
+          - name: "hosts.conf" 
+          - name: "nut.conf" 
+          - name: "ups.conf" 
+          - name: "upsd.conf" 
+          - name: "upsd.users" 
+          - name: "upsmon.conf"
+          - name: "upsset.conf"
+
+    - restart_nut  # Restart NUT services in the correct order
+
+  post_tasks:
+    - name: Display NUT web interface URL
+      ansible.builtin.debug:
+        msg:
+          - "=================================================="
+          - "NUT Setup Complete! Access the web interface at:"
+          - "http://{{ ansible_host }}/cgi-bin/nut/upsstats.cgi"
+          - ""
+          - "Default credentials may be required:"
+          - "Username: admin (or as configured in upsd.users)"
+          - "Password: As configured in your upsd.users file"
+          - "=================================================="

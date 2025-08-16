@@ -15,6 +15,7 @@ General container configuration (`user=root` as assumed `admin` user not setup y
 - `ansible-playbook playbooks/configure-lxc-ansible.yaml --ask-vault-pass` to configure a lxc for an ansible server.
 - `ansible-playbook playbooks/configure-lxc-docker-privileged.yaml --ask-vault-pass` to configure a privileged lxc for docker operations.
 - `ansible-playbook playbooks/configure-lxc-docker-unprivileged.yaml --ask-vault-pass` to configure an unprivileged lxc for docker operations.
+- `ansible-playbook playbooks/configure-rpi-nut.yaml --ask-vault-pass` to configure a Raspberry Pi for NUT (Network UPS Tools) server with web interface.
 
 Targeted container configurations (`user=root` as assumed `admin` user not setup yet):
 - `ansible-playbook playbooks/ansible-git.yaml --ask-vault-pass` to create a ansible github keys.
