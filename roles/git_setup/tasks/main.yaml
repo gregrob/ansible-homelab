@@ -26,7 +26,7 @@
     state: directory
     mode: '0700'
     owner: "{{ admin_user }}"
-    group: "{{ admin_user }}"
+    group: "{{ admin_group }}"
 
 # Add GitHub to known_hosts to avoid SSH authenticity prompt
 - name: Add GitHub to known_hosts
