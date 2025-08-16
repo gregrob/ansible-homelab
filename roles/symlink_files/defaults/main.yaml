@@ -1,0 +1,29 @@
+---
+# Default variables for the symlink_files role
+
+# List of files to symlink
+symlink_files: []
+# Example formats:
+#   Full path style (preferred for multiple directories):
+#   - name: "ups.conf"               # Name for reporting/display
+#     src: "/path/to/source/file"    # Full source path 
+#     dest: "/path/to/destination"   # Full destination path
+#
+#   Directory-based style (simpler for single directory):
+#   - name: "ups.conf"      # File name
+#     src_path: "ups.conf"  # Optional: path relative to symlink_src_dir
+#     dest_path: "ups.conf" # Optional: path relative to symlink_dest_dir
+
+# Base directories (used with src_path/dest_path format)
+symlink_src_dir: ""
+symlink_dest_dir: ""
+
+# Owner and group for symlinks
+symlink_owner: "root"
+symlink_group: "root"
+
+# Backup existing files before replacing
+symlink_backup: true
+
+# Force creation of symlinks (remove existing files/links)
+symlink_force: true

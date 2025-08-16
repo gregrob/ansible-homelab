@@ -1,0 +1,67 @@
+---
+# Process a single file for symlinking
+# This task file handles the complete workflow for creating a single symlink:
+#  1. Determine the full source and destination paths
+#  2. Ensure the destination directory exists
+#  3. Check if the destination file already exists
+#  4. Backup existing regular files (not symlinks) if backup is enabled
+#  5. Create the symbolic link
+#  6. Set proper ownership on the created symlink
+
+# Determine source and destination paths based on the provided options
+# Supports both full paths and directory-based relative paths
+- name: Set source and destination paths
+  ansible.builtin.set_fact:
+    src_path: "{{ current_file.src | default(symlink_src_dir + '/' + (current_file.src_path | default(current_file.name))) }}"
+    dest_path: "{{ current_file.dest | default(symlink_dest_dir + '/' + (current_file.dest_path | default(current_file.name))) }}"
+
+# Ensure the destination directory exists before attempting to create symlinks
+# This prevents errors when symlinking to non-existent directories
+- name: Ensure destination directory exists
+  ansible.builtin.file:
+    path: "{{ dest_path | dirname }}"
+    state: directory
+    mode: '0755'
+  become: true
+
+# Check if the destination file already exists and determine its type
+# This allows for proper backup handling for existing regular files
+- name: Check if destination file exists
+  ansible.builtin.stat:
+    path: "{{ dest_path }}"
+  register: file_stat
+  become: true
+
+# Backup existing regular files before replacing them with symlinks
+# Only backs up regular files, not directories or existing symlinks
+- name: Backup existing regular file if backup is enabled
+  ansible.builtin.copy:
+    src: "{{ dest_path }}"
+    dest: "{{ dest_path }}.bak"
+    remote_src: yes
+  become: true
+  when: 
+    - symlink_backup
+    - file_stat.stat.exists
+    - not file_stat.stat.islnk
+
+# Create the symbolic link pointing to the source file
+# The force parameter allows replacing existing files/links
+- name: Create symbolic link
+  ansible.builtin.file:
+    src: "{{ src_path }}"
+    dest: "{{ dest_path }}"
+    state: link
+    force: "{{ symlink_force }}"
+  become: true
+
+# Set ownership on the symlink itself, not the target file
+# The follow: false parameter is crucial to modify the symlink, not what it points to
+- name: Set ownership of symlink
+  ansible.builtin.file:
+    path: "{{ dest_path }}"
+    owner: "{{ symlink_owner }}"
+    group: "{{ symlink_group }}"
+    follow: false  # Don't follow the symlink
+  become: true
+  
