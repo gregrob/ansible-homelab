@@ -17,6 +17,17 @@
     - { name: user.name,  value: "{{ git_name }}" }
     - { name: user.email, value: "{{ git_email }}" }
 
+# Ensure admin user's .ssh directory exists
+- name: Ensure admin user's .ssh directory exists
+  become: true
+  become_user: "{{ admin_user }}"
+  ansible.builtin.file:
+    path: "/home/{{ admin_user }}/.ssh"
+    state: directory
+    mode: '0700'
+    owner: "{{ admin_user }}"
+    group: "{{ admin_user }}"
+
 # Add GitHub to known_hosts to avoid SSH authenticity prompt
 - name: Add GitHub to known_hosts
   become: true
