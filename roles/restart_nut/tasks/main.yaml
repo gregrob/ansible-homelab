@@ -1,0 +1,68 @@
+---
+# Role: restart_nut
+# Purpose: Restart all NUT-related services in the correct order
+#
+# This role handles restarting Network UPS Tools (NUT) services in the proper sequence,
+# including enabling required Apache modules for the web interface.
+# The restart sequence is crucial for proper UPS detection and monitoring.
+
+# Restart the NUT server service which manages communication with UPS devices
+# This service must be running before clients can connect
+- name: Restart NUT server service
+  ansible.builtin.service:
+    name: nut-server
+    state: restarted
+    enabled: yes
+  become: true
+
+# Restart the NUT client service which allows local access to UPS data
+# Depends on the server service being active
+- name: Restart NUT client service
+  ansible.builtin.service:
+    name: nut-client
+    state: restarted
+    enabled: yes
+  become: true
+
+# Restart the NUT monitor service which handles automated responses to UPS events
+# Depends on both server and client services
+- name: Restart NUT monitor service
+  ansible.builtin.service:
+    name: nut-monitor
+    state: restarted
+    enabled: yes
+  become: true
+
+# The UPS drivers require a specific stop/start sequence separate from the services
+# First stop all running UPS drivers to ensure clean restart
+- name: Stop UPS drivers
+  ansible.builtin.command: upsdrvctl stop
+  register: upsdrvctl_stop
+  changed_when: true
+  ignore_errors: true  # Sometimes fails if already stopped
+  become: true
+  
+# Start all configured UPS drivers to establish connection with hardware
+# This is crucial for proper device detection
+- name: Start UPS drivers
+  ansible.builtin.command: upsdrvctl start
+  register: upsdrvctl_start
+  changed_when: true
+  become: true
+  
+# Enable the Apache CGI module which is required for the NUT web interface
+# This allows the CGI scripts in nut-cgi package to execute properly
+- name: Enable Apache CGI module
+  ansible.builtin.command: a2enmod cgi
+  register: cgi_result
+  changed_when: "'already enabled' not in cgi_result.stdout"
+  become: true
+
+# Restart the Apache web server to apply CGI module configuration
+# This makes the NUT web interface accessible via HTTP
+- name: Restart Apache web server
+  ansible.builtin.service:
+    name: apache2
+    state: restarted
+    enabled: yes
+  become: true
