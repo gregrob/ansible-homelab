@@ -27,10 +27,9 @@
           - "Manual Pre-Setup Required for Raspberry Pi NUT Container:"
           - "1. Ensure the network is configured and the device is reachable."
           - "2. Connect the UPS via USB and verify it is detected (lsusb)."
-          - "3. Set a static IP address if needed."
-          - "4. Confirm SSH access is working for the admin user."
-          - "5. Update /etc/hosts if DNS is not available."
-          - "6. Review any hardware-specific requirements for your UPS model."
+          - " "
+          - "3. Set a static IP address with 'sudo nmtui'. Address, Gateway, and DNS must be set."
+          - "   Alternatively use the configure-network-static.yaml playbook."
           - "After completing these steps, you can proceed with this playbook."
 
     - name: Wait for user confirmation before continuing

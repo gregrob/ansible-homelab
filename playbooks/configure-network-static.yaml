@@ -1,0 +1,54 @@
+---
+# Configure Network Manager Static IP Playbook
+# Sets up static IP addressing using NetworkManager CLI
+# Useful for servers requiring fixed addressing (like NUT, DNS, or web servers)
+#
+# Usage:
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/configure-network-static.yaml --ask-vault-pass
+
+- name: Configure static IP addressing using NetworkManager
+  hosts: configure_target
+  gather_facts: yes
+  become: yes
+  
+  vars_files:
+    - ../group_vars/all/vault.yaml
+    - ../group_vars/all/admin-user.yaml  # Override vault to use admin user
+
+  vars:
+    # Network configuration parameters
+    network_interface: "eth0"
+    connection_name: "Wired connection 1"
+    static_ip: "{{ static_ip_nut }}"
+    gateway: "{{ gateway_trusted }}"
+    dns_servers: "{{ dns_servers_internal }}"  # Primary and fallback DNS servers
+
+  tasks:
+    - name: Configure static IP address and DNS using NetworkManager
+      community.general.nmcli:
+        conn_name: "{{ connection_name }}"
+        ifname: "{{ network_interface }}"
+        type: ethernet
+        ip4: "{{ static_ip }}"
+        gw4: "{{ gateway }}"
+        dns4: "{{ dns_servers }}"  # Configure DNS servers
+        dns4_search: ""  # Optional: Set DNS search domains
+        state: present
+        method4: manual  # Ensure IPv4 is manually configured
+        autoconnect: yes
+
+    - name: Reboot to apply network changes (don't wait for completion)
+      ansible.builtin.reboot:
+        reboot_timeout: 1  # Very short timeout so it doesn't wait
+      async: 1             # Run asynchronously 
+      poll: 0              # Don't poll for completion
+      ignore_errors: yes   # Ignore connection errors
+      become: true
+
+    - name: Display new IP information
+      ansible.builtin.debug:
+        msg:
+          - "Network configuration complete!"
+          - "The system is rebooting to apply changes."
+          - "After reboot, the new IP will be: {{ static_ip | regex_replace('/.*', '') }}"
+          - "Update your inventory file and reconnect using the new IP."

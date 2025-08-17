@@ -20,6 +20,7 @@ General container configuration (`user=root` as assumed `admin` user not setup y
 Targeted container configurations (`user=root` as assumed `admin` user not setup yet):
 - `ansible-playbook playbooks/ansible-git.yaml --ask-vault-pass` to create a ansible github keys.
 - `ansible-playbook playbooks/clone-git.yaml --ask-vault-pass` to clone git repositories.
+- `ansible-playbook playbooks/configure-network-static.yaml --ask-vault-pass` to configure static IP addressing using NetworkManager (system will reboot to apply changes).
 - `ansible-playbook playbooks/connect-secrets.yaml --ask-vault-pass` to connect to secrets server.
 - `ansible-playbook playbooks/create-admin.yaml --ask-vault-pass` to create a admin user.
 
