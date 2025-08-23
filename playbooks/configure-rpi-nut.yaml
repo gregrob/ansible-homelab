@@ -65,7 +65,7 @@
       vars:
         symlink_owner: "root"
         symlink_group: "nut"
-        symlink_src_dir: "/srv/nut-homelab/configs/nut"
+        symlink_src_dir: "/srv/nut-homelab/configs/nut-server"
         symlink_dest_dir: "/etc/nut"
         symlink_files:
           - name: "hosts.conf" 
