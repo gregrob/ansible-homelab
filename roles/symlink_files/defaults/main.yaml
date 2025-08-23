@@ -8,11 +8,13 @@ symlink_files: []
 #   - name: "ups.conf"               # Name for reporting/display
 #     src: "/path/to/source/file"    # Full source path 
 #     dest: "/path/to/destination"   # Full destination path
+#     mode: "640"                    # Optional: set source file permissions
 #
 #   Directory-based style (simpler for single directory):
 #   - name: "ups.conf"      # File name
 #     src_path: "ups.conf"  # Optional: path relative to symlink_src_dir
 #     dest_path: "ups.conf" # Optional: path relative to symlink_dest_dir
+#     mode: "640"           # Optional: set source file permissions
 
 # Base directories (used with src_path/dest_path format)
 symlink_src_dir: ""
@@ -27,3 +29,6 @@ symlink_backup: true
 
 # Force creation of symlinks (remove existing files/links)
 symlink_force: true
+
+# Whether to set source file permissions (only when mode is specified per file)
+symlink_set_source_permissions: true

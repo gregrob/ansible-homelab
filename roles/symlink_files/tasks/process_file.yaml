@@ -2,11 +2,12 @@
 # Process a single file for symlinking
 # This task file handles the complete workflow for creating a single symlink:
 #  1. Determine the full source and destination paths
-#  2. Ensure the destination directory exists
-#  3. Check if the destination file already exists
-#  4. Backup existing regular files (not symlinks) if backup is enabled
-#  5. Create the symbolic link
-#  6. Set proper ownership on the created symlink
+#  2. Set permissions on source file (if mode is specified)
+#  3. Ensure the destination directory exists
+#  4. Check if the destination file already exists
+#  5. Backup existing regular files (not symlinks) if backup is enabled
+#  6. Create the symbolic link
+#  7. Set proper ownership on the created symlink
 
 # Determine source and destination paths based on the provided options
 # Supports both full paths and directory-based relative paths
@@ -14,6 +15,19 @@
   ansible.builtin.set_fact:
     src_path: "{{ current_file.src | default(symlink_src_dir + '/' + (current_file.src_path | default(current_file.name))) }}"
     dest_path: "{{ current_file.dest | default(symlink_dest_dir + '/' + (current_file.dest_path | default(current_file.name))) }}"
+
+# Set permissions on source file if mode is specified
+# This allows for setting appropriate security permissions on sensitive config files
+- name: Set permissions on source file
+  ansible.builtin.file:
+    path: "{{ src_path }}"
+    mode: "{{ current_file.mode }}"
+    owner: "{{ symlink_owner }}"
+    group: "{{ symlink_group }}"
+  become: true
+  when: 
+    - symlink_set_source_permissions
+    - current_file.mode is defined
 
 # Ensure the destination directory exists before attempting to create symlinks
 # This prevents errors when symlinking to non-existent directories
@@ -64,4 +78,3 @@
     group: "{{ symlink_group }}"
     follow: false  # Don't follow the symlink
   become: true
-  

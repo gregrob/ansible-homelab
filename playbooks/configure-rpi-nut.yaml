@@ -60,7 +60,7 @@
           - name: "nut-homelab"
             dest: "/srv/nut-homelab"
  
-    # Create symlinks from repository configs to system locations
+    # Create symlinks from repository configs to system locations and set appropriate permissions
     - role: symlink_files
       vars:
         symlink_owner: "root"
@@ -69,12 +69,19 @@
         symlink_dest_dir: "/etc/nut"
         symlink_files:
           - name: "hosts.conf" 
+            mode: "644" 
           - name: "nut.conf" 
+            mode: "640" # Not world readable
           - name: "ups.conf" 
+            mode: "640" # Not world readable
           - name: "upsd.conf" 
+            mode: "640" # Not world readable
           - name: "upsd.users" 
+            mode: "640" # Not world readable
           - name: "upsmon.conf"
+            mode: "640" # Not world readable
           - name: "upsset.conf"
+            mode: "644"
 
     # Configure NUT-specific system settings
     - role: nut_configuration
