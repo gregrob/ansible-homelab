@@ -22,8 +22,6 @@
   ansible.builtin.file:
     path: "{{ src_path }}"
     mode: "{{ current_file.mode }}"
-    owner: "{{ symlink_owner }}"
-    group: "{{ symlink_group }}"
   become: true
   when: 
     - symlink_set_source_permissions
