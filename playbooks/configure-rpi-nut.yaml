@@ -76,7 +76,7 @@
           - name: "upsmon.conf"
           - name: "upsset.conf"
 
-    - restart_nut  # Restart NUT services in the correct order
+    - nut_restart  # Restart NUT services in the correct order
 
   post_tasks:
     - name: Display NUT web interface URL
