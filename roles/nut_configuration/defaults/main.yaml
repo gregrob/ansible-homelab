@@ -1,0 +1,11 @@
+---
+# Default variables for the nut_configuration role
+
+# Admin group for NUT configuration access
+admin_group: "admin"
+
+# NUT system user
+nut_user: "nut"
+
+# Whether to add nut user to admin group
+nut_add_to_admin_group: true

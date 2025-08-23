@@ -76,6 +76,11 @@
           - name: "upsmon.conf"
           - name: "upsset.conf"
 
+    # Configure NUT-specific system settings
+    - role: nut_configuration
+      vars:
+        {}
+
     - nut_restart  # Restart NUT services in the correct order
 
   post_tasks:

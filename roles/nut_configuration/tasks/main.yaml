@@ -1,0 +1,18 @@
+---
+# Role: nut_configuration
+# Purpose: Configure NUT-specific system settings and permissions
+#
+# This role handles NUT-specific configuration tasks that need to happen
+# after package installation but before service restart. This includes
+# user permissions and any other NUT-specific system configuration.
+
+# Add the nut user to the admin group for proper file permissions
+# This allows NUT configs to be non-world readable while still being accessible
+- name: Add nut user to admin group for proper permissions
+  ansible.builtin.user:
+    name: "{{ nut_user }}"
+    groups: "{{ admin_group }}"
+    append: yes  # Don't remove from existing groups, just add admin
+  become: true
+  when: nut_add_to_admin_group
+  
