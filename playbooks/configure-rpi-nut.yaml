@@ -83,6 +83,16 @@
             mode: "640" # Not world readable
           - name: "upsset.conf"
             mode: "644"
+          - name: "upssched.conf"
+            mode: "644"
+          - name: "upssched-cmd.sh"
+            mode: "755"
+            src: "/srv/nut-homelab/scripts/upssched-cmd.sh"
+            dest: "/usr/local/sbin/upssched-cmd.sh"
+          - name: "asustor-flashstor-shutdown.sh"
+            mode: "750" # Not world readable / executable
+            src: "/srv/nut-homelab/scripts/asustor-flashstor-shutdown.sh"
+            dest: "/usr/local/sbin/asustor-flashstor-shutdown.sh"
 
     # Configure NUT-specific system settings
     - role: nut_configuration
