@@ -48,6 +48,7 @@
           - usbutils    # USB device utilities for UPS detection
           - apache2     # Apache web server for NUT web interface (nut-cgi)
           - nut-cgi     # NUT CGI utilities for web interface
+          - sshpass     # SSH password authentication tool - connect to flashstor
 
     - timezone   # configure system timezone
     - admin_user # create admin user with SSH access (in the case of a rpi, just do the certificate work)
