@@ -20,7 +20,7 @@ all:
 
     docker_unprivileged:
       hosts:
-        spoolman-001.containers.max.lan: {}
+        3dprinter-001.containers.max.lan: {}
         infisical-001.trusted.max.lan: {}
 
     test_target:
