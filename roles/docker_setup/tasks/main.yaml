@@ -49,16 +49,33 @@
 
 # Download Docker's GPG key
 - name: download Docker GPG key
-  ansible.builtin.get_url:
-    url: https://download.docker.com/linux/debian/gpg
-    dest: /etc/apt/keyrings/docker.asc
+  ansible.builtin.shell:
+    cmd: curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+    # Skip the creates just in case Docker updates their key and we need to re-download it
+    #creates: /etc/apt/keyrings/docker.asc
+
+# Make sure the key has the correct permission
+- name: set Docker GPG key permissions
+  ansible.builtin.file:
+    path: /etc/apt/keyrings/docker.asc
     mode: '0644'
 
 # Add Docker's APT repository
 - name: add Docker APT repository
-  ansible.builtin.apt_repository:
-    repo: "deb [arch={{ docker_arch }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian {{ os_codename.stdout }} stable"
-    filename: docker
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/docker.sources
+    mode: '0644'
+    content: |
+      Types: deb
+      URIs: https://download.docker.com/linux/debian
+      Suites: {{ os_codename.stdout }}
+      Components: stable
+      Architectures: {{ docker_arch }}
+      Signed-By: /etc/apt/keyrings/docker.asc
+
+# Update the apt cache after adding Docker repository
+- name: update apt cache
+  ansible.builtin.apt:
     update_cache: yes
 
 # Install Docker packages
