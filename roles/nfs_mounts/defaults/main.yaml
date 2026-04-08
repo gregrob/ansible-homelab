@@ -1,0 +1,29 @@
+--- 
+# Default variables for the nfs_mounts role
+
+# NFS server hostname or IP address
+nfs_host: flashstor.max.lan
+
+# Base path for NFS mount points on the client
+nfs_base_path: /mnt
+
+# Common NFS mount options for systemd integration and performance
+nfs_common_opts: "_netdev,x-systemd.automount,x-systemd.device-timeout=10,noauto,noatime,nfsvers=4"
+
+# List of NFS shares to mount with their corresponding local mount points
+nfs_mounts:
+  - share: /volume1/media
+    mountpoint: media
+    mode: ro
+  - share: /volume1/photo-library
+    mountpoint: photo-library
+    mode: ro
+  - share: /volume1/video
+    mountpoint: video
+    mode: ro
+  - share: /volume1/downloads
+    mountpoint: downloads
+    mode: ro
+  - share: /volume1/server-mounts
+    mountpoint: server-mounts
+    mode: rw

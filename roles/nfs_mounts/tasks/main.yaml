@@ -1,0 +1,61 @@
+---
+# Role to configure NFS mounts on the target system.
+#
+# Steps performed:
+#  1. Displays NFS configuration requirements for the user
+#  2. Lists required NFS shares that should be exported on the NAS
+#  3. Checks if mount points are already mounted to avoid redundant operations
+#  4. Creates local mount point directories for each NFS share (only if not mounted)
+#  5. Adds NFS mount entries to /etc/fstab and mounts them immediately mounts
+
+# Display informational message about NFS share configuration requirements
+- name: display NFS configuration requirements
+  ansible.builtin.debug:
+    msg:
+      - "┌──────────────────────────────────────────────────────────────┐"
+      - "│         NFS Share Configuration Required on NAS              │"
+      - "│ Ensure the following shares are exported and the target host │"
+      - "│ has been granted access in the NAS NFS permissions.          │"
+      - "└──────────────────────────────────────────────────────────────┘"
+      - "NAS Host  : {{ nfs_host }}"
+      - "Client IP : {{ ansible_host }}"
+
+# Display list of NFS shares that need to be exported with their access modes
+- name: display required NFS shares
+  ansible.builtin.debug:
+    msg: "  {{ item.share }} [{{ item.mode | upper }}]"
+  loop: "{{ nfs_mounts }}"
+  loop_control:
+    label: "{{ item.mountpoint }}"
+
+# Check if each mount point is already mounted to avoid unnecessary operations
+- name: check if mount points are already mounted
+  ansible.builtin.command:
+    cmd: "mountpoint -q {{ nfs_base_path }}/{{ item.mountpoint }}"
+  register: mount_check
+  loop: "{{ nfs_mounts }}"
+  changed_when: false
+  failed_when: false
+
+# Create mount point directories only for shares that are not already mounted
+- name: ensure NFS mount points exist
+  ansible.builtin.file:
+    path: "{{ nfs_base_path }}/{{ item.item.mountpoint }}"
+    state: directory
+    mode: '0755'
+  loop: "{{ mount_check.results }}"
+  when: item.rc != 0
+  loop_control:
+    label: "{{ nfs_base_path }}/{{ item.item.mountpoint }}"
+
+# Add NFS mount entries to /etc/fstab and mount them immediately
+- name: configure NFS mounts in fstab
+  ansible.builtin.mount:
+    path: "{{ nfs_base_path }}/{{ item.mountpoint }}"
+    src: "{{ nfs_host }}:{{ item.share }}"
+    fstype: nfs
+    opts: "{{ nfs_common_opts }},{{ item.mode }}"
+    state: mounted
+  loop: "{{ nfs_mounts }}"
+  loop_control:
+    label: "{{ nfs_host }}:{{ item.share }} → {{ nfs_base_path }}/{{ item.mountpoint }}"
