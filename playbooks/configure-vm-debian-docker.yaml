@@ -17,11 +17,68 @@
     - ../group_vars/all/github-repos-docker.yaml
 
   vars:
-    admin_uid: 1001
-    admin_gid: 1001
+    show_guide: true # Force guide on
+    admin_uid: 1001  # 1001 instead of 1000 because debian does not allow admin user during initial setup (protected)
+    admin_gid: 1001  # 1001 instead of 1000 because debian does not allow admin user during initial setup (protected)
 
     specific_packages:
-      - nfs-common  # NFS client utilities (i.e. mount in nfs_mounts role)
+      - nfs-common   # NFS client utilities (i.e. mount in nfs_mounts role)
+      
+  pre_tasks:
+    # Display comprehensive setup guide with target info and pre-flight checklist
+    - name: display playbook setup guide
+      ansible.builtin.debug:
+        msg:
+          - "┌──────────────────────────────────────────────────────────────┐"
+          - "│         Configure Debian VM for Docker - Setup Guide         │"
+          - "└──────────────────────────────────────────────────────────────┘"
+          - ""
+          - "── Target ─────────────────────────────────────────────────────"
+          - "  Host      : {{ inventory_hostname }}"
+          - "  IP        : {{ ansible_host }}"
+          - ""
+          - "── VM settings ─────────────────────────────────────────────────"
+          - "  System:"
+          - "    - Graphics card: VirtIO-GPU (for better performance and compatibility)"
+          - "    - Machine: q35 (modern hardware support - pcie)"
+          - "    - BIOS: OVMF (UEFI) (for modern firmware features and better hardware compatibility)"
+          - "    - Qemu Agent: enabled (for improved VM management and integration with host)"
+          - "  Disk:"
+          - "    - Size: 16GB (sufficient for OS and Docker, adjust if needed)"
+          - "    - Discard: on (enable trim support for better performance and space management nvme)"
+          - "    - SSD emulation: on (improves performance for virtual disks with nvme)"
+          - "  CPU:"
+          - "    - Cores: 2 (adjust based on host capabilities and workload requirements)"
+          - "    - Memory: 4GB (adjust based on host capabilities and workload requirements)"
+          - "    - Type: x86-64-v2-AES (modern CPU features for better performance, adjust if needed - i.e. host)"
+          - "  Other:"
+          - "    - Make sure a VirtIO RNG device is added to the VM for better entropy and performance /dev/urandom"
+          - ""
+          - "── Pre-flight Checklist ────────────────────────────────────────"
+          - "  1. Vault password available"
+          - "  2. SSH key access to target host confirmed (installed under root)"
+          - "  3. NFS shares exported on NAS with target host IP permitted"
+          - "  4. GitHub deploy keys configured for required repositories"
+          - "  5. Secrets server accessible from target host"
+          - ""
+          - "── Roles to be applied ─────────────────────────────────────────"
+          - "  - packages       : update system and install common packages"
+          - "  - timezone       : configure system timezone"
+          - "  - admin_user     : create admin user with SSH access"
+          - "  - git_setup      : configure git and GitHub SSH key"
+          - "  - docker_setup   : install and configure Docker"
+          - "  - nfs_mounts     : configure NFS mounts for media and shares"
+          - "  - github_clone   : clone GitHub repositories"
+          - "  - secrets_connect: setup secrets server SSH connection"
+          - ""
+          - "──────────────────────────────────────────────────────────────"
+      when: show_guide | default(false)
+
+    # Pause for user confirmation before proceeding with role execution
+    - name: wait for confirmation to proceed
+      ansible.builtin.pause:
+        prompt: "Press Enter to continue..."
+      when: show_guide | default(false)
 
   roles:
     # Next role is for LXC only
@@ -43,7 +100,8 @@
     - secrets_connect          # setup SSH connection to secrets server and decrypt secrets
     #- TODO: need something for nas mounts firewall
     #- TODO: need something for network and dns fix
+    #- TODO: VM settings in intro screen
     #- TODO: clean secrets and github test keysss
-
+        
     # Next role is for ANSIBLE machine only
     #- ansible_setup            # install and configure Ansible on the container
