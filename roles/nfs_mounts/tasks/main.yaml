@@ -57,5 +57,6 @@
     opts: "{{ nfs_common_opts }},{{ item.mode }}"
     state: mounted
   loop: "{{ nfs_mounts }}"
+  ignore_errors: true # Ignore errors to allow playbook to continue even if some mounts fail (e.g. due to network issues or misconfiguration)
   loop_control:
     label: "{{ nfs_host }}:{{ item.share }} → {{ nfs_base_path }}/{{ item.mountpoint }}"
