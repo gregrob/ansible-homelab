@@ -6,7 +6,8 @@
 #  2. Lists required NFS shares that should be exported on the NAS
 #  3. Checks if mount points are already mounted to avoid redundant operations
 #  4. Creates local mount point directories for each NFS share (only if not mounted)
-#  5. Adds NFS mount entries to /etc/fstab and mounts them immediately mounts
+#  5. Sets mount points immutable to prevent writes to local filesystem when NFS is unavailable
+#  6. Adds NFS mount entries to /etc/fstab and mounts them immediately
 
 # Display informational message about NFS share configuration requirements
 - name: display NFS configuration requirements
@@ -43,6 +44,16 @@
     path: "{{ nfs_base_path }}/{{ item.item.mountpoint }}"
     state: directory
     mode: '0755'
+  loop: "{{ mount_check.results }}"
+  when: item.rc != 0
+  loop_control:
+    label: "{{ nfs_base_path }}/{{ item.item.mountpoint }}"
+
+# Set mount points immutable to prevent writes to local filesystem when NFS is unavailable
+# NOTE: If the mount is already mounted, we have to skip otherwise it will fail
+- name: set mount points immutable to prevent local writes
+  ansible.builtin.command:
+    cmd: "chattr +i {{ nfs_base_path }}/{{ item.item.mountpoint }}"
   loop: "{{ mount_check.results }}"
   when: item.rc != 0
   loop_control:
