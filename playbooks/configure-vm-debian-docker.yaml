@@ -1,0 +1,49 @@
+---
+# Configure Debian VM for Docker playbook
+# Sets up a complete PRODUCTION Debian VM for Docker operations
+# This includes system configuration, user setup, Git/GitHub access, and Docker installation
+#
+# Usage:
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/configure-vm-debian-docker.yaml --ask-vault-pass
+
+- name: Configure a Debian VM for Docker
+  hosts: configure_target
+  gather_facts: yes
+  become: yes
+  
+  vars_files:
+    - ../group_vars/all/vault.yaml
+    - ../group_vars/all/github-user.yaml
+    - ../group_vars/all/github-repos-docker.yaml
+
+  vars:
+    admin_uid: 1001
+    admin_gid: 1001
+
+    specific_packages:
+      - nfs-common  # NFS client utilities (i.e. mount in nfs_mounts role)
+
+  roles:
+    # Next role is for LXC only
+    #- disable_systemd_networkd # lxc uses ifupdown, not systemd-networkd
+    
+    - packages                 # update system and install common packages
+    - timezone                 # configure system timezone
+    - admin_user               # create admin user with SSH access
+    - git_setup                # configure git settings and GitHub SSH key
+    - docker_setup             # install and configure Docker with admin access
+
+    # Next role is for LXC only
+    #- lxc_share_user           # setup LXC shared folder access with proper GID mapping
+    
+    # VM alternative to lxc_share_user
+    - nfs_mounts               # configure NFS mounts for media and server shares
+
+    - github_clone             # clone GitHub repositories with SSH key authentication
+    - secrets_connect          # setup SSH connection to secrets server and decrypt secrets
+    #- TODO: need something for nas mounts firewall
+    #- TODO: need something for network and dns fix
+    #- TODO: clean secrets and github test keysss
+
+    # Next role is for ANSIBLE machine only
+    #- ansible_setup            # install and configure Ansible on the container
