@@ -2,7 +2,7 @@
 # Variables for NAS (Network Attached Storage) configuration
 
 # NAS IP address for direct network communication (used in firewall rules etc)
-nas_backbone_ip: 192.168.1.25
+nas_backbone_ip: "{{ flashstor_ip }}"
 
 # NAS hostname for DNS resolution (used for NFS mounts and other services)
-nas_host: flashstor.max.lan
+nas_host: "{{ flashstor_host }}"
