@@ -28,18 +28,20 @@
     msg: "  - {{ item }}"
   loop: "{{ backbone_allowed_ips }}"
 
+# Install resolvconf package for proper DNS resolution management with static network configuration
+- name: install resolvconf
+  ansible.builtin.apt:
+    name:
+      - resolvconf
+      - iptables
+    state: present
+    update_cache: true
+    
 # Clear existing iptables rules for backbone interface to prevent conflicts
 - name: flush all iptables rules for backbone interface
   ansible.builtin.shell: |
     iptables-save | grep -v "{{ backbone_interface }}" | iptables-restore
   changed_when: false
-
-# Install resolvconf package for proper DNS resolution management with static network configuration
-- name: install resolvconf
-  ansible.builtin.apt:
-    name: resolvconf
-    state: present
-    update_cache: true
 
 # Deploy network interfaces configuration file from template with backup
 - name: deploy network interfaces file
