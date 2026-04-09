@@ -15,14 +15,16 @@
     - ../group_vars/all/vault.yaml
     - ../group_vars/all/github-user.yaml
     - ../group_vars/all/github-repos-docker.yaml
-
+    - ../group_vars/all/nas.yaml
+    
   vars:
     show_guide: true # Force guide on
     admin_uid: 1001  # 1001 instead of 1000 because debian does not allow admin user during initial setup (protected)
     admin_gid: 1001  # 1001 instead of 1000 because debian does not allow admin user during initial setup (protected)
 
     specific_packages:
-      - nfs-common   # NFS client utilities (i.e. mount in nfs_mounts role)
+      - nfs-common        # NFS client utilities (i.e. mount in nfs_mounts role)
+      - qemu-guest-agent  # QEMU guest agent for Proxmox integration
       
   pre_tasks:
     # Display comprehensive setup guide with target info and pre-flight checklist
@@ -57,9 +59,16 @@
           - "── Pre-flight Checklist ────────────────────────────────────────"
           - "  1. Vault password available"
           - "  2. SSH key access to target host confirmed (installed under root)"
-          - "  3. NFS shares exported on NAS with target host IP permitted"
-          - "  4. GitHub deploy keys configured for required repositories"
-          - "  5. Secrets server accessible from target host"
+          - "  3. Network configured with configure-vm-debian-docker-network playbook"
+          - "     This will configure:"
+          - "       - Installing resolvconf for DNS management"
+          - "       - Frontend interface: {{ frontend_interface }} with IP {{ frontend_address }} and gateway {{ frontend_gateway }}"
+          - "       - Backbone interface: {{ backbone_interface }} with IP {{ backbone_address }}"
+          - "       - DNS settings"
+          - "       - Firewall rules on the backbone"          
+          - "  4. NFS shares exported on NAS with {{ backbone_address }} permitted"
+          - "  5. GitHub deploy keys configured for required repositories"
+          - "  6. Secrets server accessible from target host"
           - ""
           - "── Roles to be applied ─────────────────────────────────────────"
           - "  - packages       : update system and install common packages"
@@ -98,9 +107,7 @@
 
     - github_clone             # clone GitHub repositories with SSH key authentication
     - secrets_connect          # setup SSH connection to secrets server and decrypt secrets
-    #- TODO: need something for nas mounts firewall
-    #- TODO: need something for network and dns fix
-    #- TODO: VM settings in intro screen
+    #- TODO: VM settings in intro screen - note on initial hdd setup with spare space
     #- TODO: clean secrets and github test keysss
         
     # Next role is for ANSIBLE machine only
