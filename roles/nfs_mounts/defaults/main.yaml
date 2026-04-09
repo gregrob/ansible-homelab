@@ -39,7 +39,7 @@ nfs_mounts:
     mode: ro
   - share: /volume1/downloads
     mountpoint: downloads
-    mode: ro
+    mode: rw
   - share: /volume1/server-mounts
     mountpoint: server-mounts
     mode: rw
