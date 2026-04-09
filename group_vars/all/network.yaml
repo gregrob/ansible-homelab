@@ -1,0 +1,18 @@
+--- 
+# Variables for network interface configuration
+
+# Frontend network interface configuration (main LAN/WAN connection)
+#   frontend_interface: define in playbook
+#   frontend_address: define in playbook
+#   frontend_gateway: define in playbook
+frontend_dns: "{{ dns_servers_internal }}"              # Primary DNS server for name resolution  
+frontend_dns_search: "{{ dns_server_search_internal }}" # DNS search domain for local hostnames
+
+# Backbone network interface configuration (internal/storage network)
+#   backbone_interface: define in playbook
+#   backbone_address: define in playbook
+
+# List of IP addresses allowed to access services via backbone network
+backbone_allowed_ips:
+  - "{{ nas_backbone_ip }}"  # NAS server IP for direct storage access
+  
