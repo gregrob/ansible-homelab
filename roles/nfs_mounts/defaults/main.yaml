@@ -1,8 +1,8 @@
 --- 
 # Default variables for the nfs_mounts role
 
-# NFS server hostname or IP address
-nfs_host: flashstor.max.lan
+# NFS server hostname or IP address (uses nas_host from group_vars)
+nfs_host: "{{ nas_host }}"
 
 # Base path for NFS mount points on the client
 nfs_base_path: /mnt
