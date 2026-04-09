@@ -23,6 +23,10 @@ all:
         3dprinter-001.containers.max.lan: {}
         infisical-001.trusted.max.lan: {}
 
+    vms:
+      hosts:
+        download-001.containers.max.lan: {}  
+
     test_target:
       hosts:
         {}
@@ -47,10 +51,11 @@ all:
         ansible:
         docker_privileged:
         docker_unprivileged:
+        vms:
     
     update_hosts:
       children:
         ansible:
         docker_privileged:
         docker_unprivileged:
-        
+        vms:
