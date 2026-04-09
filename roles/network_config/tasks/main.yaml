@@ -29,7 +29,7 @@
   loop: "{{ backbone_allowed_ips }}"
 
 # Install required packages for network configuration and firewall management
-- name: install packages for network configuration
+- name: install packages for network configuration and firewall management
   ansible.builtin.apt:
     name:
       - resolvconf
