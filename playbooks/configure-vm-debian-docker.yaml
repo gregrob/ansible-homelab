@@ -119,8 +119,6 @@
 
     - { role: github_clone,      tags: [repos] }     # clone GitHub repositories with SSH key authentication
     - { role: secrets_connect,   tags: [secrets] }   # setup SSH connection to secrets server and decrypt secrets
-    
-    #- TODO: clean secrets keysss (github done) -- 
         
     # Next role is for ANSIBLE machine only
     #- ansible_setup            # install and configure Ansible on the container
