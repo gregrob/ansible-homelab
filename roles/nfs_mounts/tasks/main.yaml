@@ -7,7 +7,8 @@
 #  3. Checks if mount points are already mounted to avoid redundant operations
 #  4. Creates local mount point directories for each NFS share (only if not mounted)
 #  5. Sets mount points immutable to prevent writes to local filesystem when NFS is unavailable
-#  6. Adds NFS mount entries to /etc/fstab and mounts them immediately
+#  6. Adds/updates NFS mount entries to /etc/fstab (regardless of current mount state)
+#  7. Mounts NFS shares if not already mounted (with error tolerance)
 
 # Display informational message about NFS share configuration requirements
 - name: display NFS configuration requirements
@@ -59,8 +60,20 @@
   loop_control:
     label: "{{ nfs_base_path }}/{{ item.item.mountpoint }}"
 
-# Add NFS mount entries to /etc/fstab and mount them immediately
+# Update fstab entry regardless of mount state
 - name: configure NFS mounts in fstab
+  ansible.builtin.mount:
+    path: "{{ nfs_base_path }}/{{ item.mountpoint }}"
+    src: "{{ nfs_host }}:{{ item.share }}"
+    fstype: nfs
+    opts: "{{ nfs_common_opts }},{{ item.mode }}"
+    state: present
+  loop: "{{ nfs_mounts }}"
+  loop_control:
+    label: "{{ nfs_host }}:{{ item.share }} → {{ nfs_base_path }}/{{ item.mountpoint }}"
+
+# Mount if not already mounted
+- name: mount NFS shares
   ansible.builtin.mount:
     path: "{{ nfs_base_path }}/{{ item.mountpoint }}"
     src: "{{ nfs_host }}:{{ item.share }}"
@@ -68,6 +81,6 @@
     opts: "{{ nfs_common_opts }},{{ item.mode }}"
     state: mounted
   loop: "{{ nfs_mounts }}"
-  ignore_errors: true # Ignore errors to allow playbook to continue even if some mounts fail (e.g. due to network issues or misconfiguration)
+  ignore_errors: true
   loop_control:
     label: "{{ nfs_host }}:{{ item.share }} → {{ nfs_base_path }}/{{ item.mountpoint }}"
