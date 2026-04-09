@@ -7,8 +7,24 @@ nfs_host: flashstor.max.lan
 # Base path for NFS mount points on the client
 nfs_base_path: /mnt
 
-# Common NFS mount options for systemd integration and performance
-nfs_common_opts: "_netdev,x-systemd.automount,x-systemd.device-timeout=10,noauto,noatime,nfsvers=4"
+# Common NFS mount options applied to all shares
+#
+# Boot & systemd integration:
+#   _netdev                     - wait for network before mounting
+#   noauto                      - do not mount at boot, let systemd handle it
+#   x-systemd.automount         - mount on first access; retries automatically if NAS recovers
+#   x-systemd.idle-timeout=60   - auto-unmount after 60s of inactivity (clears stale mounts)
+#   x-systemd.device-timeout=10 - give up waiting for device after 10s at boot
+#
+# Resilience (NAS unavailable / rebooting):
+#   soft                        - return error if server unreachable (prevents lockup)
+#   timeo=30                    - timeout after 3s (30 x 0.1s) before retry
+#   retrans=3                   - retry 3 times before failing
+#
+# Performance:
+#   noatime                     - do not update file access times (reduces NAS writes)
+#   nfsvers=4                   - force NFSv4 protocol
+nfs_common_opts: "_netdev,noauto,noatime,nfsvers=4,soft,timeo=30,retrans=3,x-systemd.automount,x-systemd.idle-timeout=60,x-systemd.device-timeout=10"
 
 # List of NFS shares to mount with their corresponding local mount points
 nfs_mounts:
