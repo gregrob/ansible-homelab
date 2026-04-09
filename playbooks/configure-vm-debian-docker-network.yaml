@@ -1,0 +1,45 @@
+---
+# Configure network interfaces playbook
+# Sets up static IP, DNS, and backbone interface with firewall rules
+#
+# Usage:
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/configure-network.yaml --ask-vault-pass
+#
+# WARNING: This playbook restarts networking on the target host.
+#          Ensure you have Proxmox console access before continuing.
+
+- name: Configure network interfaces
+  hosts: configure_target
+  gather_facts: yes
+  become: yes
+
+  vars_files:
+    - ../group_vars/all/vault.yaml
+    - ../group_vars/all/nas.yaml
+    - ../group_vars/all/network.yaml
+   
+  pre_tasks:
+    - name: display network configuration warning
+      ansible.builtin.debug:
+        msg:
+          - "┌──────────────────────────────────────────────────────────────┐"
+          - "│              Network Configuration Warning                   │"
+          - "│                                                              │"
+          - "│ This playbook will restart networking on the target host.    │"
+          - "│ SSH connectivity may be lost if IP settings are incorrect.   │"
+          - "│                                                              │"
+          - "│ Ensure you have Proxmox console access before continuing.    │"
+          - "└──────────────────────────────────────────────────────────────┘"
+          - "Target    : {{ inventory_hostname }}"
+          - "Current IP: {{ ansible_host }}"
+          - "New IP    : {{ frontend_address }}"
+          - "──────────────────────────────────────────────────────────────"
+          - "Press Enter to continue or Ctrl+C then A to abort."
+          - "──────────────────────────────────────────────────────────────"
+
+    - name: wait for confirmation to proceed
+      ansible.builtin.pause:
+        prompt: ""
+
+  roles:
+    - network_config
