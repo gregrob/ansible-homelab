@@ -105,22 +105,22 @@
     # Next role is for LXC only
     #- disable_systemd_networkd # lxc uses ifupdown, not systemd-networkd
     
-    - packages                 # update system and install common packages
-    - timezone                 # configure system timezone
-    - admin_user               # create admin user with SSH access
-    - git_setup                # configure git settings and GitHub SSH key
-    - docker_setup             # install and configure Docker with admin access
+    - { role: packages,          tags: [base] }      # update system and install common packages
+    - { role: timezone,          tags: [base] }      # configure system timezone
+    - { role: admin_user,        tags: [base] }      # create admin user with SSH access
+    - { role: git_setup,         tags: [git] }       # configure git settings and GitHub SSH key
+    - { role: docker_setup,      tags: [docker] }    # install and configure Docker with admin access
 
     # Next role is for LXC only
     #- lxc_share_user           # setup LXC shared folder access with proper GID mapping
     
     # VM alternative to lxc_share_user
-    - nfs_mounts               # configure NFS mounts for media and server shares
+    - { role: nfs_mounts,        tags: [storage] }   # configure NFS mounts for media and server shares
 
-    - github_clone             # clone GitHub repositories with SSH key authentication
-    - secrets_connect          # setup SSH connection to secrets server and decrypt secrets
+    - { role: github_clone,      tags: [repos] }     # clone GitHub repositories with SSH key authentication
+    - { role: secrets_connect,   tags: [secrets] }   # setup SSH connection to secrets server and decrypt secrets
     
-    #- TODO: clean secrets and github test keysss
+    #- TODO: clean secrets keysss (github done) -- 
         
     # Next role is for ANSIBLE machine only
     #- ansible_setup            # install and configure Ansible on the container
