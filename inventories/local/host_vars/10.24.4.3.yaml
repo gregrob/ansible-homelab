@@ -1,0 +1,13 @@
+--- 
+# Host-specific variables for 10.24.4.3
+# Network configuration settings specific to this target host
+
+# Frontend network configuration (main LAN/WAN connection)
+frontend_gateway: "{{ gateway_ip_containers }}"  # Default gateway for internet access
+frontend_interface: ens18                        # Network interface name for frontend connection
+frontend_address: 10.24.4.3                      # Static IP address for frontend interface
+
+# Backbone network configuration (internal/storage network)
+backbone_interface: ens19                        # Network interface name for backbone connection
+backbone_address: 192.168.1.93                   # Static IP address for backbone interface
+
