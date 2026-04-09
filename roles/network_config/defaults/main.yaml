@@ -1,0 +1,18 @@
+---
+# Default variables for the network_config role
+
+# Frontend network interface name (usually connected to main LAN/WAN)
+frontend_interface: ens18
+
+# Frontend network subnet mask
+frontend_netmask: 255.255.255.0
+
+# Backbone network interface name (usually connected to internal/storage network)
+backbone_interface: ens19
+
+# Backbone network subnet mask
+backbone_netmask: 255.255.255.0
+
+# List of IP addresses allowed to communicate via the backbone interface.
+# Add one entry per device. If empty, all traffic on the backbone will be dropped.
+backbone_allowed_ips: []

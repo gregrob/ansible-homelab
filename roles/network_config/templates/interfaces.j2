@@ -1,0 +1,48 @@
+# This file is managed by Ansible - do not edit manually
+
+# This file describes the network interfaces available on your system
+# and how to activate them. For more information, see interfaces(5).
+
+source /etc/network/interfaces.d/*
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+# Primary network interface - frontend (client-facing traffic)
+allow-hotplug {{ frontend_interface }}
+iface {{ frontend_interface }} inet static
+    address {{ frontend_address }}
+    netmask {{ frontend_netmask }}
+    gateway {{ frontend_gateway }}
+    dns-nameservers {{ frontend_dns }}
+    dns-search {{ frontend_dns_search | default('') }}
+
+# Secondary network interface - NAS backbone (direct NAS traffic)
+# 
+#  Firewall rules restrict this interface to NAS traffic only:
+#   - Allows inbound and outbound traffic to/from the NAS IP ({{ backbone_allowed_ips | join(', ') }})
+#   - Allows established and related connections (return traffic for active sessions e.g. NFS)
+#   - Drops all other traffic on this interface to prevent access to/from other devices on the same subnet
+#   - Rules are applied when the interface comes up and cleaned up when it goes down
+#
+allow-hotplug {{ backbone_interface }}
+iface {{ backbone_interface }} inet static
+    address {{ backbone_address }}
+    netmask {{ backbone_netmask }}
+    post-up iptables -A INPUT -i {{ backbone_interface }} -m state --state ESTABLISHED,RELATED -j ACCEPT
+    post-up iptables -A OUTPUT -o {{ backbone_interface }} -m state --state ESTABLISHED,RELATED -j ACCEPT
+{% for ip in backbone_allowed_ips %}
+    post-up iptables -A INPUT -i {{ backbone_interface }} -s {{ ip }} -j ACCEPT
+    post-up iptables -A OUTPUT -o {{ backbone_interface }} -d {{ ip }} -j ACCEPT
+{% endfor %}
+    post-up iptables -A INPUT -i {{ backbone_interface }} -j DROP
+    post-up iptables -A OUTPUT -o {{ backbone_interface }} -j DROP
+{% for ip in backbone_allowed_ips %}
+    pre-down iptables -D INPUT -i {{ backbone_interface }} -s {{ ip }} -j ACCEPT || true
+    pre-down iptables -D OUTPUT -o {{ backbone_interface }} -d {{ ip }} -j ACCEPT || true
+{% endfor %}
+    pre-down iptables -D INPUT -i {{ backbone_interface }} -m state --state ESTABLISHED,RELATED -j ACCEPT || true
+    pre-down iptables -D OUTPUT -o {{ backbone_interface }} -m state --state ESTABLISHED,RELATED -j ACCEPT || true
+    pre-down iptables -D INPUT -i {{ backbone_interface }} -j DROP || true
+    pre-down iptables -D OUTPUT -o {{ backbone_interface }} -j DROP || true

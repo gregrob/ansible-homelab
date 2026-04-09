@@ -1,0 +1,59 @@
+---
+# Role to configure network interfaces on the target system.
+#
+# Steps performed:
+#  1. Displays network configuration details including interface assignments and addresses
+#  2. Lists backbone network allowed IP addresses for reference
+#  3. Flushes existing iptables rules for backbone interface (security cleanup)
+#  4. Installs resolvconf package for DNS resolution management
+#  5. Deploys network interfaces configuration file from template
+#  6. Restarts networking service to apply configuration changes
+
+# Display informational message about network interface configuration and settings
+- name: display network configuration
+  ansible.builtin.debug:
+    msg:
+      - "┌──────────────────────────────────────────────────────────────┐"
+      - "│              Network Interface Configuration                  │"
+      - "└──────────────────────────────────────────────────────────────┘"
+      - "Frontend  : {{ frontend_interface }} → {{ frontend_address }}"
+      - "Gateway   : {{ frontend_gateway }}"
+      - "DNS       : {{ frontend_dns }}"
+      - "Backbone  : {{ backbone_interface }} → {{ backbone_address }}"
+      - "Allowed IPs on backbone:"
+
+# Display list of IP addresses allowed on the backbone network interface
+- name: display backbone allowed IPs
+  ansible.builtin.debug:
+    msg: "  - {{ item }}"
+  loop: "{{ backbone_allowed_ips }}"
+
+# Clear existing iptables rules for backbone interface to prevent conflicts
+- name: flush all iptables rules for backbone interface
+  ansible.builtin.shell: |
+    iptables-save | grep -v "{{ backbone_interface }}" | iptables-restore
+  changed_when: false
+
+# Install resolvconf package for proper DNS resolution management with static network configuration
+- name: install resolvconf
+  ansible.builtin.apt:
+    name: resolvconf
+    state: present
+    update_cache: true
+
+# Deploy network interfaces configuration file from template with backup
+- name: deploy network interfaces file
+  ansible.builtin.template:
+    src: interfaces.j2
+    dest: /etc/network/interfaces
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+
+# Restart networking service to apply new interface configuration
+- name: restart networking
+  ansible.builtin.service:
+    name: networking
+    state: restarted
+  changed_when: false
