@@ -19,9 +19,16 @@
     
   vars:
     show_guide: true # Force guide on
+    
     admin_uid: 1001  # 1001 instead of 1000 because debian does not allow admin user during initial setup (protected)
     admin_gid: 1001  # 1001 instead of 1000 because debian does not allow admin user during initial setup (protected)
 
+    admin_supplementary_groups:
+      - adm             # read system logs in /var/log
+      - sudo            # execute commands as root via sudo
+      - netdev          # manage network interfaces without sudo
+      - systemd-journal # read systemd journal logs via journalctl without sudo
+      
     specific_packages:
       - nfs-common        # NFS client utilities (i.e. mount in nfs_mounts role)
       - qemu-guest-agent  # QEMU guest agent for Proxmox integration
@@ -47,14 +54,19 @@
           - "    - Qemu Agent: enabled (for improved VM management and integration with host)"
           - "  Disk:"
           - "    - Size: 16GB (sufficient for OS and Docker, adjust if needed)"
+          - "    - Cache: Write through (improves read performance)"
           - "    - Discard: on (enable trim support for better performance and space management nvme)"
           - "    - SSD emulation: on (improves performance for virtual disks with nvme)"
+          - "    - For the LVM leave 50% unallocated for snapshots and future expansion"
           - "  CPU:"
           - "    - Cores: 2 (adjust based on host capabilities and workload requirements)"
           - "    - Memory: 4GB (adjust based on host capabilities and workload requirements)"
           - "    - Type: x86-64-v2-AES (modern CPU features for better performance, adjust if needed - i.e. host)"
+          - "    - Ballooning Device: disabled (for consistent performance with docker workloads)"
+          - "    - Allow KSM: disabled (save scanning overhead for a VM with docker workloads that may not benefit from KSM)"
           - "  Other:"
           - "    - Make sure a VirtIO RNG device is added to the VM for better entropy and performance /dev/urandom"
+          - "    - Use local time for RTC: no (linux expects UTC on the hardware clock and handles timezone in the OS via timedatectl)"
           - ""
           - "── Pre-flight Checklist ────────────────────────────────────────"
           - "  1. Vault password available"
@@ -107,7 +119,7 @@
 
     - github_clone             # clone GitHub repositories with SSH key authentication
     - secrets_connect          # setup SSH connection to secrets server and decrypt secrets
-    #- TODO: VM settings in intro screen - note on initial hdd setup with spare space
+    
     #- TODO: clean secrets and github test keysss
         
     # Next role is for ANSIBLE machine only
