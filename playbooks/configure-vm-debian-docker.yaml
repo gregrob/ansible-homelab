@@ -1,12 +1,12 @@
 ---
-# Configure Debian VM for Docker playbook
-# Sets up a complete PRODUCTION Debian VM for Docker operations
+# Configure Debian 13 VM or LXC for Docker playbook
+# Sets up a complete production Debian 13 VM or LXC for Docker operations
 # This includes system configuration, user setup, Git/GitHub access, and Docker installation
 #
 # Usage:
 #   ansible-playbook -i inventories/local/hosts.yaml playbooks/configure-vm-debian-docker.yaml --ask-vault-pass
 
-- name: Configure a Debian VM for Docker
+- name: Configure a Debian 13 VM or LXC for Docker
   hosts: configure_target
   gather_facts: yes
   become: yes
@@ -35,12 +35,12 @@
       
   pre_tasks:
     # Display comprehensive setup guide with target info and pre-flight checklist
-    - name: display playbook setup guide
+    - name: display playbook setup guide (vm)
       ansible.builtin.debug:
         msg:
-          - "┌──────────────────────────────────────────────────────────────┐"
-          - "│         Configure Debian VM for Docker - Setup Guide         │"
-          - "└──────────────────────────────────────────────────────────────┘"
+          - "┌───────────────────────────────────────────────────────────┐"
+          - "│      Configure Debian 13 VM for Docker - Setup Guide      │"
+          - "└───────────────────────────────────────────────────────────┘"
           - ""
           - "── Target ─────────────────────────────────────────────────────"
           - "  Host      : {{ inventory_hostname }}"
@@ -93,7 +93,42 @@
           - "  - secrets_connect: setup secrets server SSH connection"
           - ""
           - "──────────────────────────────────────────────────────────────"
-      when: show_guide | default(false)
+      when: show_guide | default(false) and not is_lxc
+
+    - name: display playbook setup guide (lxc)
+      ansible.builtin.debug:
+        msg:
+          - "┌───────────────────────────────────────────────────────────┐"
+          - "│      Configure Debian 13 LXC for Docker - Setup Guide     │"
+          - "└───────────────────────────────────────────────────────────┘"
+          - ""
+          - "── Target ─────────────────────────────────────────────────────"
+          - "  Host      : {{ inventory_hostname }}"
+          - "  IP        : {{ ansible_host }}"
+          - ""
+          - "── LXC settings ───────────────────────────────────────────────"
+          - "  - fuse = 1"
+          - "  - nesting = 1"
+          - ""
+          - "── Pre-flight Checklist ────────────────────────────────────────"
+          - "  1. Vault password available"
+          - "  2. SSH key access to target host confirmed (installed under root)"
+          - "  3. GitHub deploy keys configured for required repositories"
+          - "  4. Secrets server accessible from target host"
+          - ""
+          - "── Roles to be applied ─────────────────────────────────────────"
+          - "  - disable_systemd_networkd : disable systemd-networkd for LXC"
+          - "  - packages                 : update system and install common packages"
+          - "  - timezone                 : configure system timezone"
+          - "  - admin_user               : create admin user with SSH access"
+          - "  - git_setup                : configure git and GitHub SSH key"
+          - "  - docker_setup             : install and configure Docker"
+          - "  - lxc_share_user           : configure shared folder access for LXC"
+          - "  - github_clone             : clone GitHub repositories"
+          - "  - secrets_connect          : setup secrets server SSH connection"
+          - ""
+          - "──────────────────────────────────────────────────────────────"
+      when: show_guide | default(false) and is_lxc
 
     # Pause for user confirmation before proceeding with role execution
     - name: wait for confirmation to proceed
@@ -103,8 +138,8 @@
 
   roles:
     # Next role is for LXC only
-    #- disable_systemd_networkd # lxc uses ifupdown, not systemd-networkd
-    
+    - { role: disable_systemd_networkd, when: is_lxc }  # lxc uses ifupdown, not systemd-networkd
+
     - { role: packages,          tags: [base] }      # update system and install common packages
     - { role: timezone,          tags: [base] }      # configure system timezone
     - { role: admin_user,        tags: [base] }      # create admin user with SSH access
@@ -112,10 +147,10 @@
     - { role: docker_setup,      tags: [docker] }    # install and configure Docker with admin access
 
     # Next role is for LXC only
-    #- lxc_share_user           # setup LXC shared folder access with proper GID mapping
+    - { role: lxc_share_user,           when: is_lxc }  # setup LXC shared folder access with proper GID mapping
     
     # VM alternative to lxc_share_user
-    - { role: nfs_mounts,        tags: [storage] }   # configure NFS mounts for media and server shares
+    - { role: nfs_mounts,        tags: [storage], when: not is_lxc }   # configure NFS mounts for media and server shares
 
     - { role: github_clone,      tags: [repos] }     # clone GitHub repositories with SSH key authentication
     - { role: secrets_connect,   tags: [secrets] }   # setup SSH connection to secrets server and decrypt secrets
