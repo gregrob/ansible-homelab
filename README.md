@@ -11,6 +11,7 @@ Housekeeping:
 - `python3 vault-keys.py group_vars/all/vault.yaml` to generate a list of all the vault keys.
 
 General container configuration (`user=root` as assumed `admin` user not setup yet):
+- `ansible-playbook playbooks/configure-vm-debian-docker-network.yaml --ask-vault-pass` to configure static IP, DNS, and backbone interface with firewall rules (restarts networking — ensure Proxmox console access first).
 - `ansible-playbook playbooks/configure-debian13-target.yaml --ask-vault-pass` to configure a Debian 13 VM or LXC for Docker operations. **This is the preferred playbook going forward** — set `is_lxc: true` (LXC) or `is_lxc: false` (VM) in the target's `host_vars` file, e.g.:
 ```yaml
   # host_vars/ollama-001.containers.max.lan.yaml
