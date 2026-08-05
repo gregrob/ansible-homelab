@@ -10,3 +10,6 @@ frontend_dns_search: max-lan.com
 
 # No backbone on this VM
 backbone_enabled: false
+
+# VM
+is_lxc: false
