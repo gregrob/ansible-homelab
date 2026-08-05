@@ -6,6 +6,7 @@ all:
 
     configure_target:
       hosts:
+        #nut-001.trusted.max.lan: {}
         {}
 
     ansible:
@@ -27,6 +28,10 @@ all:
     vms:
       hosts:
         download-001.containers.max.lan: {}  
+        dns-001.dns.max-lan.com:
+           ansible_host: dns-001.dns.max-lan.com
+        dns-002.dns.max-lan.com:
+           ansible_host: dns-002.dns.max-lan.com
 
     test_target:
       hosts:
