@@ -1,11 +1,18 @@
 ---
 # Default variables for the network_config role
 
+# Whether this host has a backbone interface at all
+backbone_enabled: true
+
 # Frontend network interface name (usually connected to main LAN/WAN)
 frontend_interface: ens18
 
 # Frontend network subnet mask
 frontend_netmask: 255.255.255.0
+
+# Frontend DNS configuration
+frontend_dns: "{{ dns_servers_internal }}"              # Primary DNS server for name resolution
+frontend_dns_search: "{{ dns_server_search_internal }}" # DNS search domain for local hostnames
 
 # Backbone network interface name (usually connected to internal/storage network)
 backbone_interface: ens19
@@ -15,4 +22,5 @@ backbone_netmask: 255.255.255.0
 
 # List of IP addresses allowed to communicate via the backbone interface.
 # Add one entry per device. If empty, all traffic on the backbone will be dropped.
-backbone_allowed_ips: []
+backbone_allowed_ips:
+  - "{{ nas_backbone_ip }}"  # NAS server IP for direct storage access

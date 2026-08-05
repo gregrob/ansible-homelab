@@ -18,8 +18,9 @@ iface {{ frontend_interface }} inet static
     dns-nameservers {{ frontend_dns }}
     dns-search {{ frontend_dns_search | default('') }}
 
+{% if backbone_enabled %}
 # Secondary network interface - NAS backbone (direct NAS traffic)
-# 
+#
 #  Firewall rules restrict this interface to NAS traffic only:
 #   - Allows inbound and outbound traffic to/from the NAS IP ({{ backbone_allowed_ips | join(', ') }})
 #   - Allows established and related connections (return traffic for active sessions e.g. NFS)
@@ -46,3 +47,4 @@ iface {{ backbone_interface }} inet static
     pre-down iptables -D OUTPUT -o {{ backbone_interface }} -m state --state ESTABLISHED,RELATED -j ACCEPT || true
     pre-down iptables -D INPUT -i {{ backbone_interface }} -j DROP || true
     pre-down iptables -D OUTPUT -o {{ backbone_interface }} -j DROP || true
+{% endif %}

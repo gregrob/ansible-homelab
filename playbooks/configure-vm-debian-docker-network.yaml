@@ -16,7 +16,6 @@
   vars_files:
     - ../group_vars/all/vault.yaml
     - ../group_vars/all/nas.yaml
-    - ../group_vars/all/network.yaml
    
   pre_tasks:
     - name: display network configuration warning
