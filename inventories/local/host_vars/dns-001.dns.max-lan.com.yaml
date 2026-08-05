@@ -11,5 +11,8 @@ frontend_dns_search: max-lan.com
 # No backbone on this VM
 backbone_enabled: false
 
+# No NFS shares needed on this VM
+nfs_mounts: []
+
 # VM
 is_lxc: false
