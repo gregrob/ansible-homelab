@@ -1,12 +1,12 @@
 --- 
-# Host-specific variables for dns-001.dns.max-lan.com
+# Host-specific variables for dns-002.dns.gregrob.net
 # Network configuration settings specific to this target host
 
 # Frontend network configuration (main LAN/WAN connection)
 frontend_gateway: "{{ gateway_ip_dns }}"          # Default gateway for internet access
 frontend_interface: ens18                         # Network interface name for frontend connection
-frontend_address: 10.24.19.30                     # Static IP address for frontend interface
-frontend_dns_search: max-lan.com
+frontend_address: 10.24.19.32                     # Static IP address for frontend interface
+frontend_dns_search: gregrob.net
 
 # No backbone on this VM
 backbone_enabled: false

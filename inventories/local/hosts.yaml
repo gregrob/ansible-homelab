@@ -28,10 +28,10 @@ all:
     vms:
       hosts:
         download-001.containers.max.lan: {}  
-        dns-001.dns.max-lan.com:
-           ansible_host: dns-001.dns.max-lan.com
-        dns-002.dns.max-lan.com:
-           ansible_host: dns-002.dns.max-lan.com
+        dns-001.dns.gregrob.net:
+           ansible_host: dns-001.dns.gregrob.net
+        dns-002.dns.gregrob.net:
+           ansible_host: dns-002.dns.gregrob.net
 
     test_target:
       hosts:
