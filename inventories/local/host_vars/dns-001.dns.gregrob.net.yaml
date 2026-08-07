@@ -6,7 +6,7 @@
 frontend_gateway: "{{ gateway_ip_dns }}"          # Default gateway for internet access
 frontend_interface: ens18                         # Network interface name for frontend connection
 frontend_address: 10.24.19.30                     # Static IP address for frontend interface
-frontend_dns_search: gregrob.net
+frontend_dns_search: "dns.gregrob.net gregrob.net"
 
 # No backbone on this VM
 backbone_enabled: false
