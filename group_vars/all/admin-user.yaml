@@ -1,7 +1,6 @@
 ---
-# Admin user override for specific server connections
-# Overrides vault settings when admin user access is required
+# Interactive admin account identity on target hosts — referenced by roles
+# (e.g. keepalived) that need to know which local user/group owns things.
 
-# Connect as admin user instead of vault default
-ansible_user: admin
-ansible_become_password: "{{ admin_password }}"  # Use the admin user's password for privilege escalation
+admin_user: admin
+admin_group: admin

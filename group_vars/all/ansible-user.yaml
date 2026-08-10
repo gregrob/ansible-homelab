@@ -1,0 +1,8 @@
+---
+# Ansible connection identity — how Ansible connects and escalates
+# privileges on target hosts. Defaults to the same account as admin_user,
+# but can be overridden independently if you ever split connection and
+# interactive admin accounts.
+
+ansible_user: "{{ admin_user }}"
+ansible_become_password: "{{ admin_password }}"
