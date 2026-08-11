@@ -16,3 +16,13 @@ nfs_mounts: []
 
 # VM
 is_lxc: false
+
+# Keepalived settings
+keepalived_instance_name: vrrp_dns_002
+keepalived_interface: "{{ frontend_interface }}"
+keepalived_state: BACKUP
+keepalived_priority: 100
+keepalived_unicast_src_ip: 10.24.19.32/24
+keepalived_unicast_peers:
+  - 10.24.19.30/24
+keepalived_vip: 10.24.19.29/24

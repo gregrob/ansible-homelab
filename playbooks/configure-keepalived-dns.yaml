@@ -1,0 +1,58 @@
+---
+# Configure Keepalived for DNS high-availability failover
+#
+# Deploys keepalived on hosts in the dns_keepalived_target inventory group,
+# providing a shared virtual IP (VIP) that fails over automatically between
+# nodes based on a local DNS health check. Active/passive only — each node
+# runs its DNS service independently, keepalived just decides which one
+# currently holds the VIP that clients actually query. Works with any number
+# of hosts in the group, not just a fixed pair.
+#
+# Prerequisites:
+#   - DNS service (e.g. Technitium) already installed and running on target hosts
+#   - host_vars for each host define: frontend_interface, keepalived_state,
+#     keepalived_priority, keepalived_unicast_src_ip, keepalived_unicast_peers,
+#     keepalived_vip
+#   - keepalived_auth_pass defined in vault (currently group_vars/all/vault.yaml)
+#
+# Usage:
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/configure-keepalived-dns.yaml --ask-vault-pass
+#
+# After running, verify failover manually before pointing clients at the VIP.
+
+- name: Configure Keepalived for DNS
+  hosts: keepalived_dns_target
+  gather_facts: yes
+  become: yes
+
+  vars_files:
+    - ../group_vars/all/vault.yaml
+    - ../group_vars/all/admin-user.yaml # Scripts called by keepalived will run as admin user
+
+  pre_tasks:
+    # Display target-specific info so it's obvious which node is about to
+    # become MASTER/BACKUP and what VIP is being configured, before anything
+    # actually changes on the host.
+    - name: display playbook setup guide
+      ansible.builtin.debug:
+        msg:
+          - "=== Keepalived DNS Configuration ==="
+          - "Target host:      {{ inventory_hostname }}"
+          - "Interface:        {{ frontend_interface }}"
+          - "Node address:     {{ keepalived_unicast_src_ip }}"
+          - "Initial state:    {{ keepalived_state }} (priority {{ keepalived_priority }})"
+          - "Peers:            {{ keepalived_unicast_peers | join(', ') }}"
+          - "Virtual IP:       {{ keepalived_vip }}"
+          - ""
+          - "This will install keepalived, deploy the VRRP config and notify"
+          - "script, and start the service. Existing keepalived config on"
+          - "this host (if any) will be overwritten."
+
+    # Optional confirmation gate — only prompts when explicitly requested via
+    # -e show_guide=true, so this playbook can still run unattended by default.
+    - name: wait for confirmation to proceed
+      ansible.builtin.pause:
+        prompt: "Press Enter to continue, or Ctrl+C to abort..."
+
+  roles:
+    - { role: keepalived, tags: [keepalived] }

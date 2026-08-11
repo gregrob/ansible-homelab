@@ -1,0 +1,40 @@
+# {{ inventory_hostname }} - managed by Ansible, do not edit by hand
+
+global_defs {
+      script_user {{ admin_user }}
+      enable_script_security
+      max_auto_priority 99
+}
+
+vrrp_script chk_service {
+        script "{{ keepalived_check_script }}"
+        interval {{ keepalived_check_interval }}
+        timeout {{ keepalived_check_timeout }}
+        fall {{ keepalived_check_fall }}
+        rise {{ keepalived_check_rise }}
+}
+
+vrrp_instance {{ keepalived_instance_name }} {
+    state {{ keepalived_state }}
+    interface {{ keepalived_interface }}
+    virtual_router_id {{ keepalived_virtual_router_id }}
+    priority {{ keepalived_priority }}
+    advert_int 1
+    unicast_src_ip {{ keepalived_unicast_src_ip }}
+    unicast_peer {
+{% for peer in keepalived_unicast_peers %}
+        {{ peer }}
+{% endfor %}
+    }
+    virtual_ipaddress {
+        {{ keepalived_vip }}
+    }
+    authentication {
+        auth_type PASS
+        auth_pass {{ keepalived_auth_pass }}
+    }
+    track_script {
+        chk_service
+    }
+    notify {{ keepalived_notify_script }}
+}

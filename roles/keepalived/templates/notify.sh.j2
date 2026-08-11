@@ -1,0 +1,10 @@
+#!/bin/bash
+# Managed by Ansible - do not edit by hand
+
+# create locals and convert $TYPE to lowercase
+TYPE=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+NAME=$2
+STATE=$3
+
+# create the file containing the state
+echo $TYPE $NAME is in $STATE state > {{ keepalived_run_dir }}/keepalive.$TYPE.$NAME.state

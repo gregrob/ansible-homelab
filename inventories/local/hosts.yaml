@@ -33,6 +33,11 @@ all:
         dns-002.dns.gregrob.net:
            ansible_host: dns-002.dns.gregrob.net
 
+    keepalived_dns_target:
+      hosts:
+        dns-001.dns.gregrob.net: {}
+        dns-002.dns.gregrob.net: {}
+
     test_target:
       hosts:
         {}
