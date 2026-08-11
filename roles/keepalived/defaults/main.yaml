@@ -1,18 +1,62 @@
-# Router settings
+---
+# Default variables for the keepalived role.
+#
+# Some variables below have no default and MUST be supplied per host via
+# host_vars, since they're host-identifying (interface, IP, priority) or
+# secret (auth password) — see the "Required, no default" section at the
+# bottom of this file for the full list.
+
+# VRRP router ID. Must be unique per broadcast domain — if you run more
+# than one keepalived VIP pair on the same LAN, give each pair a different
+# virtual_router_id or they'll collide.
 keepalived_virtual_router_id: 20
 
-# Checkscript for fail over
+# Health check script deployed to the target and called by keepalived's
+# vrrp_script to decide whether this node is healthy. keepalived_check_script
+# is both the destination path and (via | basename) the template filename
+# in templates/ — keep the two in sync if you rename either.
 keepalived_check_script: /etc/keepalived/scripts/check.sh
 keepalived_check_interval: 2
 keepalived_check_fall: 2
 keepalived_check_rise: 2
+# Also used inside keepalived_check_command below as the dig timeout, so
+# this one value governs both keepalived's own script timeout and how long
+# the default DNS check itself waits for a response.
 keepalived_check_timeout: 1
 
-# Specifically for DNS related checks
+# Default health check command — queries DNS over TCP and checks for an
+# exact match on the expected response. TCP (not UDP) is used because a
+# frozen/paused service can still appear to answer UDP queries via Docker's
+# port-forwarding layer even when the application itself isn't responding;
+# a TCP query requires the application to actually accept() the connection.
+# Override keepalived_check_command entirely (e.g. a curl health check) to
+# reuse this role for a non-DNS service such as Traefik.
 keepalived_check_domain: localhost
 keepalived_check_expected: "127.0.0.1"
 keepalived_check_command: "/usr/bin/dig +tcp +short +time={{ keepalived_check_timeout }} +tries=1 @127.0.0.1 {{ keepalived_check_domain }} | grep -qx '{{ keepalived_check_expected }}'"
 
-# Notify script
+# Notify script deployed to the target and called by keepalived on every
+# VRRP state transition (MASTER/BACKUP/FAULT). Logs the current state to a
+# status file under keepalived_run_dir.
 keepalived_notify_script: /etc/keepalived/scripts/notify.sh
+
+# Status directory the notify script writes into. Lives under /run (tmpfs),
+# so a systemd-tmpfiles rule recreates it on every boot — see tasks/main.yaml.
 keepalived_run_dir: /run/keepalived-scripts
+
+# ---------------------------------------------------------------------------
+# Required, no default — must be set per host in host_vars, or per group in
+# group_vars, since these are host-identifying or secret values:
+#
+#   keepalived_instance_name   - unique VRRP instance name for this host
+#   keepalived_state           - BACKUP (recommended for all nodes; priority
+#                                 decides the initial MASTER, not this field)
+#   keepalived_priority        - VRRP election priority (higher wins)
+#   keepalived_interface       - network interface to run VRRP on
+#   keepalived_unicast_src_ip  - this host's own IP/CIDR
+#   keepalived_unicast_peers   - list of the other node(s)' IP/CIDR
+#   keepalived_vip             - shared virtual IP/CIDR, same on every node
+#   keepalived_auth_pass       - shared VRRP auth password (vault-encrypted)
+#   admin_user / admin_group   - account that owns/executes the deployed
+#                                 scripts (see group_vars/all/admin-user.yaml)
+# ---------------------------------------------------------------------------

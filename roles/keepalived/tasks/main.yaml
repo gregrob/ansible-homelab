@@ -1,9 +1,32 @@
+---
+# Role to configure keepalived for VRRP-based VIP failover between two or
+# more hosts, with a service health check driving failover and a notify
+# script recording state transitions.
+#
+# Steps performed:
+#  1. Installs the keepalived package
+#  2. Deploys a systemd-tmpfiles rule for the notify script's status
+#     directory under /run, so it's recreated automatically on every boot
+#     (plain directories under /run don't survive a reboot on their own)
+#  3. Deploys the health check script that vrrp_script calls to decide
+#     whether this node is healthy (command is set via keepalived_check_command,
+#     so the same role works for any service, not just DNS)
+#  4. Deploys the notify script that logs VRRP state transitions
+#     (MASTER/BACKUP/FAULT) to a status file
+#  5. Templates keepalived.conf from host-specific vars and restarts the
+#     service when it changes
+#  6. Ensures keepalived is enabled and running
+
+# Install the keepalived package
 - name: Install keepalived
   apt:
     name: keepalived
     state: present
     update_cache: true
 
+# /run is tmpfs and is wiped on every reboot, so the notify script's status
+# directory needs a tmpfiles.d rule to be recreated automatically at boot
+# rather than relying on this playbook having been run since the last reboot
 - name: Deploy tmpfiles.d rule for keepalived-scripts run directory
   copy:
     content: "d {{ keepalived_run_dir }} 0755 {{ admin_user }} {{ admin_group }} -\n"
@@ -13,10 +36,14 @@
     mode: '0644'
   register: keepalived_tmpfiles
 
+# Apply the tmpfiles rule immediately so the directory exists right now,
+# without waiting for the next reboot
 - name: Apply tmpfiles rule now (so it exists without waiting for reboot)
   command: "systemd-tmpfiles --create /etc/tmpfiles.d/keepalived-scripts.conf"
   when: keepalived_tmpfiles.changed
 
+# Ensure the health check script's destination directory exists before
+# deploying the script into it
 - name: Ensure check script destination directory exists
   file:
     path: "{{ keepalived_check_script | dirname }}"
@@ -25,6 +52,12 @@
     group: "{{ admin_group }}"
     mode: '0755'
 
+# Deploy the health check script. This is a real script file (not an inline
+# command in keepalived.conf) because enable_script_security causes
+# keepalived to exec the command directly rather than via a shell — an
+# inline pipe (e.g. "dig ... | grep ...") would have its pipe symbol passed
+# as a literal argument instead of being interpreted, silently breaking the
+# check. Wrapping it in a script file with its own shebang avoids this.
 - name: Deploy health check script
   template:
     src: "{{ keepalived_check_script | basename }}.j2"
@@ -33,6 +66,8 @@
     group: "{{ admin_group }}"
     mode: '0755'
 
+# Ensure the notify script's destination directory exists before deploying
+# the script into it
 - name: Ensure notify script destination directory exists
   file:
     path: "{{ keepalived_notify_script | dirname }}"
@@ -41,6 +76,9 @@
     group: "{{ admin_group }}"
     mode: '0755'
 
+# Deploy the notify script. keepalived calls this on every VRRP state
+# transition (MASTER/BACKUP/FAULT); it just logs the current state to a
+# status file under keepalived_run_dir for observability
 - name: Deploy notify script
   template:
     src: "{{ keepalived_notify_script | basename }}.j2"
@@ -49,6 +87,9 @@
     group: "{{ admin_group }}"
     mode: '0755'
 
+# Template keepalived.conf from host-specific vars (interface, priority,
+# VIP, peers, etc.) and restart the service only if the rendered content
+# actually changed
 - name: Deploy keepalived.conf
   template:
     src: keepalived.conf.j2
@@ -58,6 +99,7 @@
     mode: '0640'
   notify: restart keepalived
 
+# Ensure keepalived is enabled at boot and currently running
 - name: Ensure keepalived is enabled and running
   systemd:
     name: keepalived

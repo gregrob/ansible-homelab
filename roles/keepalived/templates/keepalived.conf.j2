@@ -1,4 +1,9 @@
 # {{ inventory_hostname }} - managed by Ansible, do not edit by hand
+#
+# script_user + enable_script_security restrict the scripts keepalived
+# calls (check + notify) to run as admin_user rather than root, since
+# keepalived itself must run as root for VRRP/VIP management but the
+# scripts it shells out to don't need that privilege.
 
 global_defs {
       script_user {{ admin_user }}

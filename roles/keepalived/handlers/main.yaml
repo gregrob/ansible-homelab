@@ -1,4 +1,6 @@
 ---
+# Restart keepalived when keepalived.conf changes. Triggered by the
+# "Deploy keepalived.conf" task in tasks/main.yaml.
 - name: restart keepalived
   systemd:
     name: keepalived
