@@ -32,15 +32,20 @@ keepalived_run_dir: /run/keepalived-scripts
 # Required, no default — must be set per host in host_vars, or per group in
 # group_vars, since these are host-identifying or secret values:
 #
-#   keepalived_instance_name   - unique VRRP instance name for this host
-#   keepalived_state           - BACKUP (recommended for all nodes; priority
-#                                 decides the initial MASTER, not this field)
-#   keepalived_priority        - VRRP election priority (higher wins)
-#   keepalived_interface       - network interface to run VRRP on
-#   keepalived_unicast_src_ip  - this host's own IP/CIDR
-#   keepalived_unicast_peers   - list of the other node(s)' IP/CIDR
-#   keepalived_vip             - shared virtual IP/CIDR, same on every node
-#   keepalived_auth_pass       - shared VRRP auth password (vault-encrypted)
-#   admin_user / admin_group   - account that owns/executes the deployed
-#                                 scripts (see group_vars/all/admin-user.yaml)
+#   keepalived_instance_name     - unique VRRP instance name for this host
+#   keepalived_state             - BACKUP (recommended for all nodes; priority
+#                                  decides the initial MASTER, not this field)
+#   keepalived_priority          - VRRP election priority (higher wins)
+#   keepalived_interface         - network interface to run VRRP on
+#   keepalived_unicast_src_ip    - this host's own IP/CIDR
+#   keepalived_unicast_peers     - list of the other node(s)' IP/CIDR
+#   keepalived_vip               - shared virtual IP/CIDR, same on every node
+#   keepalived_virtual_router_id - VRRP router ID, unique per broadcast domain
+#   keepalived_auth_pass         - shared VRRP auth password (vault-encrypted)
+#   keepalived_check_domain      - hostname/record to query for the health check
+#   keepalived_check_expected    - exact expected response for that query
+#   keepalived_check_command     - full check command; must reference ${TARGET}
+#                                  if IPVS per-real-server checks are used
+#   admin_user / admin_group     - account that owns/executes the deployed
+#                                  scripts (see group_vars/all/admin-user.yaml)
 # ---------------------------------------------------------------------------
