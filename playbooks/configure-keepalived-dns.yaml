@@ -14,9 +14,15 @@
 #     keepalived_priority, keepalived_unicast_src_ip, keepalived_unicast_peers,
 #     keepalived_vip
 #   - keepalived_auth_pass defined in vault (currently group_vars/all/vault.yaml)
+#   - admin_user / admin_group defined in group_vars/all/admin-user.yaml, matching
+#     whatever the admin_user role (run separately) actually provisions
 #
 # Usage:
 #   ansible-playbook -i inventories/local/hosts.yaml playbooks/configure-keepalived-dns.yaml --ask-vault-pass
+#
+# To skip the interactive confirmation pause (e.g. running from an Ansible
+# GUI/runner with no interactive terminal to press Enter in), pass:
+#   -e skip_confirmation=true
 #
 # After running, verify failover manually before pointing clients at the VIP.
 
@@ -48,11 +54,14 @@
           - "script, and start the service. Existing keepalived config on"
           - "this host (if any) will be overwritten."
 
-    # Optional confirmation gate — only prompts when explicitly requested via
-    # -e show_guide=true, so this playbook can still run unattended by default.
+    # Confirmation gate — skipped when skip_confirmation=true is passed
+    # (e.g. -e skip_confirmation=true, or however your GUI runner sets
+    # extra vars). Defaults to false, so running interactively from a
+    # terminal still pauses for a manual Enter by default.
     - name: wait for confirmation to proceed
       ansible.builtin.pause:
         prompt: "Press Enter to continue, or Ctrl+C to abort..."
+      when: not (skip_confirmation | default(false) | bool)
 
   roles:
     - { role: keepalived, tags: [keepalived] }
