@@ -1,12 +1,24 @@
 ---
+# Pool-wide keepalived configuration for the keepalived_dns_target group
+# (dns-001, dns-002). Everything here must be identical across every node
+# in the pool — VRRP won't work correctly if nodes disagree on the VIP or
+# router ID, so these live at group level rather than being duplicated
+# (and risking drift) in each host's host_vars.
+#
+# Per-host identity (interface, priority, this node's own IP, peer list)
+# stays in host_vars — see dns-001.dns.gregrob.net.yaml / dns-002...yaml.
 
-# Virual IP address
+# Shared virtual IP — the address clients actually query. Same on every
+# node; keepalived decides which node currently owns it.
 keepalived_vip: 10.24.19.29/24
 
-# Start all nodes as BACKUP
+# All nodes start as BACKUP; keepalived_priority (set per host) decides
+# which one wins the initial MASTER election, not this field.
 keepalived_state: BACKUP
 
-# All node IP's
+# Every node's own IP/CIDR in the pool. Each host's keepalived_unicast_peers
+# derives from this list (everyone except itself) — see host_vars — so
+# adding a node here is enough to update every existing host's peer list.
 keepalived_dns_nodes:
   - 10.24.19.30/24   # dns-001
   - 10.24.19.32/24   # dns-002
@@ -16,13 +28,14 @@ keepalived_dns_nodes:
 # virtual_router_id or they'll collide.
 keepalived_virtual_router_id: 20
 
-# Default health check command — queries DNS over TCP and checks for an
-# exact match on the expected response. TCP (not UDP) is used because a
-# frozen/paused service can still appear to answer UDP queries via Docker's
-# port-forwarding layer even when the application itself isn't responding;
-# a TCP query requires the application to actually accept() the connection.
-# Override keepalived_check_command entirely (e.g. a curl health check) to
-# reuse this role for a non-DNS service such as Traefik.
+# Health check definition for this pool. Queries DNS over TCP and checks
+# for an exact match on the expected response. TCP (not UDP) is used
+# because a frozen/paused service can still appear to answer UDP queries
+# via Docker's port-forwarding layer even when the application itself
+# isn't responding; a TCP query requires the application to actually
+# accept() the connection. These are DNS-specific, not role defaults —
+# reuse this role for a non-DNS service (e.g. Traefik) by defining your
+# own version of these three vars in that group's vars instead.
 keepalived_check_domain: localhost
 keepalived_check_expected: "127.0.0.1"
 keepalived_check_command: "/usr/bin/dig +tcp +short +time={{ keepalived_check_timeout }} +tries=1 @127.0.0.1 {{ keepalived_check_domain }} | grep -qx '{{ keepalived_check_expected }}'"
