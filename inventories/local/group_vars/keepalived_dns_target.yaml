@@ -1,0 +1,28 @@
+---
+
+# Virual IP address
+keepalived_vip: 10.24.19.29/24
+
+# Start all nodes as BACKUP
+keepalived_state: BACKUP
+
+# All node IP's
+keepalived_dns_nodes:
+  - 10.24.19.30/24   # dns-001
+  - 10.24.19.32/24   # dns-002
+
+# VRRP router ID. Must be unique per broadcast domain — if you run more
+# than one keepalived VIP pair on the same LAN, give each pair a different
+# virtual_router_id or they'll collide.
+keepalived_virtual_router_id: 20
+
+# Default health check command — queries DNS over TCP and checks for an
+# exact match on the expected response. TCP (not UDP) is used because a
+# frozen/paused service can still appear to answer UDP queries via Docker's
+# port-forwarding layer even when the application itself isn't responding;
+# a TCP query requires the application to actually accept() the connection.
+# Override keepalived_check_command entirely (e.g. a curl health check) to
+# reuse this role for a non-DNS service such as Traefik.
+keepalived_check_domain: localhost
+keepalived_check_expected: "127.0.0.1"
+keepalived_check_command: "/usr/bin/dig +tcp +short +time={{ keepalived_check_timeout }} +tries=1 @127.0.0.1 {{ keepalived_check_domain }} | grep -qx '{{ keepalived_check_expected }}'"
