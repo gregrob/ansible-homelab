@@ -16,6 +16,7 @@
     - ../group_vars/all/github-user.yaml
     - ../group_vars/all/github-repos-docker.yaml
     - ../group_vars/all/nas.yaml
+    - ../group_vars/all/admin-user.yaml # Consistent admin user for all these machines
     
   vars:
     show_guide: true # Force guide on
