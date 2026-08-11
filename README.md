@@ -33,6 +33,7 @@ Targeted container configurations (`user=root` as assumed `admin` user not setup
 
 Jobs (`user=admin`):
 - `ansible-playbook playbooks/apt-upgrade.yaml --ask-vault-pass` update and upgrade packages on Debian/Ubuntu systems.
+- `ansible-playbook playbooks/configure-dns-keepalived.yaml --ask-vault-pass` deploy keepalived VRRP VIP failover across DNS hosts (`keepalived_dns_target` group), with a local health check driving failover. Add `-e skip_confirmation=true` to skip the interactive confirmation pause (e.g. running from a GUI/runner).
 - `ansible-playbook playbooks/disk-check.yaml --ask-vault-pass` checks the disk space of the host hasn't exceeded 80% and sends mail notification if it has.
 - `ansible-playbook playbooks/fix-git-remotes.yaml --ask-vault-pass` fix corrupted Git remote URLs to proper SSH format.
 - `ansible-playbook playbooks/git-pull-repos.yaml --ask-vault-pass` git pull on repos under `/srv`.
