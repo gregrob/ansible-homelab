@@ -1,9 +1,18 @@
+# Router settings
 keepalived_virtual_router_id: 20
-keepalived_check_domain: localhost
+
+# Checkscript for fail over
+keepalived_check_script: /etc/keepalived/scripts/check.sh
 keepalived_check_interval: 2
 keepalived_check_fall: 2
 keepalived_check_rise: 2
 keepalived_check_timeout: 1
-keepalived_run_dir: /run/keepalived-scripts
+
+# Specifically for DNS related checks
+keepalived_check_domain: localhost
+keepalived_check_expected: "127.0.0.1"
+keepalived_check_command: "/usr/bin/dig +tcp +short +time={{ keepalived_check_timeout }} +tries=1 @127.0.0.1 {{ keepalived_check_domain }} | grep -qx '{{ keepalived_check_expected }}'"
+
+# Notify script
 keepalived_notify_script: /etc/keepalived/scripts/notify.sh
-keepalived_check_script: "/usr/bin/dig +short +time=1 +tries=1 @127.0.0.1 {{ keepalived_check_domain }} | grep -q ."
+keepalived_run_dir: /run/keepalived-scripts
