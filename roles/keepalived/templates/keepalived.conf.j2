@@ -11,6 +11,8 @@ global_defs {
       max_auto_priority 99
 }
 
+# Self-check used by VRRP to decide if THIS node is healthy enough to hold
+# the VIP. Runs with no target argument, so check.sh.j2 defaults to 127.0.0.1.
 vrrp_script chk_service {
         script "{{ keepalived_check_script }}"
         interval {{ keepalived_check_interval }}
@@ -43,3 +45,34 @@ vrrp_instance {{ keepalived_instance_name }} {
     }
     notify {{ keepalived_notify_script }}
 }
+
+{% if keepalived_load_balancer_enabled | bool %}
+# --- IPVS load balancing -----------------------------------------------
+# Only active on whichever node currently holds the VIP (the VRRP MASTER).
+# Distributes VIP traffic across keepalived_real_servers using LVS-DR mode,
+# which preserves the real client source IP end to end (no proxying) -
+# each real_server answers the client directly rather than through this
+# node. Each real server gets its own MISC_CHECK, using the same check.sh
+# script as the VRRP self-check above but pointed at that server's IP
+# instead of 127.0.0.1 - so a pool member is pulled out of rotation the
+# moment its own DNS stops answering, independent of VRRP/VIP ownership.
+{% for proto in keepalived_lb_protocols %}
+virtual_server {{ keepalived_vip.split('/')[0] }} {{ keepalived_lb_port }} {
+    delay_loop 6
+    lb_algo {{ keepalived_lb_algo }}
+    lb_kind {{ keepalived_lb_kind }}
+    protocol {{ proto }}
+    persistence_timeout 0
+
+{% for rs in keepalived_real_servers %}
+    real_server {{ rs.ip }} {{ keepalived_lb_port }} {
+        weight {{ rs.weight | default(1) }}
+        MISC_CHECK {
+            misc_path "{{ keepalived_check_script }} {{ rs.ip }}"
+            misc_timeout {{ keepalived_check_timeout }}
+        }
+    }
+{% endfor %}
+}
+{% endfor %}
+{% endif %}

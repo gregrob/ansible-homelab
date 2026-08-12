@@ -1,7 +1,18 @@
 #!/bin/bash
 # Managed by Ansible - do not edit by hand
+#
 # Generic keepalived health check wrapper. The actual check command is
 # supplied via keepalived_check_command, so this file never needs to
 # change between services (DNS, Traefik, etc.) — only the var does.
+#
+# Used two ways:
+#  - By keepalived's vrrp_script, with no argument, to check this node's
+#    own service (TARGET defaults to 127.0.0.1)
+#  - By keepalived's IPVS MISC_CHECK (real_server blocks), with a target IP
+#    as $1, to check a specific pool member before sending it traffic.
+#    keepalived_check_command must reference ${TARGET} for this to work
+#    (the default DNS command does).
+
+TARGET="${1:-127.0.0.1}"
 
 {{ keepalived_check_command }}

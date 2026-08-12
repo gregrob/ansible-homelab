@@ -1,0 +1,15 @@
+[Unit]
+Description=Bind IPVS real-server VIP to loopback (DR mode) - managed by Ansible
+After=network.target
+Before=keepalived.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# ip addr replace (not add) is idempotent - safe to run again without erroring
+# if the address is already present.
+ExecStart=/sbin/ip addr replace {{ keepalived_vip.split('/')[0] }}/32 dev lo scope host
+ExecStop=/sbin/ip addr del {{ keepalived_vip.split('/')[0] }}/32 dev lo
+
+[Install]
+WantedBy=multi-user.target

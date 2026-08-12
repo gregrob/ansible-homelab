@@ -1,21 +1,28 @@
 ---
 # Role to configure keepalived for VRRP-based VIP failover between two or
 # more hosts, with a service health check driving failover and a notify
-# script recording state transitions.
+# script recording state transitions. Optionally also configures IPVS load
+# balancing (LVS-DR mode) across a pool of real servers, active only when
+# keepalived_load_balancer_enabled is true.
 #
 # Steps performed:
-#  1. Installs the keepalived package
-#  2. Deploys a systemd-tmpfiles rule for the notify script's status
+#  1. Installs keepalived (and, if load balancing is enabled, ipvsadm +
+#     the ip_vs kernel module)
+#  2. If load balancing is enabled: configures the ARP/forwarding sysctls
+#     and binds the VIP to loopback, both required for LVS-DR real servers
+#  3. Deploys a systemd-tmpfiles rule for the notify script's status
 #     directory under /run, so it's recreated automatically on every boot
 #     (plain directories under /run don't survive a reboot on their own)
-#  3. Deploys the health check script that vrrp_script calls to decide
-#     whether this node is healthy (command is set via keepalived_check_command,
-#     so the same role works for any service, not just DNS)
-#  4. Deploys the notify script that logs VRRP state transitions
+#  4. Deploys the health check script, used both by vrrp_script (self-check)
+#     and, when load balancing is enabled, IPVS MISC_CHECK (per-real-server
+#     checks) — command is set via keepalived_check_command, so the same
+#     role works for any service, not just DNS
+#  5. Deploys the notify script that logs VRRP state transitions
 #     (MASTER/BACKUP/FAULT) to a status file
-#  5. Templates keepalived.conf from host-specific vars and restarts the
+#  6. Templates keepalived.conf from host-specific vars (including the IPVS
+#     virtual_server/real_server blocks, if enabled) and restarts the
 #     service when it changes
-#  6. Ensures keepalived is enabled and running
+#  7. Ensures keepalived is enabled and running
 
 # Install the keepalived package
 - name: Install keepalived
@@ -23,6 +30,82 @@
     name: keepalived
     state: present
     update_cache: true
+
+# --- IPVS load balancing setup (only when enabled) -------------------------
+
+# ipvsadm isn't strictly required for keepalived to manage IPVS itself, but
+# it's the standard tool for inspecting IPVS state by hand when troubleshooting
+- name: Install ipvsadm for IPVS inspection/troubleshooting
+  apt:
+    name: ipvsadm
+    state: present
+  when: keepalived_load_balancer_enabled | bool
+
+# ip_vs is the kernel module IPVS is built on; load it now and persist it
+# so it's loaded again automatically on every future boot
+#- name: Ensure ip_vs kernel module is loaded
+#  modprobe:
+#    name: ip_vs
+#    state: present
+#  when: keepalived_load_balancer_enabled | bool
+
+#- name: Persist ip_vs module load at boot
+#  copy:
+#    dest: /etc/modules-load.d/keepalived-ipvs.conf
+#    content: "ip_vs\n"
+#    owner: root
+#    group: root
+#    mode: '0644'
+#  when: keepalived_load_balancer_enabled | bool
+
+# LVS-DR mode requires each real server to not answer ARP for the VIP
+# (arp_ignore/arp_announce), so incoming packets addressed to the VIP are
+# accepted locally rather than the node broadcasting itself as the VIP's
+# owner. ip_forward is NOT required for DR mode (only NAT mode needs it) —
+# deliberately left out.
+- name: Deploy sysctl config for IPVS real server ARP behavior
+  copy:
+    dest: /etc/sysctl.d/99-keepalived-lb.conf
+    content: |
+      net.ipv4.conf.all.arp_ignore = 1
+      net.ipv4.conf.all.arp_announce = 2
+    owner: root
+    group: root
+    mode: '0644'
+  when: keepalived_load_balancer_enabled | bool
+  register: keepalived_lb_sysctl
+
+- name: Apply sysctl settings now
+  command: sysctl --system
+  when: keepalived_lb_sysctl.changed
+
+# Each real server binds the VIP to its own loopback interface so it can
+# accept and answer VIP traffic directly (the whole point of DR mode - the
+# client sees a reply from the VIP, not from this node's real IP), without
+# this node ever announcing itself as the VIP's owner via ARP
+- name: Deploy loopback VIP binding service (IPVS DR mode)
+  template:
+    src: keepalived-lb-loopback.service.j2
+    dest: /etc/systemd/system/keepalived-lb-loopback.service
+    owner: root
+    group: root
+    mode: '0644'
+  when: keepalived_load_balancer_enabled | bool
+  register: keepalived_lb_loopback_unit
+
+- name: Reload systemd daemon if loopback service changed
+  systemd:
+    daemon_reload: true
+  when: keepalived_lb_loopback_unit.changed
+
+- name: Enable and start loopback VIP binding service
+  systemd:
+    name: keepalived-lb-loopback
+    enabled: true
+    state: started
+  when: keepalived_load_balancer_enabled | bool
+
+# --- Health check + notify scripts (used regardless of load balancing) -----
 
 # /run is tmpfs and is wiped on every reboot, so the notify script's status
 # directory needs a tmpfiles.d rule to be recreated automatically at boot
@@ -58,6 +141,10 @@
 # inline pipe (e.g. "dig ... | grep ...") would have its pipe symbol passed
 # as a literal argument instead of being interpreted, silently breaking the
 # check. Wrapping it in a script file with its own shebang avoids this.
+# The same script is reused for IPVS MISC_CHECK by passing a target IP as
+# an argument (see keepalived.conf.j2) — exec'ing "script path" + "one
+# argument" needs no shell interpretation, so this remains safe under
+# enable_script_security either way.
 - name: Deploy health check script
   template:
     src: "{{ keepalived_check_script | basename }}.j2"
@@ -87,9 +174,12 @@
     group: "{{ admin_group }}"
     mode: '0755'
 
+# --- keepalived config + service --------------------------------------------
+
 # Template keepalived.conf from host-specific vars (interface, priority,
-# VIP, peers, etc.) and restart the service only if the rendered content
-# actually changed
+# VIP, peers, etc.) - and, if load balancing is enabled, the IPVS
+# virtual_server/real_server blocks - restarting the service only if the
+# rendered content actually changed
 - name: Deploy keepalived.conf
   template:
     src: keepalived.conf.j2

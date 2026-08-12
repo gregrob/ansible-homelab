@@ -1,22 +1,23 @@
 ---
 # Default variables for the keepalived role.
 #
-# Some variables below have no default and MUST be supplied per host via
-# host_vars, since they're host-identifying (interface, IP, priority) or
-# secret (auth password) — see the "Required, no default" section at the
-# bottom of this file for the full list.
+# Most host-identifying and pool-wide values below have no default and
+# MUST be supplied per host via host_vars, or per group via group_vars —
+# see the "Required, no default" section at the bottom of this file for
+# the full list.
 
 # Health check script deployed to the target and called by keepalived's
-# vrrp_script to decide whether this node is healthy. keepalived_check_script
-# is both the destination path and (via | basename) the template filename
-# in templates/ — keep the two in sync if you rename either.
+# vrrp_script (self-check) and, when load balancing is enabled, IPVS
+# MISC_CHECK (per-real-server checks). keepalived_check_script is both the
+# destination path and (via | basename) the template filename in
+# templates/ — keep the two in sync if you rename either.
 keepalived_check_script: /etc/keepalived/scripts/check.sh
 keepalived_check_interval: 2
 keepalived_check_fall: 2
 keepalived_check_rise: 2
-# Also used inside keepalived_check_command below as the dig timeout, so
-# this one value governs both keepalived's own script timeout and how long
-# the default DNS check itself waits for a response.
+# Also used inside keepalived_check_command (defined per group) as the dig
+# timeout, so this one value governs both keepalived's own script timeout
+# and how long the health check itself waits for a response.
 keepalived_check_timeout: 1
 
 # Notify script deployed to the target and called by keepalived on every
@@ -27,6 +28,26 @@ keepalived_notify_script: /etc/keepalived/scripts/notify.sh
 # Status directory the notify script writes into. Lives under /run (tmpfs),
 # so a systemd-tmpfiles rule recreates it on every boot — see tasks/main.yaml.
 keepalived_run_dir: /run/keepalived-scripts
+
+# ---------------------------------------------------------------------------
+# IPVS load balancing (optional) — off by default. When enabled, whichever
+# node currently holds the VIP also acts as an IPVS director, distributing
+# VIP traffic across keepalived_real_servers using LVS-DR mode (the real
+# server answers the client directly, preserving the real source IP - no
+# proxying). Each real server needs the VIP bound to its own loopback
+# interface with ARP suppressed; tasks/main.yaml handles both when this is
+# enabled. Typically set at the group level (group_vars), not per-host,
+# since the pool definition is the same on every director in the pool.
+keepalived_load_balancer_enabled: false
+keepalived_lb_algo: wrr          # weighted round robin
+keepalived_lb_kind: DR           # direct routing - preserves client source IP
+keepalived_lb_port: 53
+keepalived_lb_protocols:
+  - UDP
+  - TCP
+keepalived_real_servers: []
+  # - ip: 10.24.19.30
+  #   weight: 10
 
 # ---------------------------------------------------------------------------
 # Required, no default — must be set per host in host_vars, or per group in

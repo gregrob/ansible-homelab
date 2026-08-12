@@ -1,9 +1,9 @@
 ---
 # Pool-wide keepalived configuration for the keepalived_dns_target group
 # (dns-001, dns-002). Everything here must be identical across every node
-# in the pool — VRRP won't work correctly if nodes disagree on the VIP or
-# router ID, so these live at group level rather than being duplicated
-# (and risking drift) in each host's host_vars.
+# in the pool — VRRP/IPVS won't work correctly if nodes disagree on the
+# VIP, router ID, or real server list, so these live at group level rather
+# than being duplicated (and risking drift) in each host's host_vars.
 #
 # Per-host identity (interface, priority, this node's own IP, peer list)
 # stays in host_vars — see dns-001.dns.gregrob.net.yaml / dns-002...yaml.
@@ -36,6 +36,28 @@ keepalived_virtual_router_id: 20
 # accept() the connection. These are DNS-specific, not role defaults —
 # reuse this role for a non-DNS service (e.g. Traefik) by defining your
 # own version of these three vars in that group's vars instead.
+#
+# ${TARGET} is set by check.sh.j2 itself — 127.0.0.1 when called as the
+# VRRP self-check, or a specific pool member's IP when called via IPVS
+# MISC_CHECK. Must be referenced here (not hardcoded to 127.0.0.1) or
+# every real_server's health check would silently test the same address
+# instead of the one it's actually meant to check.
 keepalived_check_domain: localhost
 keepalived_check_expected: "127.0.0.1"
-keepalived_check_command: "/usr/bin/dig +tcp +short +time={{ keepalived_check_timeout }} +tries=1 @127.0.0.1 {{ keepalived_check_domain }} | grep -qx '{{ keepalived_check_expected }}'"
+keepalived_check_command: "/usr/bin/dig +tcp +short +time={{ keepalived_check_timeout }} +tries=1 @\"${TARGET}\" {{ keepalived_check_domain }} | grep -qx '{{ keepalived_check_expected }}'"
+
+# ---------------------------------------------------------------------------
+# IPVS load balancing — distributes VIP traffic across both dns-001 and
+# dns-002 rather than only whichever one currently holds the VIP, using
+# LVS-DR mode so the responding node answers the client directly (no
+# proxying, real client source IP preserved). A node that fails its own
+# DNS health check is pulled from rotation independently of VRRP/VIP
+# ownership. See roles/keepalived/tasks/main.yaml for the supporting
+# sysctl/kernel-module/loopback-binding setup this enables.
+keepalived_load_balancer_enabled: true
+
+keepalived_real_servers:
+  - ip: 10.24.19.30   # dns-001
+    weight: 10
+  - ip: 10.24.19.32   # dns-002
+    weight: 10
