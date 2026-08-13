@@ -78,10 +78,21 @@ keepalived_real_servers: []
 #   keepalived_check_command     - full check command; must reference ${TARGET}
 #                                  (and ${TOKEN}, if the check needs auth -
 #                                  the default Technitium API check does)
-#   keepalived_technitium_api_token - this node's own Technitium API token,
-#                                  vault-encrypted (host_vars). Required
+#   keepalived_technitium_api_token - Technitium API token. Same value on
+#                                  every host (Technitium syncs tokens
+#                                  across cluster nodes, confirmed via
+#                                  testing) - each host_vars file
+#                                  references keepalived_technitium_api_token_clustered,
+#                                  the single shared secret defined once in
+#                                  group_vars/all/vault.yaml. Required
 #                                  whenever keepalived_check_command
 #                                  references ${TOKEN} - the default does.
+#                                  To use a distinct token per host instead
+#                                  (e.g. if clustering ever stops sharing
+#                                  tokens), point that host's host_vars at
+#                                  its own vault entry instead of the
+#                                  shared one - no role or template changes
+#                                  needed either way.
 #   keepalived_inventory_group   - inventory group name containing every
 #                                  node in this VRRP pool (only required
 #                                  when keepalived_load_balancer_enabled is

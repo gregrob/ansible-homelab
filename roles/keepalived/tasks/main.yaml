@@ -6,8 +6,11 @@
 # keepalived_load_balancer_enabled is true.
 #
 # Steps performed:
-#  1. Installs keepalived (and, if load balancing is enabled, ipvsadm +
-#     the ip_vs kernel module)
+# Steps performed:
+#  1. Installs keepalived (and, if load balancing is enabled, ipvsadm for
+#     inspection/troubleshooting - ip_vs itself is not explicitly
+#     modprobed; on Debian it's compiled into the kernel rather than a
+#     loadable module, confirmed during testing)
 #  2. If load balancing is enabled: configures the ARP/forwarding sysctls
 #     and binds the VIP to loopback, both required for LVS-DR real servers
 #  3. Deploys a systemd-tmpfiles rule for the notify script's status
