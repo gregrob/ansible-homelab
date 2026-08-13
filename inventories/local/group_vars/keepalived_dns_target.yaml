@@ -36,13 +36,14 @@ keepalived_virtual_router_id: 20
 # self-check and every real-server MISC_CHECK, that added up to hundreds
 # of thousands of log entries/day of pure noise before this was found).
 #
-# ${TARGET} is set by check.sh.j2 itself — 127.0.0.1 when called as the
-# VRRP self-check, or a specific pool member's IP when called via IPVS
-# MISC_CHECK. ${TOKEN} is that same target's own Technitium API token -
-# see keepalived_technitium_api_token (host_vars, vault-encrypted) and
-# keepalived_real_server_tokens (derived in tasks/main.yaml). Both must be
-# referenced here, not hardcoded, or every check would silently test the
-# wrong node/credential.
+# ${TARGET} and ${TOKEN} are set by check.sh.j2 itself from the generic
+# keepalived_check_self_target / keepalived_check_extra_arg vars (role
+# defaults) - TARGET is 127.0.0.1 for the VRRP self-check or a specific
+# pool member's IP for IPVS MISC_CHECK; TOKEN carries this DNS pool's
+# Technitium API token specifically (see keepalived_check_extra_arg in
+# host_vars, and keepalived_real_server_extra_args, derived per-host in
+# tasks/main.yaml). Both must be referenced here, not hardcoded, or every
+# check would silently test the wrong node/credential.
 #
 # --max-time is required, not optional: a frozen/paused container can
 # still accept the TCP connection via Docker's port-forwarding layer even

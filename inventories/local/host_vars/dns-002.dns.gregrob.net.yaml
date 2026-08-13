@@ -28,4 +28,8 @@ keepalived_unicast_peers: "{{ keepalived_dns_nodes | reject('equalto', keepalive
 # testing), not because of anything host-specific here. The "_clustered"
 # suffix on the underlying vault var name is deliberate: it signals this
 # is a shared secret by design, not a per-host one that happens to match.
-keepalived_technitium_api_token: "{{ keepalived_technitium_api_token_clustered }}"
+# keepalived_check_extra_arg is the generic role var (see
+# roles/keepalived/defaults/main.yaml) - this DNS pool happens to use it
+# to carry a Technitium API token, but the role itself has no idea that's
+# what it is.
+keepalived_check_extra_arg: "{{ keepalived_technitium_api_token_clustered }}"

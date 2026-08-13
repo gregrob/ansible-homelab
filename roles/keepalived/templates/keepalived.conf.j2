@@ -12,10 +12,11 @@ global_defs {
 }
 
 # Self-check used by VRRP to decide if THIS node is healthy enough to hold
-# the VIP. Explicitly passes 127.0.0.1 and this node's own API token -
-# see check.sh.j2 and keepalived_technitium_api_token.
+# the VIP. Uses the generic self-target/extra-arg vars rather than
+# anything service-specific - see check.sh.j2, keepalived_check_self_target,
+# and keepalived_check_extra_arg.
 vrrp_script chk_service {
-        script "{{ keepalived_check_script }} 127.0.0.1 {{ keepalived_technitium_api_token }}"
+        script "{{ keepalived_check_script }} {{ keepalived_check_self_target }} {{ keepalived_check_extra_arg }}"
         interval {{ keepalived_check_interval }}
         timeout {{ keepalived_check_timeout }}
         fall {{ keepalived_check_fall }}
@@ -88,7 +89,7 @@ virtual_server fwmark {{ fwmarks[proto] }} {
     real_server {{ rs.ip }} {
         weight {{ rs.weight | default(1) }}
         MISC_CHECK {
-            misc_path "{{ keepalived_check_script }} {{ rs.ip }} {{ keepalived_real_server_tokens[rs.ip] }}"
+            misc_path "{{ keepalived_check_script }} {{ rs.ip }} {{ keepalived_real_server_extra_args[rs.ip] }}"
             misc_timeout {{ keepalived_check_timeout }}
         }
     }

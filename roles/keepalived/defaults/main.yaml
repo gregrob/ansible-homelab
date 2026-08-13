@@ -19,6 +19,18 @@ keepalived_check_rise: 2
 # request timeout, so this one value governs both keepalived's own script
 # timeout and how long the health check itself waits for a response.
 keepalived_check_timeout: 2
+# Address the VRRP self-check tests (i.e. "is this node itself healthy").
+# 127.0.0.1 is correct for virtually every service, but kept as an
+# overridable var rather than hardcoded in keepalived.conf.j2.
+keepalived_check_self_target: 127.0.0.1
+# Optional second argument passed to every invocation of
+# keepalived_check_script - both the VRRP self-check and, when load
+# balancing is enabled, each real server's MISC_CHECK. Empty by default,
+# since most services need no such argument at all (e.g. a plain curl/dig
+# check with no auth). DNS-specific services that DO need one (e.g.
+# Technitium's API token) set this per-group, in that group's vars - see
+# keepalived_dns_target's group_vars for a real example.
+keepalived_check_extra_arg: ""
 
 # Notify script deployed to the target and called by keepalived on every
 # VRRP state transition (MASTER/BACKUP/FAULT). Logs the current state to a
@@ -76,29 +88,14 @@ keepalived_real_servers: []
 #   keepalived_virtual_router_id - VRRP router ID, unique per broadcast domain
 #   keepalived_auth_pass         - shared VRRP auth password (vault-encrypted)
 #   keepalived_check_command     - full check command; must reference ${TARGET}
-#                                  (and ${TOKEN}, if the check needs auth -
-#                                  the default Technitium API check does)
-#   keepalived_technitium_api_token - Technitium API token. Same value on
-#                                  every host (Technitium syncs tokens
-#                                  across cluster nodes, confirmed via
-#                                  testing) - each host_vars file
-#                                  references keepalived_technitium_api_token_clustered,
-#                                  the single shared secret defined once in
-#                                  group_vars/all/vault.yaml. Required
-#                                  whenever keepalived_check_command
-#                                  references ${TOKEN} - the default does.
-#                                  To use a distinct token per host instead
-#                                  (e.g. if clustering ever stops sharing
-#                                  tokens), point that host's host_vars at
-#                                  its own vault entry instead of the
-#                                  shared one - no role or template changes
-#                                  needed either way.
+#                                  (and ${TOKEN}, if the check needs one -
+#                                  see keepalived_check_extra_arg above)
 #   keepalived_inventory_group   - inventory group name containing every
 #                                  node in this VRRP pool (only required
 #                                  when keepalived_load_balancer_enabled is
 #                                  true - used to derive peer MAC addresses
-#                                  and API tokens for the mangle rules /
-#                                  MISC_CHECK)
+#                                  and each real server's check_extra_arg
+#                                  for the mangle rules / MISC_CHECK)
 #   admin_user / admin_group     - account that owns/executes the deployed
 #                                  scripts (see group_vars/all/admin-user.yaml)
 # ---------------------------------------------------------------------------

@@ -16,10 +16,10 @@
 #   - keepalived_auth_pass defined in vault (currently group_vars/all/vault.yaml)
 #   - admin_user / admin_group defined in group_vars/all/admin-user.yaml, matching
 #     whatever the admin_user role (run separately) actually provisions
-#   - keepalived_technitium_api_token required whenever keepalived_check_command
-#     references ${TOKEN} - the default does, so this applies whether or not
-#     load balancing is enabled (used by the base VRRP self-check too, not
-#     just IPVS MISC_CHECK)
+#   - keepalived_check_extra_arg required whenever keepalived_check_command
+#     references ${TOKEN} - this group's default does (carries a Technitium
+#     API token), so this applies whether or not load balancing is enabled
+#     (used by the base VRRP self-check too, not just IPVS MISC_CHECK)
 #   - if keepalived_load_balancer_enabled is true for this group: also
 #     requires keepalived_real_servers and keepalived_inventory_group
 #
