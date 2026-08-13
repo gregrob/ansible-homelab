@@ -127,6 +127,26 @@
       {{ macs }}
   when: keepalived_load_balancer_enabled | bool
 
+# Build an IP -> Technitium API token lookup for every real server in the
+# pool, so keepalived.conf.j2 can pass each real server's own token to its
+# MISC_CHECK. Reuses the same hostvars cross-lookup pattern as the peer
+# MAC task above. NOT YET VERIFIED against a live Ansible run - inspect
+# keepalived_real_server_tokens via a debug task before trusting it.
+- name: Determine real server API tokens for health checks
+  set_fact:
+    keepalived_real_server_tokens: "{{ dict(_rs_token_pairs) }}"
+  vars:
+    _rs_token_pairs: >-
+      {%- set pairs = [] -%}
+      {%- for host in groups[keepalived_inventory_group] -%}
+        {%- set host_ip = hostvars[host]['keepalived_unicast_src_ip'].split('/')[0] -%}
+        {%- if host_ip in (keepalived_real_servers | map(attribute='ip') | list) -%}
+          {%- set _ = pairs.append([host_ip, hostvars[host]['keepalived_technitium_api_token']]) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ pairs }}
+  when: keepalived_load_balancer_enabled | bool
+
 # Deploy the mangle-rule script itself (idempotent, safe to re-run) - see
 # the script's own header comment for the full loop-prevention explanation.
 # Owned root:root, not admin - unlike check.sh/notify.sh, this script is

@@ -12,13 +12,13 @@
 # destination path and (via | basename) the template filename in
 # templates/ — keep the two in sync if you rename either.
 keepalived_check_script: /etc/keepalived/scripts/check.sh
-keepalived_check_interval: 2
+keepalived_check_interval: 3
 keepalived_check_fall: 2
 keepalived_check_rise: 2
-# Also used inside keepalived_check_command (defined per group) as the dig
-# timeout, so this one value governs both keepalived's own script timeout
-# and how long the health check itself waits for a response.
-keepalived_check_timeout: 1
+# Also used inside keepalived_check_command (defined per group) as the
+# request timeout, so this one value governs both keepalived's own script
+# timeout and how long the health check itself waits for a response.
+keepalived_check_timeout: 2
 
 # Notify script deployed to the target and called by keepalived on every
 # VRRP state transition (MASTER/BACKUP/FAULT). Logs the current state to a
@@ -75,15 +75,19 @@ keepalived_real_servers: []
 #   keepalived_vip               - shared virtual IP/CIDR, same on every node
 #   keepalived_virtual_router_id - VRRP router ID, unique per broadcast domain
 #   keepalived_auth_pass         - shared VRRP auth password (vault-encrypted)
-#   keepalived_check_domain      - hostname/record to query for the health check
-#   keepalived_check_expected    - exact expected response for that query
 #   keepalived_check_command     - full check command; must reference ${TARGET}
-#                                  if IPVS per-real-server checks are used
+#                                  (and ${TOKEN}, if the check needs auth -
+#                                  the default Technitium API check does)
+#   keepalived_technitium_api_token - this node's own Technitium API token,
+#                                  vault-encrypted (host_vars). Required
+#                                  whenever keepalived_check_command
+#                                  references ${TOKEN} - the default does.
 #   keepalived_inventory_group   - inventory group name containing every
 #                                  node in this VRRP pool (only required
 #                                  when keepalived_load_balancer_enabled is
 #                                  true - used to derive peer MAC addresses
-#                                  for the mangle rules)
+#                                  and API tokens for the mangle rules /
+#                                  MISC_CHECK)
 #   admin_user / admin_group     - account that owns/executes the deployed
 #                                  scripts (see group_vars/all/admin-user.yaml)
 # ---------------------------------------------------------------------------

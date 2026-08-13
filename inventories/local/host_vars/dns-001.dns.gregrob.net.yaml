@@ -23,3 +23,4 @@ keepalived_interface: "{{ frontend_interface }}"
 keepalived_priority: 150
 keepalived_unicast_src_ip: "{{ frontend_address }}/24"
 keepalived_unicast_peers: "{{ keepalived_dns_nodes | reject('equalto', keepalived_unicast_src_ip) | list }}"
+keepalived_technitium_api_token: "{{ keepalived_technitium_api_token_dnsc }}"

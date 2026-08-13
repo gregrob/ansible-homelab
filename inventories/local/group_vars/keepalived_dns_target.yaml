@@ -28,23 +28,33 @@ keepalived_dns_nodes:
 # virtual_router_id or they'll collide.
 keepalived_virtual_router_id: 20
 
-# Health check definition for this pool. Queries DNS over TCP and checks
-# for an exact match on the expected response. TCP (not UDP) is used
-# because a frozen/paused service can still appear to answer UDP queries
-# via Docker's port-forwarding layer even when the application itself
-# isn't responding; a TCP query requires the application to actually
-# accept() the connection. These are DNS-specific, not role defaults —
-# reuse this role for a non-DNS service (e.g. Traefik) by defining your
-# own version of these three vars in that group's vars instead.
+# Health check definition for this pool. Uses Technitium's dedicated
+# healthCheck API rather than a real DNS query - per Technitium's own
+# documentation, this endpoint checks that the server process is running
+# AND able to resolve names, WITHOUT generating a query-log entry (a real
+# `dig` query does log, and at check-interval frequency across both the
+# self-check and every real-server MISC_CHECK, that added up to hundreds
+# of thousands of log entries/day of pure noise before this was found).
 #
 # ${TARGET} is set by check.sh.j2 itself — 127.0.0.1 when called as the
 # VRRP self-check, or a specific pool member's IP when called via IPVS
-# MISC_CHECK. Must be referenced here (not hardcoded to 127.0.0.1) or
-# every real_server's health check would silently test the same address
-# instead of the one it's actually meant to check.
-keepalived_check_domain: localhost
-keepalived_check_expected: "127.0.0.1"
-keepalived_check_command: "/usr/bin/dig +tcp +short +time={{ keepalived_check_timeout }} +tries=1 @\"${TARGET}\" {{ keepalived_check_domain }} | grep -qx '{{ keepalived_check_expected }}'"
+# MISC_CHECK. ${TOKEN} is that same target's own Technitium API token -
+# see keepalived_technitium_api_token (host_vars, vault-encrypted) and
+# keepalived_real_server_tokens (derived in tasks/main.yaml). Both must be
+# referenced here, not hardcoded, or every check would silently test the
+# wrong node/credential.
+#
+# --max-time is required, not optional: a frozen/paused container can
+# still accept the TCP connection via Docker's port-forwarding layer even
+# when the application itself isn't responding, so a request with no
+# timeout hangs indefinitely rather than failing - confirmed directly via
+# testing. grep pattern is loose (no exact-whitespace assumption) since
+# the API's JSON formatting isn't guaranteed byte-for-byte stable.
+#
+# These are DNS-specific, not role defaults — reuse this role for a
+# non-DNS service (e.g. Traefik) by defining your own version of this var
+# in that group's vars instead.
+keepalived_check_command: "/usr/bin/curl -sf --max-time {{ keepalived_check_timeout }} \"http://${TARGET}:5380/api/dnsClient/healthCheck?token=${TOKEN}\" | grep -Eq '\"status\"[[:space:]]*:[[:space:]]*\"ok\"'"
 
 # ---------------------------------------------------------------------------
 # IPVS load balancing — distributes VIP traffic across both dns-001 and
