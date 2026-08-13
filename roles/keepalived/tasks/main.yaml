@@ -31,6 +31,21 @@
     state: present
     update_cache: true
 
+# check.sh, notify.sh, and (when load balancing is enabled) mangle-rules.sh
+# all default to the same directory (/etc/keepalived/scripts/) - one task
+# covers all three rather than three separate directory checks. Owned
+# admin, since check.sh/notify.sh are executed under keepalived's
+# script_user admin - see keepalived.conf.j2. mangle-rules.sh is deployed
+# root:root regardless of this directory's owner (it's run by systemd as
+# root, not by keepalived), so the directory owner doesn't affect it.
+- name: Ensure scripts destination directory exists
+  file:
+    path: "{{ keepalived_check_script | dirname }}"
+    state: directory
+    owner: "{{ admin_user }}"
+    group: "{{ admin_group }}"
+    mode: '0755'
+
 # --- IPVS load balancing setup (only when enabled) -------------------------
 
 # ipvsadm isn't strictly required for keepalived to manage IPVS itself, but
@@ -40,23 +55,6 @@
     name: ipvsadm
     state: present
   when: keepalived_load_balancer_enabled | bool
-
-# ip_vs is the kernel module IPVS is built on; load it now and persist it
-# so it's loaded again automatically on every future boot
-#- name: Ensure ip_vs kernel module is loaded
-#  modprobe:
-#    name: ip_vs
-#    state: present
-#  when: keepalived_load_balancer_enabled | bool
-
-#- name: Persist ip_vs module load at boot
-#  copy:
-#    dest: /etc/modules-load.d/keepalived-ipvs.conf
-#    content: "ip_vs\n"
-#    owner: root
-#    group: root
-#    mode: '0644'
-#  when: keepalived_load_balancer_enabled | bool
 
 # LVS-DR mode requires each real server to not answer ARP for the VIP
 # (arp_ignore/arp_announce), so incoming packets addressed to the VIP are
@@ -105,6 +103,69 @@
     state: started
   when: keepalived_load_balancer_enabled | bool
 
+# Derive the MAC address(es) of every OTHER real server in this pool, so
+# the mangle rule below can exclude exactly the traffic a peer director
+# would have forwarded here, and nothing else. Relies on gather_facts
+# having run for every host in the play (it has, by the time any task
+# runs) so hostvars[<peer>]['ansible_facts'] is already populated.
+#
+# NOT YET VERIFIED against a live Ansible run - the underlying Jinja logic
+# was tested standalone and produces the correct result against known
+# values, but this specific set_fact has not been run through Ansible
+# itself. Run with --check first and inspect keepalived_peer_macs (e.g.
+# via a debug task) before trusting this in production.
+- name: Determine peer real server MAC addresses for mangle rules
+  set_fact:
+    keepalived_peer_macs: >-
+      {%- set macs = [] -%}
+      {%- for host in groups[keepalived_inventory_group] -%}
+        {%- set host_ip = hostvars[host]['keepalived_unicast_src_ip'].split('/')[0] -%}
+        {%- if host_ip != keepalived_unicast_src_ip.split('/')[0] and host_ip in (keepalived_real_servers | map(attribute='ip') | list) -%}
+          {%- set _ = macs.append(hostvars[host]['ansible_facts'][hostvars[host]['keepalived_interface']]['macaddress']) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ macs }}
+  when: keepalived_load_balancer_enabled | bool
+
+# Deploy the mangle-rule script itself (idempotent, safe to re-run) - see
+# the script's own header comment for the full loop-prevention explanation.
+# Owned root:root, not admin - unlike check.sh/notify.sh, this script is
+# never invoked by keepalived under script_user; only systemd (as root,
+# via keepalived-lb-mangle.service below) ever runs it.
+- name: Deploy mangle rule script
+  template:
+    src: "{{ keepalived_mangle_script | basename }}.j2"
+    dest: "{{ keepalived_mangle_script }}"
+    owner: root
+    group: root
+    mode: '0755'
+  when: keepalived_load_balancer_enabled | bool
+
+# Deploy a systemd unit that re-applies the mangle rules on every boot
+# (iptables rules added via plain `iptables -A` do not persist a reboot on
+# their own) and enabling it also applies them immediately on this run
+- name: Deploy mangle rule systemd service
+  template:
+    src: keepalived-lb-mangle.service.j2
+    dest: /etc/systemd/system/keepalived-lb-mangle.service
+    owner: root
+    group: root
+    mode: '0644'
+  when: keepalived_load_balancer_enabled | bool
+  register: keepalived_lb_mangle_unit
+
+- name: Reload systemd daemon if mangle service changed
+  systemd:
+    daemon_reload: true
+  when: keepalived_lb_mangle_unit.changed
+
+- name: Enable and start mangle rule service
+  systemd:
+    name: keepalived-lb-mangle
+    enabled: true
+    state: started
+  when: keepalived_load_balancer_enabled | bool
+
 # --- Health check + notify scripts (used regardless of load balancing) -----
 
 # /run is tmpfs and is wiped on every reboot, so the notify script's status
@@ -125,16 +186,6 @@
   command: "systemd-tmpfiles --create /etc/tmpfiles.d/keepalived-scripts.conf"
   when: keepalived_tmpfiles.changed
 
-# Ensure the health check script's destination directory exists before
-# deploying the script into it
-- name: Ensure check script destination directory exists
-  file:
-    path: "{{ keepalived_check_script | dirname }}"
-    state: directory
-    owner: "{{ admin_user }}"
-    group: "{{ admin_group }}"
-    mode: '0755'
-
 # Deploy the health check script. This is a real script file (not an inline
 # command in keepalived.conf) because enable_script_security causes
 # keepalived to exec the command directly rather than via a shell — an
@@ -149,16 +200,6 @@
   template:
     src: "{{ keepalived_check_script | basename }}.j2"
     dest: "{{ keepalived_check_script }}"
-    owner: "{{ admin_user }}"
-    group: "{{ admin_group }}"
-    mode: '0755'
-
-# Ensure the notify script's destination directory exists before deploying
-# the script into it
-- name: Ensure notify script destination directory exists
-  file:
-    path: "{{ keepalived_notify_script | dirname }}"
-    state: directory
     owner: "{{ admin_user }}"
     group: "{{ admin_group }}"
     mode: '0755'

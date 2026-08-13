@@ -1,0 +1,12 @@
+[Unit]
+Description=Apply IPVS director-loop-prevention mangle rules (managed by Ansible)
+After=network.target
+Before=keepalived.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/bash {{ keepalived_mangle_script }}
+
+[Install]
+WantedBy=multi-user.target

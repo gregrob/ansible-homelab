@@ -61,3 +61,9 @@ keepalived_real_servers:
     weight: 10
   - ip: 10.24.19.32   # dns-002
     weight: 10
+
+# Inventory group containing every node in this pool - used to derive
+# peer MAC addresses for the loop-prevention mangle rules (see
+# roles/keepalived/tasks/main.yaml). Must match the inventory group name
+# actually used for this play's hosts: - see inventories/local/hosts.yaml.
+keepalived_inventory_group: keepalived_dns_target

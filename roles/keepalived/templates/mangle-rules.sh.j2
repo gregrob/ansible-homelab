@@ -1,0 +1,38 @@
+#!/bin/bash
+# Managed by Ansible - do not edit by hand
+#
+# Applies iptables mangle rules that mark VIP-destined DNS traffic UNLESS
+# it arrived from another real server in this IPVS pool - i.e. it's a
+# packet a peer director already forwarded here via LVS-DR, not genuinely
+# new client traffic.
+#
+# Why this is needed: keepalived normally runs its own IPVS virtual_server
+# on every node that has one configured, regardless of that node's VRRP
+# state. In LVS-DR mode a packet one director forwards to another is still
+# addressed to the VIP (DR mode never rewrites the IP header, only the
+# destination MAC) - so the receiving node's own IPVS would intercept it a
+# second time and could reschedule it straight back. Confirmed by direct
+# testing: this produces an unbounded MAC-layer ping-pong loop, since DR
+# mode never decrements IP TTL, so nothing kills the loop on its own once
+# it starts.
+#
+# These rules mark traffic by source MAC exclusion instead: only traffic
+# NOT sourced from a peer real server's MAC gets marked. keepalived.conf's
+# virtual_server blocks then match on that mark (fwmark) rather than the
+# VIP/port directly, so a forwarded (unmarked) packet never matches this
+# node's own virtual_server and never gets rescheduled. Both nodes keep
+# their full MISC_CHECK health monitoring exactly as normal - this is a
+# packet-marking fix, not a "disable IPVS on the passive node" one.
+#
+# Idempotent: checks each rule exists (-C) before adding it (-A), safe to
+# run repeatedly - every boot, every Ansible run.
+
+VIP="{{ keepalived_vip.split('/')[0] }}"
+PORT="{{ keepalived_lb_port }}"
+
+{% for proto in keepalived_lb_protocols %}
+{% set mark = keepalived_lb_fwmark_udp if proto == 'UDP' else keepalived_lb_fwmark_tcp %}
+{% set protolower = 'udp' if proto == 'UDP' else 'tcp' %}
+RULE_{{ proto }}="-d ${VIP} -p {{ protolower }} --dport ${PORT}{% for mac in keepalived_peer_macs %} -m mac ! --mac-source {{ mac }}{% endfor %} -j MARK --set-mark {{ mark }}"
+/sbin/iptables -t mangle -C PREROUTING ${RULE_{{ proto }}} 2>/dev/null || /sbin/iptables -t mangle -A PREROUTING ${RULE_{{ proto }}}
+{% endfor %}
