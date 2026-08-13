@@ -45,6 +45,18 @@ keepalived_lb_port: 53
 keepalived_lb_protocols:
   - UDP
   - TCP
+# Firewall mark numbers used by both the fwmark-based virtual_server blocks
+# in keepalived.conf.j2 and the iptables mangle rules (tasks/main.yaml)
+# that mark genuinely-new client traffic before it reaches them. Both
+# consumers must agree on these values - defined once here so they can't
+# drift apart.
+keepalived_lb_fwmark_udp: 1
+keepalived_lb_fwmark_tcp: 2
+# Script that applies the iptables mangle rules preventing the dual-director
+# ping-pong loop (see keepalived.conf.j2's comment block for the full
+# explanation). Deployed and re-applied at every boot via a small systemd
+# oneshot unit - see tasks/main.yaml.
+keepalived_mangle_script: /etc/keepalived/scripts/mangle-rules.sh
 keepalived_real_servers: []
   # - ip: 10.24.19.30
   #   weight: 10
@@ -67,6 +79,11 @@ keepalived_real_servers: []
 #   keepalived_check_expected    - exact expected response for that query
 #   keepalived_check_command     - full check command; must reference ${TARGET}
 #                                  if IPVS per-real-server checks are used
+#   keepalived_inventory_group   - inventory group name containing every
+#                                  node in this VRRP pool (only required
+#                                  when keepalived_load_balancer_enabled is
+#                                  true - used to derive peer MAC addresses
+#                                  for the mangle rules)
 #   admin_user / admin_group     - account that owns/executes the deployed
 #                                  scripts (see group_vars/all/admin-user.yaml)
 # ---------------------------------------------------------------------------

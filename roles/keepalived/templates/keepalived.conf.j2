@@ -48,24 +48,43 @@ vrrp_instance {{ keepalived_instance_name }} {
 
 {% if keepalived_load_balancer_enabled | bool %}
 # --- IPVS load balancing -----------------------------------------------
-# Only active on whichever node currently holds the VIP (the VRRP MASTER).
-# Distributes VIP traffic across keepalived_real_servers using LVS-DR mode,
-# which preserves the real client source IP end to end (no proxying) -
-# each real_server answers the client directly rather than through this
-# node. Each real server gets its own MISC_CHECK, using the same check.sh
-# script as the VRRP self-check above but pointed at that server's IP
-# instead of 127.0.0.1 - so a pool member is pulled out of rotation the
-# moment its own DNS stops answering, independent of VRRP/VIP ownership.
+# NOTE: fwmark-based virtual services, not IP:port ones.
+#
+# keepalived normally runs its own virtual_server on every node that has
+# one configured, regardless of that node's VRRP state - meaning both
+# nodes would act as IPVS director simultaneously for the same VIP. In
+# LVS-DR mode a packet one director forwards to the other is still
+# addressed to the VIP (DR mode never rewrites the IP header, only the
+# destination MAC), so the receiving node's own IPVS instance intercepts
+# it a second time and can reschedule it straight back - an unbounded
+# MAC-layer ping-pong loop (confirmed by direct testing: DR mode never
+# decrements TTL, so nothing kills the loop on its own once it starts).
+#
+# The fix is a firewall mark rather than disabling either node's IPVS:
+# an iptables mangle rule (see tasks/main.yaml) marks VIP-destined traffic
+# UNLESS its source MAC is the peer's - so only genuinely new client
+# traffic gets marked, never a packet the peer already forwarded here.
+# virtual_server then matches on that mark instead of the VIP/port
+# directly, so a forwarded packet (unmarked on arrival) never matches this
+# node's own virtual_server and never gets rescheduled. Both nodes keep
+# their full MISC_CHECK health monitoring exactly as normal - this is a
+# packet-marking fix, not a "disable IPVS on the passive node" one, so
+# continuous per-real-server health checking is fully preserved.
+#
+# fwmark-based real_server entries take no port (keepalived clears it with
+# a warning if one is given - the port is already implied by the mangle
+# rule's own --dport match).
+{% set fwmarks = {'UDP': keepalived_lb_fwmark_udp, 'TCP': keepalived_lb_fwmark_tcp} %}
 {% for proto in keepalived_lb_protocols %}
-virtual_server {{ keepalived_vip.split('/')[0] }} {{ keepalived_lb_port }} {
+# fwmark {{ fwmarks[proto] }} = {{ proto }} port {{ keepalived_lb_port }} traffic to the VIP,
+# marked by the mangle rule in {{ keepalived_mangle_script }}
+virtual_server fwmark {{ fwmarks[proto] }} {
     delay_loop 6
     lb_algo {{ keepalived_lb_algo }}
     lb_kind {{ keepalived_lb_kind }}
-    protocol {{ proto }}
-    persistence_timeout 0
 
 {% for rs in keepalived_real_servers %}
-    real_server {{ rs.ip }} {{ keepalived_lb_port }} {
+    real_server {{ rs.ip }} {
         weight {{ rs.weight | default(1) }}
         MISC_CHECK {
             misc_path "{{ keepalived_check_script }} {{ rs.ip }}"
@@ -76,3 +95,4 @@ virtual_server {{ keepalived_vip.split('/')[0] }} {{ keepalived_lb_port }} {
 }
 {% endfor %}
 {% endif %}
+
