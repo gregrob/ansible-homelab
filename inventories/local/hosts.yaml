@@ -25,9 +25,10 @@ all:
         3dprinter-001.containers.max.lan: {}
         infisical-001.trusted.max.lan: {}
 
+    # All virtual machines
     vms:
       hosts:
-        download-001.containers.max.lan: {}  
+        download-001.containers.max.lan: {}
         dns-001.dns.gregrob.net:
            ansible_host: dns-001.dns.gregrob.net
         dns-002.dns.gregrob.net:
@@ -37,6 +38,9 @@ all:
       hosts:
         dns-001.dns.gregrob.net: {}
         dns-002.dns.gregrob.net: {}
+
+        # The following still need migration to gregrob.net
+        download-001.containers.max.lan: {}
 
     keepalived_dns_target:
       hosts:

@@ -2,11 +2,26 @@
 # Host-specific variables for downloads-001.containers.max.lan
 # Network configuration settings specific to this target host
 
-# Frontend network configuration (main LAN/WAN connection)
-frontend_gateway: "{{ gateway_ip_containers }}"  # Default gateway for internet access
-frontend_interface: ens18                        # Network interface name for frontend connection
-frontend_address: 10.24.4.69                     # Static IP address for frontend interface
+# Network settings
+network_interfaces:
+  - name: ens18
+    id: frontend
+    address: 10.24.4.69
+    netmask: 255.255.255.0
+    gateway: "{{ gateway_ip_containers }}"
+    dns_nameservers: "{{ dns_servers_internal }}"
+    dns_search: "{{ dns_server_search_internal }}"
+    purpose: "frontend (client-facing traffic)"
+    firewalled: false
 
-# Backbone network configuration (internal/storage network)
-backbone_interface: ens19                        # Network interface name for backbone connection
-backbone_address: 192.168.1.94                   # Static IP address for backbone interface
+  - name: ens19
+    id: backbone
+    address: 192.168.1.94
+    netmask: 255.255.255.0
+    purpose: "backbone (direct NAS traffic)"
+    firewalled: true
+    allowed_ips:
+      - "{{ nas_backbone_ip }}"
+
+# VM
+is_lxc: false
