@@ -2,14 +2,17 @@
 # Host-specific variables for dns-001.dns.gregrob.net
 # Network configuration settings specific to this target host
 
-# Frontend network configuration (main LAN/WAN connection)
-frontend_gateway: "{{ gateway_ip_dns }}"          # Default gateway for internet access
-frontend_interface: ens18                         # Network interface name for frontend connection
-frontend_address: 10.24.19.30                     # Static IP address for frontend interface
-frontend_dns_search: "dns.gregrob.net gregrob.net"
-
-# No backbone on this VM
-backbone_enabled: false
+# Network settings
+network_interfaces:
+  - name: ens18
+    id: frontend
+    address: 10.24.19.30
+    netmask: 255.255.255.0
+    gateway: "{{ gateway_ip_dns }}"
+    dns_nameservers: "{{ dns_servers_internal }}"
+    dns_search: "dns.gregrob.net gregrob.net"
+    purpose: "frontend (client-facing traffic)"
+    firewalled: false
 
 # No NFS shares needed on this VM
 nfs_mounts: []
@@ -19,9 +22,9 @@ is_lxc: false
 
 # Keepalived settings
 keepalived_instance_name: vrrp_dns_001
-keepalived_interface: "{{ frontend_interface }}"
+keepalived_interface: "{{ (network_interfaces | selectattr('id', 'equalto', 'frontend') | first).name }}"
 keepalived_priority: 150
-keepalived_unicast_src_ip: "{{ frontend_address }}/24"
+keepalived_unicast_src_ip: "{{ (network_interfaces | selectattr('id', 'equalto', 'frontend') | first).address }}/24"
 keepalived_unicast_peers: "{{ keepalived_dns_nodes | reject('equalto', keepalived_unicast_src_ip) | list }}"
 # References the shared vault value directly — same value on every host
 # because Technitium clusters/syncs API tokens across nodes (confirmed via

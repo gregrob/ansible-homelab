@@ -1,31 +1,83 @@
+---
+- name: resolve effective interface list (host-defined network_interfaces, or legacy frontend/backbone)
+  ansible.builtin.set_fact:
+    network_interfaces_effective: "{{ network_interfaces | default(_network_interfaces_legacy) }}"
+
 - name: display network configuration
   ansible.builtin.debug:
     msg:
       - "┌──────────────────────────────────────────────────────────────┐"
       - "│              Network Interface Configuration                  │"
       - "└──────────────────────────────────────────────────────────────┘"
-      - "Frontend  : {{ frontend_interface }} → {{ frontend_address }}"
-      - "Gateway   : {{ frontend_gateway }}"
-      - "DNS       : {{ frontend_dns }}"
-      - "{{ 'Backbone  : ' + backbone_interface + ' → ' + backbone_address if backbone_enabled else 'Backbone  : (none)' }}"
+      - "{{ '%-16s -> %-15s  (%s)%s' | format(item.name, item.address, item.purpose | default('no purpose set'), item.vlan_id is defined and (' vlan ' ~ item.vlan_id) or '') }}"
+  loop: "{{ network_interfaces_effective }}"
+  loop_control:
+    label: "{{ item.name }}"
 
-- name: display backbone allowed IPs
+- name: display firewalled interface allow-lists
   ansible.builtin.debug:
-    msg: "  - {{ item }}"
-  loop: "{{ backbone_allowed_ips }}"
-  when: backbone_enabled
+    msg: "{{ item.0.name }} allows: {{ item.1 }}"
+  loop: "{{ network_interfaces_effective | subelements('allowed_ips', skip_missing=True) }}"
+  loop_control:
+    label: "{{ item.0.name }} <- {{ item.1 }}"
+  when: item.0.firewalled | default(false)
 
-- name: install packages for network configuration and firewall management
+- name: check whether any interface needs VLAN support
+  ansible.builtin.set_fact:
+    network_needs_vlan: "{{ network_interfaces_effective | selectattr('vlan_id', 'defined') | list | length > 0 }}"
+
+- name: check whether any interface needs firewalling
+  ansible.builtin.set_fact:
+    network_needs_firewall: "{{ network_interfaces_effective | selectattr('firewalled', 'defined') | selectattr('firewalled') | list | length > 0 }}"
+
+- name: install packages for network configuration, VLANs, and firewall management
   ansible.builtin.apt:
-    name: "{{ ['resolvconf'] + (['iptables'] if backbone_enabled else []) }}"
+    name: "{{ ['resolvconf'] + (['vlan'] if network_needs_vlan else []) + (['iptables'] if network_needs_firewall else []) }}"
     state: present
     update_cache: true
 
-- name: flush all iptables rules for backbone interface
-  ansible.builtin.shell: |
-    iptables-save | grep -v "{{ backbone_interface }}" | iptables-restore
+# ───────────────────────────────────────────────────────────────────────
+# Raspberry Pi OS ships cloud-init, which regenerates network config on
+# boot (typically via /etc/network/interfaces.d/ or netplan) and will
+# silently undo the static config this role deploys. Disable it before
+# templating the interfaces file, not after, so a reboot mid-run can't
+# leave the host on cloud-init's config instead of ours.
+# ───────────────────────────────────────────────────────────────────────
+
+- name: disable cloud-init network configuration stage on Raspberry Pi
+  ansible.builtin.copy:
+    dest: /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+    content: |
+      # Managed by Ansible (network_config role) - cloud-init must not
+      # touch networking, this role owns /etc/network/interfaces
+      network: {config: disabled}
+    owner: root
+    group: root
+    mode: '0644'
+  when: is_raspberry_pi
+  register: cloud_init_network_disabled
+
+- name: purge cloud-init entirely on Raspberry Pi
+  ansible.builtin.apt:
+    name: cloud-init
+    state: absent
+    purge: true
+    autoremove: true
+  when: is_raspberry_pi and raspberry_pi_purge_cloud_init
+
+- name: clean cloud-init state so the disable takes effect cleanly
+  ansible.builtin.shell: cloud-init clean --logs
   changed_when: false
-  when: backbone_enabled
+  when: is_raspberry_pi and not raspberry_pi_purge_cloud_init and cloud_init_network_disabled.changed
+
+- name: flush existing iptables rules for firewalled interfaces
+  ansible.builtin.shell: |
+    iptables-save | grep -v "{{ item.name }}" | iptables-restore
+  changed_when: false
+  loop: "{{ network_interfaces_effective }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.firewalled | default(false)
 
 - name: deploy network interfaces file
   ansible.builtin.template:
@@ -41,4 +93,3 @@
     name: networking
     state: restarted
   changed_when: false
-  

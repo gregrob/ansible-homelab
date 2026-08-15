@@ -9,42 +9,54 @@ source /etc/network/interfaces.d/*
 auto lo
 iface lo inet loopback
 
-# Primary network interface - frontend (client-facing traffic)
-allow-hotplug {{ frontend_interface }}
-iface {{ frontend_interface }} inet static
-    address {{ frontend_address }}
-    netmask {{ frontend_netmask }}
-    gateway {{ frontend_gateway }}
-    dns-nameservers {{ frontend_dns }}
-    dns-search {{ frontend_dns_search | default('') }}
-
-{% if backbone_enabled %}
-# Secondary network interface - NAS backbone (direct NAS traffic)
+{% for iface in network_interfaces_effective %}
+{% if iface.vlan_id is defined %}
+# VLAN {{ iface.vlan_id }} on {{ iface.parent }} - {{ iface.purpose | default('no purpose set') }}
+{% else %}
+# {{ iface.purpose | default('no purpose set') }}
+{% endif %}
+{% if iface.firewalled | default(false) %}
 #
-#  Firewall rules restrict this interface to NAS traffic only:
-#   - Allows inbound and outbound traffic to/from the NAS IP ({{ backbone_allowed_ips | join(', ') }})
-#   - Allows established and related connections (return traffic for active sessions e.g. NFS)
-#   - Drops all other traffic on this interface to prevent access to/from other devices on the same subnet
+#  Firewall rules restrict this interface to allow-listed traffic only:
+#   - Allows established and related connections (return traffic for active sessions)
+#   - Allows inbound/outbound traffic to/from: {{ (iface.allowed_ips | default([])) | join(', ') }}
+#   - Drops all other traffic on this interface
 #   - Rules are applied when the interface comes up and cleaned up when it goes down
 #
-allow-hotplug {{ backbone_interface }}
-iface {{ backbone_interface }} inet static
-    address {{ backbone_address }}
-    netmask {{ backbone_netmask }}
-    post-up iptables -A INPUT -i {{ backbone_interface }} -m state --state ESTABLISHED,RELATED -j ACCEPT
-    post-up iptables -A OUTPUT -o {{ backbone_interface }} -m state --state ESTABLISHED,RELATED -j ACCEPT
-{% for ip in backbone_allowed_ips %}
-    post-up iptables -A INPUT -i {{ backbone_interface }} -s {{ ip }} -j ACCEPT
-    post-up iptables -A OUTPUT -o {{ backbone_interface }} -d {{ ip }} -j ACCEPT
-{% endfor %}
-    post-up iptables -A INPUT -i {{ backbone_interface }} -j DROP
-    post-up iptables -A OUTPUT -o {{ backbone_interface }} -j DROP
-{% for ip in backbone_allowed_ips %}
-    pre-down iptables -D INPUT -i {{ backbone_interface }} -s {{ ip }} -j ACCEPT || true
-    pre-down iptables -D OUTPUT -o {{ backbone_interface }} -d {{ ip }} -j ACCEPT || true
-{% endfor %}
-    pre-down iptables -D INPUT -i {{ backbone_interface }} -m state --state ESTABLISHED,RELATED -j ACCEPT || true
-    pre-down iptables -D OUTPUT -o {{ backbone_interface }} -m state --state ESTABLISHED,RELATED -j ACCEPT || true
-    pre-down iptables -D INPUT -i {{ backbone_interface }} -j DROP || true
-    pre-down iptables -D OUTPUT -o {{ backbone_interface }} -j DROP || true
 {% endif %}
+allow-hotplug {{ iface.name }}
+iface {{ iface.name }} inet static
+    address {{ iface.address }}
+    netmask {{ iface.netmask }}
+{% if iface.gateway is defined %}
+    gateway {{ iface.gateway }}
+{% endif %}
+{% if iface.dns_nameservers is defined %}
+    dns-nameservers {{ iface.dns_nameservers }}
+{% endif %}
+{% if iface.dns_search is defined %}
+    dns-search {{ iface.dns_search }}
+{% endif %}
+{% if iface.vlan_id is defined %}
+    vlan-raw-device {{ iface.parent }}
+{% endif %}
+{% if iface.firewalled | default(false) %}
+    post-up iptables -A INPUT -i {{ iface.name }} -m state --state ESTABLISHED,RELATED -j ACCEPT
+    post-up iptables -A OUTPUT -o {{ iface.name }} -m state --state ESTABLISHED,RELATED -j ACCEPT
+{% for ip in iface.allowed_ips | default([]) %}
+    post-up iptables -A INPUT -i {{ iface.name }} -s {{ ip }} -j ACCEPT
+    post-up iptables -A OUTPUT -o {{ iface.name }} -d {{ ip }} -j ACCEPT
+{% endfor %}
+    post-up iptables -A INPUT -i {{ iface.name }} -j DROP
+    post-up iptables -A OUTPUT -o {{ iface.name }} -j DROP
+{% for ip in iface.allowed_ips | default([]) %}
+    pre-down iptables -D INPUT -i {{ iface.name }} -s {{ ip }} -j ACCEPT || true
+    pre-down iptables -D OUTPUT -o {{ iface.name }} -d {{ ip }} -j ACCEPT || true
+{% endfor %}
+    pre-down iptables -D INPUT -i {{ iface.name }} -m state --state ESTABLISHED,RELATED -j ACCEPT || true
+    pre-down iptables -D OUTPUT -o {{ iface.name }} -m state --state ESTABLISHED,RELATED -j ACCEPT || true
+    pre-down iptables -D INPUT -i {{ iface.name }} -j DROP || true
+    pre-down iptables -D OUTPUT -o {{ iface.name }} -j DROP || true
+{% endif %}
+
+{% endfor -%}

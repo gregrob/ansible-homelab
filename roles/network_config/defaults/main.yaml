@@ -1,26 +1,109 @@
 ---
 # Default variables for the network_config role
 
-# Whether this host has a backbone interface at all
+# ─────────────────────────────────────────────────────────────────────────
+# Raspberry Pi handling
+# ─────────────────────────────────────────────────────────────────────────
+
+# Set true in host_vars for any Raspberry Pi OS target. RPi OS ships
+# cloud-init, which regenerates network config on boot and will silently
+# overwrite /etc/network/interfaces if left enabled. When true, this role
+# disables cloud-init's network-config stage (see tasks/main.yaml).
+is_raspberry_pi: false
+
+# When is_raspberry_pi is true, also fully purge the cloud-init package
+# rather than just disabling its network stage. Leave false if you still
+# rely on cloud-init (e.g. via Raspberry Pi Imager) for anything else on
+# first boot.
+raspberry_pi_purge_cloud_init: false
+
+# ─────────────────────────────────────────────────────────────────────────
+# Canonical interface list
+# ─────────────────────────────────────────────────────────────────────────
+#
+# Define `network_interfaces` directly in host_vars for any host that
+# needs more than the legacy two-interface frontend/backbone shape below
+# (e.g. a single-NIC Raspberry Pi trunking multiple VLANs). Each entry:
+#
+#   name             - interface name, e.g. ens18, eth0, or a VLAN
+#                      sub-interface such as eth0.30
+#   id               - short stable identifier for this interface, e.g.
+#                      "frontend", "dns_vlan", "monitoring_vlan". Used to
+#                      look the interface up elsewhere (keepalived vars,
+#                      etc.) instead of indexing into the list by
+#                      position, which breaks as soon as a host has more
+#                      than one interface and their order changes.
+#   vlan_id          - optional. Presence marks this as a VLAN
+#                      sub-interface; requires `parent`
+#   parent           - required only when vlan_id is set; the physical
+#                      trunk interface this VLAN rides on, e.g. eth0
+#   address          - static IP address
+#   netmask          - subnet mask
+#   gateway          - optional; omit on interfaces with no default route
+#   dns_nameservers  - optional
+#   dns_search       - optional
+#   purpose          - free-text, rendered as a comment for readability
+#   firewalled       - if true, renders the ESTABLISHED/RELATED +
+#                      allow-list + DROP iptables pattern the old
+#                      backbone interface used
+#   allowed_ips      - list, only used when firewalled is true
+#
+# network_interfaces:
+#   - name: eth0
+#     address: 10.24.19.34
+#     netmask: 255.255.255.0
+#     purpose: "trunk (no IP traffic directly on this interface)"
+#   - name: eth0.20
+#     parent: eth0
+#     vlan_id: 20
+#     address: 10.24.19.35
+#     netmask: 255.255.255.0
+#     gateway: "{{ gateway_ip_dns }}"
+#     dns_nameservers: "{{ dns_servers_internal }}"
+#     purpose: "DNS VLAN - Technitium failsafe"
+#     firewalled: false
+
+# ─────────────────────────────────────────────────────────────────────────
+# Legacy frontend/backbone vars (kept for existing VM/LXC hosts)
+# ─────────────────────────────────────────────────────────────────────────
+#
+# dns-001, dns-002, download-001, ollama-001 etc. all still set these
+# exactly as before - nothing about their host_vars needs to change.
+# `network_interfaces` below is auto-built from them when a host does
+# not define `network_interfaces` directly.
+
 backbone_enabled: true
-
-# Frontend network interface name (usually connected to main LAN/WAN)
 frontend_interface: ens18
-
-# Frontend network subnet mask
 frontend_netmask: 255.255.255.0
-
-# Frontend DNS configuration
-frontend_dns: "{{ dns_servers_internal }}"              # Primary DNS server for name resolution
-frontend_dns_search: "{{ dns_server_search_internal }}" # DNS search domain for local hostnames
-
-# Backbone network interface name (usually connected to internal/storage network)
+frontend_dns: "{{ dns_servers_internal }}"
+frontend_dns_search: "{{ dns_server_search_internal }}"
 backbone_interface: ens19
-
-# Backbone network subnet mask
 backbone_netmask: 255.255.255.0
-
-# List of IP addresses allowed to communicate via the backbone interface.
-# Add one entry per device. If empty, all traffic on the backbone will be dropped.
 backbone_allowed_ips:
-  - "{{ nas_backbone_ip }}"  # NAS server IP for direct storage access
+  - "{{ nas_backbone_ip }}"
+
+_network_interfaces_legacy_frontend:
+  name: "{{ frontend_interface }}"
+  id: frontend
+  address: "{{ frontend_address }}"
+  netmask: "{{ frontend_netmask }}"
+  gateway: "{{ frontend_gateway | default(omit) }}"
+  dns_nameservers: "{{ frontend_dns | default(omit) }}"
+  dns_search: "{{ frontend_dns_search | default(omit) }}"
+  purpose: "frontend (client-facing traffic)"
+  firewalled: false
+
+_network_interfaces_legacy_backbone:
+  name: "{{ backbone_interface }}"
+  id: backbone
+  address: "{{ backbone_address | default(omit) }}"
+  netmask: "{{ backbone_netmask }}"
+  purpose: "backbone (direct NAS traffic)"
+  firewalled: true
+  allowed_ips: "{{ backbone_allowed_ips }}"
+
+# Only built from the legacy vars when the host hasn't set
+# network_interfaces directly - see tasks/main.yaml for how this is
+# resolved. Do not override this var itself; override the legacy vars
+# above, or define network_interfaces on the host instead.
+_network_interfaces_legacy: "{{ [_network_interfaces_legacy_frontend] + ([_network_interfaces_legacy_backbone] if (backbone_enabled and backbone_interface != 'none') else []) }}"

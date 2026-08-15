@@ -1,0 +1,57 @@
+---
+# Configure network interfaces playbook
+# Sets up static IP(s), DNS, VLANs, and optional per-interface firewall rules.
+# Covers VM, LXC, and Raspberry Pi targets - see network_config role defaults
+# for the network_interfaces / legacy frontend+backbone variable shapes.
+#
+# Usage:
+#   ansible-playbook -i inventories/local/hosts.yaml configure-network.yaml --ask-vault-pass
+#
+#   To target a single host instead of the whole network_config_target
+#   group, add --limit - useful for testing one host, rolling changes out
+#   incrementally rather than fleet-wide, or onboarding a new host for
+#   the first time (add it to network_config_target in inventory first,
+#   then --limit it on its own before letting future runs cover it as
+#   part of the full group):
+#
+#     ansible-playbook -i inventories/local/hosts.yaml configure-network.yaml \
+#       --limit dns-001.dns.gregrob.net --ask-vault-pass
+#
+# WARNING: This playbook restarts networking on the target host.
+#          Ensure you have console access (Proxmox console, or physical/UART
+#          access for a Raspberry Pi) before continuing.
+
+- name: Configure network interfaces
+  hosts: network_config_target
+  gather_facts: yes
+  become: yes
+
+  vars_files:
+    - ../group_vars/all/vault.yaml
+    - ../group_vars/all/nas.yaml
+
+  pre_tasks:
+    - name: display network configuration warning
+      ansible.builtin.debug:
+        msg:
+          - "┌──────────────────────────────────────────────────────────────┐"
+          - "│              Network Configuration Warning                   │"
+          - "│                                                              │"
+          - "│ This playbook will restart networking on the target host.    │"
+          - "│ SSH connectivity may be lost if IP settings are incorrect.   │"
+          - "│                                                              │"
+          - "│ Ensure you have console access before continuing.            │"
+          - "└──────────────────────────────────────────────────────────────┘"
+          - "Target    : {{ inventory_hostname }}"
+          - "Current IP: {{ ansible_host }}"
+          - "──────────────────────────────────────────────────────────────"
+          - "Press Enter to continue or Ctrl+C then A to abort."
+          - "──────────────────────────────────────────────────────────────"
+
+    - name: wait for confirmation to proceed
+      ansible.builtin.pause:
+        prompt: ""
+      when: not (skip_confirmation | default(false) | bool)
+
+  roles:
+    - network_config
