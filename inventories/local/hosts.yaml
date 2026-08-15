@@ -41,6 +41,7 @@ all:
 
         # The following still need migration to gregrob.net
         download-001.containers.max.lan: {}
+        # ollama-001.containers.max.lan: {} # LXC so Proxmox manages the interface in the GUI not Ansible
 
     keepalived_dns_target:
       hosts:
