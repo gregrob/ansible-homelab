@@ -3,10 +3,16 @@
 # Network configuration settings specific to this target host
 
 # Network settings
+# Define the following settings this way to prevent lazy evaluation with jinja2
+# expressions in the keepalived vars
+network_frontend_ip: "10.24.19.32"
+network_frontend_interface: "ens18"
+
+# Network interface definition itself
 network_interfaces:
-  - name: ens18
+  - name: "{{ network_frontend_interface }}"
     id: frontend
-    address: 10.24.19.32
+    address: "{{ network_frontend_ip }}"
     netmask: 255.255.255.0
     gateway: "{{ gateway_ip_dns }}"
     dns_nameservers: "{{ dns_servers_internal }}"
@@ -22,9 +28,9 @@ is_lxc: false
 
 # Keepalived settings
 keepalived_instance_name: vrrp_dns_002
-keepalived_interface: "{{ (network_interfaces | selectattr('id', 'equalto', 'frontend') | first).name }}"
+keepalived_interface: "{{ network_frontend_interface }}"
 keepalived_priority: 100
-keepalived_unicast_src_ip: "{{ (network_interfaces | selectattr('id', 'equalto', 'frontend') | first).address }}/24"
+keepalived_unicast_src_ip: "{{ network_frontend_ip }}/24"
 keepalived_unicast_peers: "{{ keepalived_dns_nodes | reject('equalto', keepalived_unicast_src_ip) | list }}"
 # References the shared vault value directly — same value on every host
 # because Technitium clusters/syncs API tokens across nodes (confirmed via
