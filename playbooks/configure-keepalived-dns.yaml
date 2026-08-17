@@ -50,7 +50,7 @@
         msg:
           - "=== Keepalived DNS Configuration ==="
           - "Target host:      {{ inventory_hostname }}"
-          - "Interface:        {{ frontend_interface }}"
+          - "Interface:        {{ keepalived_interface }}"
           - "Node address:     {{ keepalived_unicast_src_ip }}"
           - "Initial state:    {{ keepalived_state }} (priority {{ keepalived_priority }})"
           - "Peers:            {{ keepalived_unicast_peers | join(', ') }}"
@@ -59,7 +59,7 @@
           - "This will install keepalived, deploy the VRRP config and notify"
           - "script, and start the service. Existing keepalived config on"
           - "this host (if any) will be overwritten."
-
+          
     # Confirmation gate — skipped when skip_confirmation=true is passed
     # (e.g. -e skip_confirmation=true, or however your GUI runner sets
     # extra vars). Defaults to false, so running interactively from a
