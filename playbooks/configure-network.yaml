@@ -27,7 +27,8 @@
   become: yes
 
   vars_files:
-    - ../group_vars/all/vault.yaml
+    - ../group_vars/all/vault.yaml 
+    - ../group_vars/all/topology.yaml    
     - ../group_vars/all/nas.yaml
 
   pre_tasks:

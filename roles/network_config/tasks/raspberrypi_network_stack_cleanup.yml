@@ -1,0 +1,61 @@
+---
+# ───────────────────────────────────────────────────────────────────────
+# Raspberry Pi OS network stack migration - PHASE 2: cleanup
+#
+# Tagged 'never' + 'raspberrypi_cleanup' - only runs when explicitly
+# requested with --tags raspberrypi_cleanup. Run this ONLY after
+# raspberrypi_bootstrap has completed, rebooted, and you have
+# independently confirmed (from a second terminal) that SSH is stable
+# over ifupdown with NetworkManager already inactive.
+#
+# This phase is intentionally separated from bootstrap so a failed or
+# uncertain bootstrap never gets compounded by also ripping out the
+# fallback network manager in the same run.
+# ───────────────────────────────────────────────────────────────────────
+
+- name: assert this is actually a Raspberry Pi host before purging its network stack
+  ansible.builtin.assert:
+    that:
+      - is_raspberry_pi | default(false)
+    fail_msg: >-
+      raspberrypi_cleanup was requested against a host with
+      is_raspberry_pi not set to true in its host_vars. Refusing to
+      purge network-manager/dhcpcd on a host this task set wasn't meant
+      for.
+  tags: [never, raspberrypi_cleanup]
+
+- name: require explicit confirmation this phase is intentional
+  ansible.builtin.assert:
+    that:
+      - confirm_pi_network_cleanup | default(false) | bool
+    fail_msg: >-
+      raspberrypi_cleanup purges NetworkManager and dhcpcd - this is
+      hard to casually undo. Re-run with
+      -e confirm_pi_network_cleanup=true once you've verified (from a
+      SECOND terminal) that SSH is stable over ifupdown after the
+      bootstrap phase's reboot.
+  tags: [never, raspberrypi_cleanup]
+
+- name: verify networking (ifupdown) is actually active before removing the fallback
+  ansible.builtin.command: systemctl is-active networking
+  register: networking_active_check
+  changed_when: false
+  failed_when: networking_active_check.stdout != 'active'
+  tags: [never, raspberrypi_cleanup]
+
+- name: purge NetworkManager and dhcpcd
+  ansible.builtin.apt:
+    name:
+      - network-manager
+      - dhcpcd5
+    state: absent
+    purge: true
+    autoremove: true
+  tags: [never, raspberrypi_cleanup]
+
+- name: display cleanup result
+  ansible.builtin.debug:
+    msg:
+      - "NetworkManager and dhcpcd have been purged."
+      - "This host now runs ifupdown exclusively, consistent with the rest of the fleet."
+  tags: [never, raspberrypi_cleanup]

@@ -2,6 +2,25 @@
 - name: resolve effective interface list (host-defined network_interfaces, or legacy frontend/backbone)
   ansible.builtin.set_fact:
     network_interfaces_effective: "{{ network_interfaces | default(_network_interfaces_legacy) }}"
+  tags: [always]
+
+# ───────────────────────────────────────────────────────────────────────
+# Raspberry Pi network stack migration (NetworkManager -> ifupdown).
+# Both phases are tagged 'never' and only run when explicitly requested -
+# a normal run of this role never touches NetworkManager on a Pi host.
+# See the two files for the full safety design.
+#
+#   --tags raspberrypi_bootstrap   installs ifupdown, deploys config,
+#                                   reboots, verifies (PHASE 1)
+#   --tags raspberrypi_cleanup     purges NetworkManager/dhcpcd, only
+#                                   after bootstrap is confirmed (PHASE 2)
+# ───────────────────────────────────────────────────────────────────────
+
+- name: raspberry pi network stack bootstrap (phase 1 - tagged never, explicit opt-in only)
+  ansible.builtin.import_tasks: raspberrypi_network_stack_bootstrap.yml
+
+- name: raspberry pi network stack cleanup (phase 2 - tagged never, explicit opt-in only)
+  ansible.builtin.import_tasks: raspberrypi_network_stack_cleanup.yml
 
 - name: display network configuration
   ansible.builtin.debug:
@@ -9,7 +28,7 @@
       - "┌──────────────────────────────────────────────────────────────┐"
       - "│              Network Interface Configuration                  │"
       - "└──────────────────────────────────────────────────────────────┘"
-      - "{{ '%-16s -> %-15s  (%s)%s' | format(item.name, item.address, item.purpose | default('no purpose set'), item.vlan_id is defined and (' vlan ' ~ item.vlan_id) or '') }}"
+      - "{{ '%-16s -> %-15s  (%s)%s' | format(item.name, item.address | default('no IP (manual)'), item.purpose | default('no purpose set'), item.vlan_id is defined and (' vlan ' ~ item.vlan_id) or '') }}"
   loop: "{{ network_interfaces_effective }}"
   loop_control:
     label: "{{ item.name }}"

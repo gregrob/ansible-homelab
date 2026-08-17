@@ -1,0 +1,150 @@
+---
+# ───────────────────────────────────────────────────────────────────────
+# Raspberry Pi OS network stack migration - PHASE 1: bootstrap
+#
+# Tagged 'never' + 'raspberrypi_bootstrap' - only runs when explicitly
+# requested with --tags raspberrypi_bootstrap. A normal playbook run
+# against a Pi host never touches NetworkManager.
+#
+# Safety model: this phase does NOT stop NetworkManager live. It only
+# disables NM and enables ifupdown's `networking` service for the *next*
+# boot, then reboots once, cleanly, and verifies the host comes back on
+# the expected address using ifupdown. The actual handover between
+# network stacks always happens at a controlled reboot, never mid-session
+# over the same SSH connection that's driving the change.
+#
+# Do not run raspberrypi_cleanup (PHASE 2, in
+# raspberrypi_network_stack_cleanup.yml) until this phase has completed
+# and you've independently confirmed SSH connectivity survived on the
+# expected address - the debug/assert tasks below help with that, but a
+# manual check from a second terminal before proceeding is still worth
+# the extra minute given what's at stake if it's wrong.
+# ───────────────────────────────────────────────────────────────────────
+
+- name: assert this is actually a Raspberry Pi host before touching its network stack
+  ansible.builtin.assert:
+    that:
+      - is_raspberry_pi | default(false)
+    fail_msg: >-
+      raspberrypi_bootstrap was requested against a host with
+      is_raspberry_pi not set to true in its host_vars. Refusing to touch
+      the network stack - this task set assumes RPi OS's default
+      NetworkManager setup and would be the wrong thing to run against a
+      VM or LXC.
+  tags: [never, raspberrypi_bootstrap]
+
+- name: check current active network manager before making any changes
+  ansible.builtin.command: systemctl is-active NetworkManager
+  register: nm_active_before
+  changed_when: false
+  failed_when: false
+  tags: [never, raspberrypi_bootstrap]
+
+- name: install ifupdown (NetworkManager remains untouched and in control for now)
+  ansible.builtin.apt:
+    name: ifupdown
+    state: present
+    update_cache: true
+  tags: [never, raspberrypi_bootstrap]
+
+- name: install vlan package if any interface uses VLAN tagging (needed for vlan-raw-device under ifupdown)
+  ansible.builtin.apt:
+    name: vlan
+    state: present
+  when: network_interfaces_effective | selectattr('vlan_id', 'defined') | list | length > 0
+  tags: [never, raspberrypi_bootstrap]
+
+- name: deploy network interfaces file (written to disk, not yet active)
+  ansible.builtin.template:
+    src: interfaces.j2
+    dest: /etc/network/interfaces
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  tags: [never, raspberrypi_bootstrap]
+
+- name: enable networking (ifupdown) service for next boot
+  ansible.builtin.systemd:
+    name: networking
+    enabled: true
+  tags: [never, raspberrypi_bootstrap]
+
+- name: disable NetworkManager for next boot (still running for this session - not stopped live)
+  ansible.builtin.systemd:
+    name: NetworkManager
+    enabled: false
+  tags: [never, raspberrypi_bootstrap]
+
+- name: disable dhcpcd for next boot, if present (ignored if not installed)
+  ansible.builtin.systemd:
+    name: dhcpcd
+    enabled: false
+  failed_when: false
+  tags: [never, raspberrypi_bootstrap]
+
+- name: display pre-reboot summary
+  ansible.builtin.debug:
+    msg:
+      - "NetworkManager was {{ nm_active_before.stdout | default('unknown') }} before this run."
+      - "ifupdown is installed, /etc/network/interfaces is deployed, networking.service is enabled for next boot."
+      - "NetworkManager (and dhcpcd, if present) are disabled for next boot but still running right now - nothing live has changed yet."
+      - "About to reboot to hand over to ifupdown. This is the point where a bad static config would show up."
+  tags: [never, raspberrypi_bootstrap]
+
+- name: reboot to hand over from NetworkManager to ifupdown
+  ansible.builtin.reboot:
+    reboot_timeout: 180
+    connect_timeout: 20
+    test_command: uptime
+  tags: [never, raspberrypi_bootstrap]
+
+- name: wait for host to come back over SSH on the expected address
+  ansible.builtin.wait_for_connection:
+    delay: 10
+    timeout: 180
+  tags: [never, raspberrypi_bootstrap]
+
+- name: re-gather facts after reboot
+  ansible.builtin.setup:
+  tags: [never, raspberrypi_bootstrap]
+
+- name: verify NetworkManager is no longer active
+  ansible.builtin.command: systemctl is-active NetworkManager
+  register: nm_active_after
+  changed_when: false
+  failed_when: false
+  tags: [never, raspberrypi_bootstrap]
+
+- name: verify networking (ifupdown) service is active
+  ansible.builtin.command: systemctl is-active networking
+  register: networking_active_after
+  changed_when: false
+  failed_when: false
+  tags: [never, raspberrypi_bootstrap]
+
+- name: verify each configured interface actually has its expected address
+  ansible.builtin.command: "ip -4 -o addr show {{ item.name }}"
+  register: iface_check
+  changed_when: false
+  failed_when: item.address is defined and item.address not in iface_check.stdout
+  loop: "{{ network_interfaces_effective }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.address is defined
+  tags: [never, raspberrypi_bootstrap]
+
+- name: display post-reboot verification result
+  ansible.builtin.debug:
+    msg:
+      - "┌──────────────────────────────────────────────────────────────┐"
+      - "│         Raspberry Pi network stack bootstrap - result        │"
+      - "└──────────────────────────────────────────────────────────────┘"
+      - "NetworkManager active : {{ nm_active_after.stdout | default('unknown') }} (expect: inactive)"
+      - "networking (ifupdown) active : {{ networking_active_after.stdout | default('unknown') }} (expect: active)"
+      - "All expected interface addresses verified present."
+      - "──────────────────────────────────────────────────────────────"
+      - "If the above looks correct, confirm from a SECOND terminal/session"
+      - "that SSH is stable before running raspberrypi_cleanup."
+      - "Do not run cleanup from this same session as your only verification."
+  tags: [never, raspberrypi_bootstrap]

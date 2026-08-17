@@ -25,9 +25,13 @@ iface lo inet loopback
 #
 {% endif %}
 allow-hotplug {{ iface.name }}
+{% if iface.address is not defined %}
+iface {{ iface.name }} inet manual
+{% else %}
 iface {{ iface.name }} inet static
     address {{ iface.address }}
     netmask {{ iface.netmask }}
+{% endif %}
 {% if iface.gateway is defined %}
     gateway {{ iface.gateway }}
 {% endif %}

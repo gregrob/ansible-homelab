@@ -1,0 +1,127 @@
+---
+# Host-specific variables for failsafe-002.dns.gregrob.net
+# Raspberry Pi - multi-purpose homelab failsafe node. First role is
+# Technitium DNS failsafe (standby, not part of the IPVS load-balancer
+# rotation - see keepalived_priority below); will also pick up other
+# backup roles (Uptime Kuma, MeshCommander, etc) as it's onboarded onto
+# further VLANs.
+#
+# This is the canonical inventory identity (DNS stays its primary/
+# first-established role). Once it's multi-homed it will also answer to
+# failsafe-002.containers.gregrob.net (or similar) on the containers
+# VLAN, plus a shortened CNAME - those are additional DNS records
+# layered on top of this canonical name, not separate inventory hosts.
+#
+# Single physical NIC trunking multiple VLANs, so this host defines
+# network_interfaces directly rather than using the legacy
+# frontend_/backbone_ vars. Add further VLAN sub-interfaces below as this
+# node picks up other backup roles.
+#
+# NetworkManager -> ifupdown migration for this host is a two-phase,
+# explicit-opt-in process (neither runs on a normal playbook run):
+#
+#   1. ansible-playbook configure-network.yaml --limit failsafe-002.dns.gregrob.net \
+#        --tags raspberrypi_bootstrap
+#      Installs ifupdown, deploys this config, reboots once, verifies.
+#      Does NOT touch NetworkManager live - only disables it for the
+#      next boot. Confirm SSH is stable from a second terminal after
+#      this completes before proceeding.
+#
+#   2. ansible-playbook configure-network.yaml --limit failsafe-002.dns.gregrob.net \
+#        --tags raspberrypi_cleanup -e confirm_pi_network_cleanup=true
+#      Purges NetworkManager/dhcpcd. Only run after independently
+#      confirming step 1 worked.
+#
+# See network_config/tasks/raspberrypi_network_stack_bootstrap.yml and
+# raspberrypi_network_stack_cleanup.yml for the full safety design.
+
+is_raspberry_pi: true
+# Leave false unless you want cloud-init fully removed rather than just
+# stopped from touching networking - see role defaults for details.
+raspberry_pi_purge_cloud_init: false
+
+
+# Network settings
+# Define the following settings this way to prevent lazy evaluation with jinja2
+# expressions in the keepalived vars
+network_frontend_ip: "10.24.19.34"
+network_all_interface: "eth0"
+
+# Network interface definition itself
+network_interfaces:
+  # Physical trunk - carries all tagged VLANs below, no IP of its own
+  # (no address/netmask - rendered as "iface eth0 inet manual")
+  - name: "{{ network_all_interface }}"
+    id: trunk
+    purpose: "trunk (802.1Q, no direct IP traffic)"
+
+  # DNS VLAN - TODO: confirm the actual VLAN ID against your UniFi config
+  # before running this against the Pi
+  - name: "{{ network_all_interface }}.{{ dns_vlan_id }}"
+    id: dns_vlan
+    parent: eth0
+    vlan_id: "{{ dns_vlan_id }}"
+    address: "{{ network_frontend_ip }}"
+    netmask: 255.255.255.0
+    gateway: "{{ gateway_ip_dns }}"
+    dns_nameservers: "{{ dns_servers_gateway_dns }}" # Use gateway - avoids resolving against a not-yet-ready itself
+    dns_search: "dns.gregrob.net gregrob.net"
+    purpose: "DNS VLAN - Technitium failsafe"
+    firewalled: false
+
+  # Future: containers VLAN, once onboarded - would also pick up a
+  # failsafe-002.containers.gregrob.net DNS record at that point
+  # - name: "eth0.{{ containers_vlan_id }}"
+  #   id: containers_vlan
+  #   parent: eth0
+  #   vlan_id: "{{ containers_vlan_id }}"
+  #   address: 10.24.4.XX
+  #   netmask: 255.255.255.0
+  #   purpose: "containers VLAN - future workloads"
+  #   firewalled: false
+
+  # Future: Uptime Kuma VLAN
+  # - name: "eth0.{{ monitoring_vlan_id }}"
+  #   id: monitoring_vlan
+  #   parent: eth0
+  #   vlan_id: "{{ monitoring_vlan_id }}"
+  #   address: 10.24.XX.XX
+  #   netmask: 255.255.255.0
+  #   purpose: "monitoring VLAN - Uptime Kuma"
+  #   firewalled: false
+
+  # Future: MeshCommander (AMT/vPro out-of-band mgmt) VLAN - likely wants
+  # firewalled: true with a tight allowed_ips list given what it can do
+  # - name: "eth0.{{ meshcommander_vlan_id }}"
+  #   id: meshcommander_vlan
+  #   parent: eth0
+  #   vlan_id: "{{ meshcommander_vlan_id }}"
+  #   address: 10.24.XX.XX
+  #   netmask: 255.255.255.0
+  #   purpose: "MeshCommander VLAN - AMT/vPro out-of-band management"
+  #   firewalled: true
+  #   allowed_ips:
+  #     - 10.24.XX.XX   # your management workstation
+
+# No NFS shares needed on this node
+nfs_mounts: []
+
+# Physical Pi, not a VM or LXC
+is_lxc: false
+
+# Keepalived settings
+keepalived_instance_name: vrrp_failsafe_002
+keepalived_interface: "{{ network_all_interface }}.{{ dns_vlan_id }}"
+keepalived_priority: 50
+keepalived_unicast_src_ip: "{{ network_frontend_ip }}/24"
+keepalived_unicast_peers: "{{ keepalived_dns_nodes | reject('equalto', keepalived_unicast_src_ip) | list }}"
+# References the shared vault value directly — same value on every host
+# because Technitium clusters/syncs API tokens across nodes (confirmed via
+# testing), not because of anything host-specific here. The "_clustered"
+# suffix on the underlying vault var name is deliberate: it signals this
+# is a shared secret by design, not a per-host one that happens to match.
+# keepalived_check_extra_arg is the generic role var (see
+# roles/keepalived/defaults/main.yaml) - this DNS pool happens to use it
+# to carry a Technitium API token, but the role itself has no idea that's
+# what it is.
+keepalived_check_extra_arg: "{{ keepalived_technitium_api_token_clustered }}"
