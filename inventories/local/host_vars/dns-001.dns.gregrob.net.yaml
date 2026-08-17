@@ -15,7 +15,7 @@ network_interfaces:
     address: "{{ network_frontend_ip }}"
     netmask: 255.255.255.0
     gateway: "{{ gateway_ip_dns }}"
-    dns_nameservers: "{{ dns_servers_internal }}"
+    dns_nameservers: "{{ dns_servers_gateway_dns }}" # Use gateway - avoids resolving against a not-yet-ready itself
     dns_search: "dns.gregrob.net gregrob.net"
     purpose: "frontend (client-facing traffic)"
     firewalled: false

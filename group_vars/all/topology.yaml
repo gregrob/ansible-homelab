@@ -1,0 +1,18 @@
+---
+# Network topology - VLAN IDs, gateway IPs, and similar layout facts.
+#
+# Shared across every group that needs it - not scoped to
+# network_config_target specifically, since keepalived_dns_target
+# already references gateway_ip_dns-adjacent values too.
+
+# VLAN ID's
+# Convention: third octet = VLAN ID (10.24.<vlan_id>.x), consistent
+# across every VLAN in this network.
+
+# VLAN 19 - DNS
+dns_vlan_id: 19
+gateway_ip_dns: 10.24.19.1
+dns_servers_gateway_dns: "{{ gateway_ip_dns }}"
+
+# Internal DNS server
+# dns_servers_internal: 10.24.19.x
