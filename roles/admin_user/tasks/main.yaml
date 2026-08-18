@@ -2,13 +2,34 @@
 # Role to create an admin user on a target system.
 #
 # Steps performed:
-#  1. Creates the admin group with specified GID
-#  2. Creates the admin user with specified UID, groups, password, and shell
-#  3. Sets up SSH directory with proper permissions
-#  4. Adds Ansible controller and generic controller (i.e. main systems access) SSH keys for passwordless access
-#  5. Disables HashKnownHosts in SSH config for easier known_hosts management
-#  6. Pre-creates .ansible/tmp directory to avoid become_user warnings
-#  7. Sets the default text editor to nano by adding EDITOR environment variable to .bashrc
+#  1. Shifts lpadmin group GID if a conflict with admin_gid exists on Raspberry Pi hosts
+#  2. Creates the admin group with specified GID
+#  3. Creates the admin user with specified UID, groups, password, and shell
+#  4. Sets up SSH directory with proper permissions
+#  5. Adds Ansible controller and generic controller (i.e. main systems access) SSH keys for passwordless access
+#  6. Disables HashKnownHosts in SSH config for easier known_hosts management
+#  7. Pre-creates .ansible/tmp directory to avoid become_user warnings
+#  8. Sets the default text editor to nano by adding EDITOR environment variable to .bashrc
+
+# Get lpadmin group details on Raspberry Pi hosts
+- name: Get lpadmin group details
+  ansible.builtin.getent:
+    database: group
+    key: lpadmin
+  failed_when: false
+  when: is_raspberry_pi | default(false) | bool
+
+# Shift lpadmin GID away if it conflicts with admin_gid on Raspberry Pi hosts
+- name: Shift lpadmin GID away from admin_gid
+  ansible.builtin.group:
+    name: lpadmin
+    gid: "{{ lpadmin_shift_gid }}"
+    state: present
+  when:
+    - is_raspberry_pi | default(false) | bool
+    - getent_group.lpadmin is defined
+    - getent_group.lpadmin != None
+    - getent_group.lpadmin[1] | int == (admin_gid | int)
 
 # Ensure the admin group exists with the specified GID
 - name: Ensure admin group exists with correct gid
@@ -25,7 +46,7 @@
     uid: "{{ admin_uid }}"
     comment: "{{ admin_full_name }}"
     group: "{{ admin_group }}"
-    groups: "{{ admin_supplementary_groups | join(',') }}"
+    groups: "{{ admin_supplementary_groups if (admin_supplementary_groups | length > 0) else omit }}"
     append: yes
     password: "{{ admin_password | password_hash('sha512') }}"
     shell: /bin/bash
@@ -57,7 +78,7 @@
     path: "/home/{{ admin_user }}/.ssh/config"
     create: yes
     owner: "{{ admin_user }}"
-    group: "{{ admin_user }}"
+    group: "{{ admin_group }}"
     mode: '0600'
     marker: "# {mark} ANSIBLE MANAGED HASHKNOWNHOSTS BLOCK"
     block: |
@@ -81,7 +102,7 @@
     path: "/home/{{ admin_user }}/.ansible/tmp"
     state: directory
     owner: "{{ admin_user }}"
-    group: "{{ admin_user }}"
+    group: "{{ admin_group }}"
     mode: '0700'
 
 # Set the default text editor to nano for the admin user by adding EDITOR environment variable to .bashrc
@@ -93,5 +114,5 @@
     state: present
     create: yes
     owner: "{{ admin_user }}"
-    group: "{{ admin_user }}"
+    group: "{{ admin_group }}"
     mode: '0644'

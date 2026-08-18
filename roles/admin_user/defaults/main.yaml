@@ -5,10 +5,11 @@ admin_user: admin               # Username for the administrative user
 admin_password: password        # Password for the admin user (should be added to the VAULT)
 admin_group: admin              # Group name for the administrative user
 admin_full_name: Administrator  # Full name for the admin user (for GECOS or display)
-admin_uid: 1000                 # User ID for the admin user
-admin_gid: 1000                 # Group ID for the admin group
+admin_uid: 1001                 # User ID for the admin user - 1001 instead of 1000 because debian does not allow admin user during initial setup (protected)
+admin_gid: 1001                 # Group ID for the admin group - 1001 instead of 1000 because debian does not allow admin user during initial setup (protected)
 ansible_controller_pubkey: sec  # Public key for the Ansible controller (to be added to the VAULT)
 generic_controller_pubkey: sec  # Public key for the Generic controller (to be added to the VAULT)
 admin_supplementary_groups:     # List of supplementary groups the admin user should belong to
   - adm
   - sudo
+lpadmin_shift_gid: 1010         # On raspberry pi if lpadmin has the proposed admin_gid, shift it here
