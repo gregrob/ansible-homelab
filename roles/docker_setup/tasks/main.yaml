@@ -1,35 +1,35 @@
 ---
-# Role to install and configure Docker on Debian/Ubuntu systems
+# Role to install and configure Docker on Debian/Ubuntu/Raspberry Pi OS systems
 # 
 # Steps performed:
-#  1. Sets Docker architecture fact based on system architecture
-#  2. Extracts OS codename from /etc/os-release
+#  1. Sets Docker architecture fact based on system architecture (maps aarch64 -> arm64)
+#  2. Sets Docker OS distribution fact (maps Debian/Raspbian -> debian)
 #  3. Shows detected system information for verification
-#  4. Installs required packages (ca-certificates, curl) for Docker setup
+#  4. Installs required packages (ca-certificates, curl, gnupg) for Docker setup
 #  5. Creates /etc/apt/keyrings directory for GPG keys
-#  6. Downloads Docker's official GPG key
-#  7. Adds Docker's APT repository to package sources
-#  8. Installs Docker CE packages and plugins (docker-ce, docker-ce-cli, containerd.io, buildx, compose)
+#  6. Downloads Docker's official GPG key using get_url
+#  7. Adds Docker's APT repository using DEB822 source format
+#  8. Updates APT cache and installs Docker CE packages and plugins
 #  9. Adds the admin user to the docker group for non-root Docker access
 
-# Set Docker architecture fact based on Ansible architecture
+# Set Docker architecture fact using Debian/Docker naming conventions
 - name: set docker architecture fact
   ansible.builtin.set_fact:
-    docker_arch: "{{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}"
+    docker_arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64', 'armv7l': 'armhf'}[ansible_architecture] | default(ansible_architecture) }}"
 
-# Extract VERSION_CODENAME from /etc/os-release
-- name: get OS codename from /etc/os-release
-  ansible.builtin.shell: ". /etc/os-release && echo $VERSION_CODENAME"
-  register: os_codename
-  changed_when: false
+# Determine OS repository endpoint (Raspberry Pi OS & Debian use 'debian')
+- name: set docker OS distribution fact
+  ansible.builtin.set_fact:
+    docker_os: "{{ 'debian' if ansible_distribution in ['Debian', 'Raspbian', 'Raspberry Pi OS'] else ansible_distribution | lower }}"
 
 # Show detected system info
 - name: show detected architecture and OS codename
   ansible.builtin.debug:
     msg:
       - "Ansible architecture: {{ ansible_architecture }}"
-      - "Docker architecture: {{ docker_arch }}"
-      - "OS codename: {{ os_codename.stdout }}"
+      - "Mapped Docker architecture: {{ docker_arch }}"
+      - "Docker OS repository: {{ docker_os }}"
+      - "OS codename: {{ ansible_distribution_release }}"
 
 # Install base packages needed for Docker setup
 - name: install required packages for Docker setup
@@ -37,6 +37,7 @@
     name:
       - ca-certificates
       - curl
+      - gnupg
     state: present
     update_cache: yes
 
@@ -49,12 +50,12 @@
 
 # Download Docker's GPG key
 - name: download Docker GPG key
-  ansible.builtin.shell:
-    cmd: curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
-    # Skip the creates just in case Docker updates their key and we need to re-download it
-    #creates: /etc/apt/keyrings/docker.asc
+  ansible.builtin.command:
+    cmd: "curl -fsSL https://download.docker.com/linux/{{ docker_os }}/gpg -o /etc/apt/keyrings/docker.asc"
+  args:
+    creates: /etc/apt/keyrings/docker.asc
 
-# Make sure the key has the correct permission
+# Ensure permissions on the GPG key
 - name: set Docker GPG key permissions
   ansible.builtin.file:
     path: /etc/apt/keyrings/docker.asc
@@ -67,8 +68,8 @@
     mode: '0644'
     content: |
       Types: deb
-      URIs: https://download.docker.com/linux/debian
-      Suites: {{ os_codename.stdout }}
+      URIs: https://download.docker.com/linux/{{ docker_os }}
+      Suites: {{ ansible_distribution_release }}
       Components: stable
       Architectures: {{ docker_arch }}
       Signed-By: /etc/apt/keyrings/docker.asc
