@@ -3,21 +3,28 @@
 # Assumes age is installed on the target system.
 #
 # Steps performed:
-#  1. Set SSH key base path for secrets server connection
-#  2. Ensure .ssh directory exists with proper permissions
-#  3. Generate ED25519 SSH key pair for secrets server (if not exists)
-#  4. Read the generated public key into a variable
-#  5. Set correct permissions on the public key file
-#  6. Create SSH config file with secure permissions if it doesn't exist
-#  7. Add SSH config entry to automatically use the secrets server key and user
-#  8. Add secrets server to known_hosts to avoid SSH host key verification prompts
-#  9. Add secrets server host dynamically to inventory
-#  10. Run secrets server operations (add SSH key to authorized_keys, encrypt secrets) - done under included tasks
-#  11. Register secrets file path for decryption
-#  12. Construct SSH command for decrypting secrets via age
-#  13. Execute decryption command and display output
+#  1. Determine connection target (IP vs DNS) based on host-level secrets_server_use_ip flag
+#  2. Set SSH key base path for secrets server connection
+#  3. Ensure .ssh directory exists with proper permissions
+#  4. Generate ED25519 SSH key pair for secrets server (if not exists)
+#  5. Read the generated public key into a variable
+#  6. Set correct permissions on the public key file
+#  7. Create SSH config file with secure permissions if it doesn't exist
+#  8. Add SSH config entry (injecting HostName IP mapping only if secrets_server_use_ip is true)
+#  9. Add secrets server to known_hosts to avoid SSH host key verification prompts
+#  10. Add secrets server host dynamically to inventory
+#  11. Run secrets server operations (add SSH key to authorized_keys, encrypt secrets) - done under included tasks
+#  12. Register secrets file path for decryption
+#  13. Construct SSH command for decrypting secrets via age
+#  14. Execute decryption command and display output
 
 - block:
+
+  # Determine target address (IP vs Hostname) and known_hosts entry format based on host var override
+  - name: Set secrets server target facts
+    ansible.builtin.set_fact:
+      secrets_target_address: "{{ secret_server.host_ip if (secrets_server_use_ip | default(false)) else secret_server.hostname }}"
+      secrets_known_hosts_prefix: "{{ secret_server.hostname + ',' + secret_server.host_ip if (secrets_server_use_ip | default(false)) else secret_server.hostname }}"
 
   # Create a variable for the filename base for the secrets server SSH key    
   - name: Set SSH key base path for secrets key
@@ -63,8 +70,8 @@
       owner: "{{ admin_user }}"
       group: "{{ admin_group }}"
 
-  # Add SSH config entry to automatically use the secrets server key and user
-  - name: Add SSH config entry for secrets.max.lan
+  # Add SSH config entry (injects HostName IP override ONLY if secrets_server_use_ip is true)
+  - name: Add SSH config entry for {{ secret_server.hostname }}
     ansible.builtin.blockinfile:
       path: "/home/{{ admin_user }}/.ssh/config"
       owner: "{{ admin_user }}"
@@ -74,22 +81,37 @@
       marker: "# {mark} ANSIBLE MANAGED SSH CONFIG for {{ secret_server.hostname }}"
       block: |
         Host {{ secret_server.hostname }}
+        {% if secrets_server_use_ip | default(false) %}
+          HostName {{ secret_server.host_ip }}
+        {% endif %}
           User {{ secret_server.secrets_user }}
           IdentityFile {{ secrets_key_filename_base }}
           IdentitiesOnly yes
 
-  # Add secrets server to known_hosts to avoid SSH host key verification prompts
+  # Fetch public SSH key (via IP or DNS) and register it in known_hosts.
+  # Replaces the scanned prefix with secrets_known_hosts_prefix ('hostname,IP' for IP scans, 'hostname' for DNS)
+  # so Ansible validation passes and OpenSSH seamlessly verifies both the hostname alias and IP address.
   - name: Add secrets server to known_hosts
     ansible.builtin.known_hosts:
       name: "{{ secret_server.hostname }}"
-      key: "{{ lookup('pipe', 'ssh-keyscan ' + secret_server.hostname) }}"
+      key: "{{ lookup('pipe', 'ssh-keyscan ' + secrets_target_address + ' | sed \"s/^' + secrets_target_address + '/' + secrets_known_hosts_prefix + '/\"') }}"
       path: "/home/{{ admin_user }}/.ssh/known_hosts"
+
+# Add secrets server to known_hosts in plain text format.
+  # 'name' is passed a single hostname to satisfy Ansible lookup requirements.
+  # 'key' contains 'hostname,IP' so OpenSSH verifies both alias and IP address.
+  - name: Add secrets server to known_hosts
+    ansible.builtin.known_hosts:
+      name: "{{ secret_server.hostname }}"
+      key: "{{ item }}"
+      path: "/home/{{ admin_user }}/.ssh/known_hosts"
+    loop: "{{ lookup('pipe', 'ssh-keyscan ' + secrets_target_address + ' | grep -v \"^#\" | sed \"s/^' + secrets_target_address + '/' + secrets_known_hosts_prefix + '/\"').splitlines() }}"
 
   # Add the secrets server host to the inventory dynamically
   - name: Add secret server host dynamically
     ansible.builtin.add_host:
       name: secrets_server
-      ansible_host: "{{ secret_server.hostname }}"
+      ansible_host: "{{ secrets_target_address }}"
       ansible_user: "{{ secret_server.admin_user }}"
       ansible_ssh_pass: "{{ secret_server.admin_password }}"
       ansible_become_password: "{{ secret_server.admin_password }}"
@@ -100,7 +122,6 @@
   - name: Run secrets server operations on secrets_server
     ansible.builtin.include_tasks: secrets_server_tasks.yaml
     vars:
-      ansible_host: "{{ secret_server.hostname }}"
       ansible_user: "{{ secret_server.admin_user }}"
       ansible_ssh_pass: "{{ secret_server.admin_password }}"
       ansible_become_password: "{{ secret_server.admin_password }}"
@@ -110,11 +131,11 @@
     ansible.builtin.set_fact:
       secrets_file_path: "/srv/secrets/encrypted/test/test-code-string.secret.age"
 
-  # Construct the command using a template
+  # Construct command using DNS hostname alias with BatchMode enabled
   - name: Construct command for decrypting secrets
     ansible.builtin.set_fact:
       decrypt_command: >-
-        ssh {{ secret_server.secrets_user }}@{{ secret_server.hostname }}
+        ssh -o BatchMode=yes {{ secret_server.secrets_user }}@{{ secret_server.hostname }}
         'cat {{ secrets_file_path }}' | age -d -i {{ secrets_key_filename_base }}
 
   # Decrypt the secrets using the constructed command
