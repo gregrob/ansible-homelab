@@ -89,7 +89,7 @@
           IdentityFile {{ secrets_key_filename_base }}
           IdentitiesOnly yes
  
-  # 1. Fetch keys ONCE from the first target host (prevents parallel connection drops)
+# 1. Fetch keys ONCE from the first target host
   - name: Fetch secrets server SSH keys
     ansible.builtin.command:
       cmd: "ssh-keyscan {{ secrets_target_address }}"
@@ -104,7 +104,13 @@
       name: "{{ secret_server.hostname }}"
       key: "{{ item }}"
       path: "/home/{{ admin_user }}/.ssh/known_hosts"
-    loop: "{{ secrets_keyscan_raw.stdout_lines | reject('match', '^#') | map('regex_replace', '^' + secrets_target_address, secrets_known_hosts_prefix) | list }}"
+    loop: >-
+      {{
+        secrets_keyscan_raw.stdout_lines
+        | reject('match', '^#')
+        | map('regex_replace', '^\S+', secrets_known_hosts_prefix)
+        | list
+      }}
 
   # Add the secrets server host to the inventory dynamically
   - name: Add secret server host dynamically
