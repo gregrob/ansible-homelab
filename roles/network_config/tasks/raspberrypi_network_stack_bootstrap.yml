@@ -51,7 +51,7 @@
   ansible.builtin.apt:
     name: vlan
     state: present
-  when: network_interfaces_effective | selectattr('vlan_id', 'defined') | list | length > 0
+  when: network_interfaces | selectattr('vlan_id', 'defined') | list | length > 0
   tags: [never, raspberrypi_bootstrap]
 
 - name: deploy network interfaces file (written to disk, not yet active)
@@ -128,7 +128,7 @@
   register: iface_check
   changed_when: false
   failed_when: item.address is defined and item.address not in iface_check.stdout
-  loop: "{{ network_interfaces_effective }}"
+  loop: "{{ network_interfaces }}"
   loop_control:
     label: "{{ item.name }}"
   when: item.address is defined

@@ -1,7 +1,14 @@
 ---
-- name: resolve effective interface list (host-defined network_interfaces, or legacy frontend/backbone)
-  ansible.builtin.set_fact:
-    network_interfaces_effective: "{{ network_interfaces | default(_network_interfaces_legacy) }}"
+- name: fail if network_interfaces is not defined for this host
+  ansible.builtin.assert:
+    that:
+      - network_interfaces is defined
+    fail_msg: >-
+      {{ inventory_hostname }} does not define network_interfaces. The
+      legacy frontend_*/backbone_* format is no longer supported by this
+      role - define network_interfaces directly in this host's
+      host_vars (see roles/network_config/defaults/main.yaml for the
+      schema).
   tags: [always]
 
 # ───────────────────────────────────────────────────────────────────────
@@ -29,25 +36,25 @@
       - "│              Network Interface Configuration                  │"
       - "└──────────────────────────────────────────────────────────────┘"
       - "{{ '%-16s -> %-15s  (%s)%s' | format(item.name, item.address | default('no IP (manual)'), item.purpose | default('no purpose set'), item.vlan_id is defined and (' vlan ' ~ item.vlan_id) or '') }}"
-  loop: "{{ network_interfaces_effective }}"
+  loop: "{{ network_interfaces }}"
   loop_control:
     label: "{{ item.name }}"
 
 - name: display firewalled interface allow-lists
   ansible.builtin.debug:
     msg: "{{ item.0.name }} allows: {{ item.1 }}"
-  loop: "{{ network_interfaces_effective | subelements('allowed_ips', skip_missing=True) }}"
+  loop: "{{ network_interfaces | subelements('allowed_ips', skip_missing=True) }}"
   loop_control:
     label: "{{ item.0.name }} <- {{ item.1 }}"
   when: item.0.firewalled | default(false)
 
 - name: check whether any interface needs VLAN support
   ansible.builtin.set_fact:
-    network_needs_vlan: "{{ network_interfaces_effective | selectattr('vlan_id', 'defined') | list | length > 0 }}"
+    network_needs_vlan: "{{ network_interfaces | selectattr('vlan_id', 'defined') | list | length > 0 }}"
 
 - name: check whether any interface needs firewalling
   ansible.builtin.set_fact:
-    network_needs_firewall: "{{ network_interfaces_effective | selectattr('firewalled', 'defined') | selectattr('firewalled') | list | length > 0 }}"
+    network_needs_firewall: "{{ network_interfaces | selectattr('firewalled', 'defined') | selectattr('firewalled') | list | length > 0 }}"
 
 - name: install packages for network configuration, VLANs, and firewall management
   ansible.builtin.apt:
@@ -98,7 +105,7 @@
   ansible.builtin.shell: |
     iptables-save | grep -v "{{ item.name }}" | iptables-restore
   changed_when: false
-  loop: "{{ network_interfaces_effective }}"
+  loop: "{{ network_interfaces }}"
   loop_control:
     label: "{{ item.name }}"
   when: item.firewalled | default(false)

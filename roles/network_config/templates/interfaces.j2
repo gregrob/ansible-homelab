@@ -9,7 +9,7 @@ source /etc/network/interfaces.d/*
 auto lo
 iface lo inet loopback
 
-{% for iface in network_interfaces_effective %}
+{% for iface in network_interfaces %}
 {% if iface.vlan_id is defined %}
 # VLAN {{ iface.vlan_id }} on {{ iface.parent }} - {{ iface.purpose | default('no purpose set') }}
 {% else %}

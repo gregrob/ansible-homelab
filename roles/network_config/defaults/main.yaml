@@ -13,9 +13,10 @@ raspberry_pi_purge_cloud_init: false
 # Canonical interface list
 # ─────────────────────────────────────────────────────────────────────────
 #
-# Define `network_interfaces` directly in host_vars for any host that
-# needs more than the legacy two-interface frontend/backbone shape below
-# (e.g. a single-NIC Raspberry Pi trunking multiple VLANs). Each entry:
+# network_interfaces MUST be defined directly in every host's host_vars -
+# there is no fallback. A host without it fails immediately with a clear
+# message (see tasks/main.yaml) rather than silently defaulting to
+# anything. Each entry:
 #
 #   name             - interface name, e.g. ens18, eth0, or a VLAN
 #                      sub-interface such as eth0.30
@@ -29,23 +30,23 @@ raspberry_pi_purge_cloud_init: false
 #                      sub-interface; requires `parent`
 #   parent           - required only when vlan_id is set; the physical
 #                      trunk interface this VLAN rides on, e.g. eth0
-#   address          - static IP address
-#   netmask          - subnet mask
+#   address          - static IP address. Omit for a no-IP trunk
+#                      interface (rendered as "inet manual")
+#   netmask          - subnet mask. Required if address is set
 #   gateway          - optional; omit on interfaces with no default route
 #   dns_nameservers  - optional
 #   dns_search       - optional
 #   purpose          - free-text, rendered as a comment for readability
 #   firewalled       - if true, renders the ESTABLISHED/RELATED +
-#                      allow-list + DROP iptables pattern the old
-#                      backbone interface used
+#                      allow-list + DROP iptables pattern
 #   allowed_ips      - list, only used when firewalled is true
 #
 # network_interfaces:
 #   - name: eth0
-#     address: 10.24.19.34
-#     netmask: 255.255.255.0
+#     id: trunk
 #     purpose: "trunk (no IP traffic directly on this interface)"
 #   - name: eth0.20
+#     id: dns_vlan
 #     parent: eth0
 #     vlan_id: 20
 #     address: 10.24.19.35
@@ -54,48 +55,3 @@ raspberry_pi_purge_cloud_init: false
 #     dns_nameservers: "{{ dns_servers_internal }}"
 #     purpose: "DNS VLAN - Technitium failsafe"
 #     firewalled: false
-
-# ─────────────────────────────────────────────────────────────────────────
-# Legacy frontend/backbone vars (kept for existing VM/LXC hosts)
-# ─────────────────────────────────────────────────────────────────────────
-#
-# dns-001, dns-002, download-001, ollama-001 etc. all still set these
-# exactly as before - nothing about their host_vars needs to change.
-# `network_interfaces` below is auto-built from them when a host does
-# not define `network_interfaces` directly.
-
-backbone_enabled: true
-frontend_interface: ens18
-frontend_netmask: 255.255.255.0
-frontend_dns: "{{ dns_servers_internal }}"
-frontend_dns_search: "{{ dns_server_search_internal }}"
-backbone_interface: ens19
-backbone_netmask: 255.255.255.0
-backbone_allowed_ips:
-  - "{{ nas_backbone_ip }}"
-
-_network_interfaces_legacy_frontend:
-  name: "{{ frontend_interface }}"
-  id: frontend
-  address: "{{ frontend_address }}"
-  netmask: "{{ frontend_netmask }}"
-  gateway: "{{ frontend_gateway | default(omit) }}"
-  dns_nameservers: "{{ frontend_dns | default(omit) }}"
-  dns_search: "{{ frontend_dns_search | default(omit) }}"
-  purpose: "frontend (client-facing traffic)"
-  firewalled: false
-
-_network_interfaces_legacy_backbone:
-  name: "{{ backbone_interface }}"
-  id: backbone
-  address: "{{ backbone_address | default(omit) }}"
-  netmask: "{{ backbone_netmask }}"
-  purpose: "backbone (direct NAS traffic)"
-  firewalled: true
-  allowed_ips: "{{ backbone_allowed_ips }}"
-
-# Only built from the legacy vars when the host hasn't set
-# network_interfaces directly - see tasks/main.yaml for how this is
-# resolved. Do not override this var itself; override the legacy vars
-# above, or define network_interfaces on the host instead.
-_network_interfaces_legacy: "{{ [_network_interfaces_legacy_frontend] + ([_network_interfaces_legacy_backbone] if (backbone_enabled and backbone_interface != 'none') else []) }}"
