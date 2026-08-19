@@ -26,3 +26,12 @@ network_interfaces:
     firewalled: true
     allowed_ips:
       - "{{ nas_backbone_ip }}"
+
+# List of NFS shares to mount with their corresponding local mount points
+nfs_mounts:
+  - share: /volume1/downloads
+    mountpoint: downloads
+    mode: rw
+  - share: /volume1/server-mounts
+    mountpoint: server-mounts
+    mode: rw
