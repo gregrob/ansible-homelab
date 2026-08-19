@@ -28,19 +28,29 @@
       group: "{{ admin_group }}"
 
   # Generate a new SSH key for the GitHub repo if one doesn't already exist
+  # (omitting 'mode' prevents openssh_keypair from resetting public key permissions on reruns)
   - name: generate SSH key for GitHub repo
     ansible.builtin.openssh_keypair:
       path: "{{ github_key_filename_base }}"
       type: ed25519
       force: false   # do not overwrite if key already exists
       comment: "{{ github_key_comment | default(admin_user ~ '@' ~ inventory_hostname ~ ' (repo: ' ~ github_repo_name ~ ')') }}"
-      mode: '0600'   # private key permission
 
-  # Fix permissions on the public key to be world-readable  
+  # Explicitly set 0600 permissions on the private key
+  - name: Set correct permissions on private key
+    ansible.builtin.file:
+      path: "{{ github_key_filename_base }}"
+      mode: '0600'
+      owner: "{{ admin_user }}"
+      group: "{{ admin_group }}"
+
+  # Explicitly set 0644 permissions on the public key
   - name: Set correct permissions on public key
     ansible.builtin.file:
       path: "{{ github_key_filename_base }}.pub"
       mode: '0644'
+      owner: "{{ admin_user }}"
+      group: "{{ admin_group }}"
 
   # Add github.com specific SSH config entry for the repository
   - name: Add GitHub SSH config entry for repo {{ github_repo_name }}
