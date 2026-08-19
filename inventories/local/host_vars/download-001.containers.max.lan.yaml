@@ -12,9 +12,9 @@ network_interfaces:
     id: frontend
     address: 10.24.4.69
     netmask: 255.255.255.0
-    gateway: "{{ gateway_ip_containers }}"
+    gateway: "{{ gateway_ip_apps }}"
     dns_nameservers: "{{ dns_servers_internal }}"
-    dns_search: "{{ dns_server_search_internal }}"
+    dns_search: "apps.gregrob.net gregrob.net"
     purpose: "frontend (client-facing traffic)"
     firewalled: false
 
