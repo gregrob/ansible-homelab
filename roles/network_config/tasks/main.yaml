@@ -110,6 +110,32 @@
     label: "{{ item.name }}"
   when: item.firewalled | default(false)
 
+# ───────────────────────────────────────────────────────────────────────
+# Host Identity & Local Name Resolution
+# Sets system hostname using domain_hostname and updates /etc/hosts with
+# the canonical FQDN (domain_hostname.domain_sub_prefix.domain_root) and
+# short hostname mapped to the frontend static IP.
+# ───────────────────────────────────────────────────────────────────────
+
+- name: set system hostname
+  ansible.builtin.hostname:
+    name: "{{ domain_hostname }}"
+  when: domain_hostname is defined
+
+- name: update /etc/hosts with canonical FQDN and short hostname
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: "^(127\\.0\\.1\\.1|{{ network_frontend_ip | default('127.0.1.1') | regex_escape }})\\s+"
+    line: "127.0.1.1   {{ domain_hostname }}.{{ domain_sub_prefix }}.{{ domain_root }} {{ domain_hostname }}"
+    owner: root
+    group: root
+    mode: '0644'
+    state: present
+  when:
+    - domain_hostname is defined
+    - domain_sub_prefix is defined
+    - domain_root is defined
+
 - name: deploy network interfaces file
   ansible.builtin.template:
     src: interfaces.j2
