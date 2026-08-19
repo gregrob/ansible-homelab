@@ -3,7 +3,7 @@
 # Host-specific variables for dns-002.dns.gregrob.net
 # ---------------------------------------------------
 
-# target type
+# Target type
 target_type: vm
 
 # Network settings
