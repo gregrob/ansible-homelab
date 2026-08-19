@@ -49,3 +49,6 @@ keepalived_unicast_peers: "{{ keepalived_dns_nodes | reject('equalto', keepalive
 # to carry a Technitium API token, but the role itself has no idea that's
 # what it is.
 keepalived_check_extra_arg: "{{ keepalived_technitium_api_token_clustered }}"
+
+# Load balancer ENABLED on dns-001 and dns-002
+keepalived_load_balancer_enabled: true

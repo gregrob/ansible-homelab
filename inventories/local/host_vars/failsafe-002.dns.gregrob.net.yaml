@@ -58,8 +58,6 @@ network_interfaces:
     id: trunk
     purpose: "trunk (802.1Q, no direct IP traffic)"
 
-  # DNS VLAN - TODO: confirm the actual VLAN ID against your UniFi config
-  # before running this against the Pi
   - name: "{{ network_all_interface }}.{{ dns_vlan_id }}"
     id: dns_vlan
     parent: eth0
@@ -131,3 +129,6 @@ keepalived_unicast_peers: "{{ keepalived_dns_nodes | reject('equalto', keepalive
 # to carry a Technitium API token, but the role itself has no idea that's
 # what it is.
 keepalived_check_extra_arg: "{{ keepalived_technitium_api_token_clustered }}"
+
+# Load balancer DISABLED on failsafe-002
+keepalived_load_balancer_enabled: false

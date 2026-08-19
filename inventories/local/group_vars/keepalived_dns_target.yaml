@@ -22,6 +22,7 @@ keepalived_state: BACKUP
 keepalived_dns_nodes:
   - 10.24.19.30/24   # dns-001
   - 10.24.19.32/24   # dns-002
+  - 10.24.19.34/24   # failsafe-002
 
 # VRRP router ID. Must be unique per broadcast domain — if you run more
 # than one keepalived VIP pair on the same LAN, give each pair a different
@@ -65,7 +66,7 @@ keepalived_check_command: "/usr/bin/curl -sf --max-time {{ keepalived_check_time
 # DNS health check is pulled from rotation independently of VRRP/VIP
 # ownership. See roles/keepalived/tasks/main.yaml for the supporting
 # sysctl/kernel-module/loopback-binding setup this enables.
-keepalived_load_balancer_enabled: true
+# !!! Set keepalived_load_balancer_enabled in each host var explicidly !!!
 
 keepalived_real_servers:
   - ip: 10.24.19.30   # dns-001

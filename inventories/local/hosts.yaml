@@ -64,6 +64,7 @@ all:
       hosts:
         dns-001.dns.gregrob.net: {}
         dns-002.dns.gregrob.net: {}
+        failsafe-002.dns.gregrob.net: {}
 
     test_target:
       hosts:
