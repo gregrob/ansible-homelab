@@ -28,26 +28,27 @@ all:
     # All virtual machines
     vms:
       hosts:
-        download-001.containers.max.lan: {}
         dns-001.dns.gregrob.net:
-           ansible_host: dns-001.dns.gregrob.net
+          ansible_host: dns-001.dns.gregrob.net
         dns-002.dns.gregrob.net:
-           ansible_host: dns-002.dns.gregrob.net
-
+          ansible_host: dns-002.dns.gregrob.net
+        download-001.apps.gregrob.net:
+          ansible_host: download-001.apps.gregrob.net
+          
     # All physical machines
     pms:
       hosts:
         failsafe-002.dns.gregrob.net:
-           ansible_host: failsafe-002.dns.gregrob.net
+          ansible_host: failsafe-002.dns.gregrob.net
 
     debian_config_target:
       hosts:
         dns-001.dns.gregrob.net: {}
         dns-002.dns.gregrob.net: {}
         failsafe-002.dns.gregrob.net: {}
+        download-001.apps.gregrob.net: {}
 
-        # The following still need migration to gregrob.net
-        download-001.containers.max.lan: {}
+        # The following still need migration to gregrob.net        
         # ollama-001.containers.max.lan: {} # LXC so Proxmox manages the interface in the GUI not Ansible
 
     network_config_target:
@@ -55,9 +56,9 @@ all:
         dns-001.dns.gregrob.net: {}
         dns-002.dns.gregrob.net: {}
         failsafe-002.dns.gregrob.net: {}
+        download-001.apps.gregrob.net: {}
 
-        # The following still need migration to gregrob.net
-        download-001.containers.max.lan: {}
+        # The following still need migration to gregrob.net        
         # ollama-001.containers.max.lan: {} # LXC so Proxmox manages the interface in the GUI not Ansible
 
     keepalived_dns_target:
