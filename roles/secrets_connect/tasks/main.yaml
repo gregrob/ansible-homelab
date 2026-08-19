@@ -41,25 +41,35 @@
       group: "{{ admin_group }}"
 
   # Generate a new SSH key for the secrets server if one doesn't already exist
+  # (omitting 'mode' prevents openssh_keypair from resetting public key permissions on reruns)
   - name: generate SSH key for Secrets server
     ansible.builtin.openssh_keypair:
       path: "{{ secrets_key_filename_base }}"
       type: ed25519
       force: false   # do not overwrite if key already exists
       comment: "{{ secrets_key_comment | default(admin_user ~ '@' ~ inventory_hostname ~ ' (secrets server)') }}"
-      mode: '0600'   # private key permission
+
+  # Explicitly set 0600 permissions on the private key
+  - name: Set correct permissions on private key
+    ansible.builtin.file:
+      path: "{{ secrets_key_filename_base }}"
+      mode: '0600'
+      owner: "{{ admin_user }}"
+      group: "{{ admin_group }}"
+
+  # Explicitly set 0644 permissions on the public key
+  - name: Set correct permissions on public key
+    ansible.builtin.file:
+      path: "{{ secrets_key_filename_base }}.pub"
+      mode: '0644'
+      owner: "{{ admin_user }}"
+      group: "{{ admin_group }}"
 
   # Read the generated public key into a variable
   - name: Read generated public key
     ansible.builtin.slurp:
       src: "{{ secrets_key_filename_base }}.pub"
     register: secrets_pubkey_content
-
-  # Fix permissions on the public key to be world-readable  
-  - name: Set correct permissions on public key
-    ansible.builtin.file:
-      path: "{{ secrets_key_filename_base }}.pub"
-      mode: '0644'
 
   # Create SSH config file with secure permissions if it doesn't exist
   - name: Ensure SSH config file exists with proper permissions
