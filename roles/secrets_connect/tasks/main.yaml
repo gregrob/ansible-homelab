@@ -71,15 +71,6 @@
       src: "{{ secrets_key_filename_base }}.pub"
     register: secrets_pubkey_content
 
-  # Create SSH config file with secure permissions if it doesn't exist
-  - name: Ensure SSH config file exists with proper permissions
-    ansible.builtin.file:
-      path: "/home/{{ admin_user }}/.ssh/config"
-      state: touch
-      mode: '0600'
-      owner: "{{ admin_user }}"
-      group: "{{ admin_group }}"
-
   # Add SSH config entry (injects HostName IP override ONLY if secrets_server_use_ip is true)
   - name: Add SSH config entry for {{ secret_server.hostname }}
     ansible.builtin.blockinfile:
@@ -127,6 +118,7 @@
       ansible_become_password: "{{ secret_server.admin_password }}"
       groups:
         - secrets_access
+    changed_when: false # Don't flag a change for this task, only adding a host
 
   # Run additional secrets server operations on the dynamically added secrets_server host
   - name: Run secrets server operations on secrets_server
@@ -152,6 +144,7 @@
   - name: Decrypt the secrets using the constructed command
     ansible.builtin.shell: "{{ decrypt_command }}"
     register: decrypted_output
+    changed_when: false # Don't flag a change because read only operation
 
   # Display the output of the decryption command
   - name: Display output of encryption command
