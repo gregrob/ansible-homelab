@@ -1,6 +1,10 @@
 --- 
+# ------------------------------------------------------------
 # Host-specific variables for downloads-001.containers.max.lan
-# Network configuration settings specific to this target host
+# ------------------------------------------------------------
+
+# Target type
+target_type: vm
 
 # Network settings
 network_interfaces:
@@ -22,6 +26,3 @@ network_interfaces:
     firewalled: true
     allowed_ips:
       - "{{ nas_backbone_ip }}"
-
-# VM
-is_lxc: false
