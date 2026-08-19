@@ -89,15 +89,6 @@
           IdentityFile {{ secrets_key_filename_base }}
           IdentitiesOnly yes
 
-  # Fetch public SSH key (via IP or DNS) and register it in known_hosts.
-  # Replaces the scanned prefix with secrets_known_hosts_prefix ('hostname,IP' for IP scans, 'hostname' for DNS)
-  # so Ansible validation passes and OpenSSH seamlessly verifies both the hostname alias and IP address.
-  - name: Add secrets server to known_hosts
-    ansible.builtin.known_hosts:
-      name: "{{ secret_server.hostname }}"
-      key: "{{ lookup('pipe', 'ssh-keyscan ' + secrets_target_address + ' | sed \"s/^' + secrets_target_address + '/' + secrets_known_hosts_prefix + '/\"') }}"
-      path: "/home/{{ admin_user }}/.ssh/known_hosts"
-
 # Add secrets server to known_hosts in plain text format.
   # 'name' is passed a single hostname to satisfy Ansible lookup requirements.
   # 'key' contains 'hostname,IP' so OpenSSH verifies both alias and IP address.
