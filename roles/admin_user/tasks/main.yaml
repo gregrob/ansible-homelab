@@ -49,6 +49,7 @@
     groups: "{{ admin_supplementary_groups if (admin_supplementary_groups | length > 0) else omit }}"
     append: yes
     password: "{{ admin_password | password_hash('sha512') }}"
+    update_password: on_create # So it doesnt get rewritten after the first setup
     shell: /bin/bash
     create_home: yes
     state: present

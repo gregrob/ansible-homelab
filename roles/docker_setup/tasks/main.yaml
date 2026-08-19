@@ -75,9 +75,10 @@
       Signed-By: /etc/apt/keyrings/docker.asc
 
 # Update the apt cache after adding Docker repository
-- name: update apt cache
+- name: update apt cache (maybe CHANGED)
   ansible.builtin.apt:
     update_cache: yes
+    cache_valid_time: "{{ apt_cache_valid_time | default(3600) }}"
 
 # Install Docker packages
 - name: install Docker packages

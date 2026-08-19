@@ -21,7 +21,7 @@
       - "Target host: {{ inventory_hostname }}"
 
 # Update apt package cache
-- name: Update apt package cache
+- name: Update apt package cache (maybe CHANGED)
   ansible.builtin.apt:
     update_cache: yes
     cache_valid_time: "{{ apt_cache_valid_time }}"
