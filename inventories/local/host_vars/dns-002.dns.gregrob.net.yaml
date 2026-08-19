@@ -6,6 +6,11 @@
 # Target type
 target_type: vm
 
+# Domain settings
+domain_root: gregrob.net
+domain_sub_prefix: dns
+domain_hostname: dns-002
+
 # Network settings
 # Define the following settings this way to prevent lazy evaluation with jinja2
 # expressions in the keepalived vars
@@ -20,7 +25,7 @@ network_interfaces:
     netmask: 255.255.255.0
     gateway: "{{ gateway_ip_dns }}"
     dns_nameservers: "{{ dns_servers_gateway_dns }}" # Use gateway - avoids resolving against a not-yet-ready itself
-    dns_search: "dns.gregrob.net gregrob.net"
+    dns_search: "{{ domain_sub_prefix }}.{{ domain_root }} {{ domain_root }}"
     purpose: "frontend (client-facing traffic)"
     firewalled: false
 

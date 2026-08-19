@@ -6,6 +6,11 @@
 # Target type
 target_type: vm
 
+# Domain settings
+domain_root: gregrob.net
+domain_sub_prefix: apps
+domain_hostname: download-001
+
 # Network settings
 network_interfaces:
   - name: ens18
@@ -14,7 +19,7 @@ network_interfaces:
     netmask: 255.255.255.0
     gateway: "{{ gateway_ip_apps }}"
     dns_nameservers: "{{ dns_servers_internal }}"
-    dns_search: "apps.gregrob.net gregrob.net"
+    dns_search: "{{ domain_sub_prefix }}.{{ domain_root }} {{ domain_root }}"
     purpose: "frontend (client-facing traffic)"
     firewalled: false
 
