@@ -7,7 +7,8 @@
 #  2. Remove automatically installed packages that are no longer needed
 #  3. Check if a system reboot is required after updates
 #  4. Reboot the system if the reboot-required flag is present
-#  5. Install all packages specified in common_packages and specific_packages
+#  5. Display the packages to be installed for debug purposes
+#  6. Install all packages specified in common_packages and specific_packages
 
 # Refresh the apt package index and perform a full system upgrade (dist-upgrade)
 - name: Update apt cache and upgrade packages
@@ -30,6 +31,11 @@
 - name: Reboot if required
   ansible.builtin.reboot:
   when: reboot_flag.stat.exists
+
+# Display the target package list before installing
+- name: Display packages queued for installation
+  ansible.builtin.debug:
+    msg: "Packages to install: {{ common_packages + (specific_packages | default([])) }}"
 
 # Install all packages from common_packages and specific_packages
 - name: Install common and specific packages
