@@ -78,11 +78,11 @@
           - "│ Ensure you have console access before continuing.            │"
           - "└──────────────────────────────────────────────────────────────┘"
           - "Target Host : {{ inventory_hostname }} (SSH: {{ ansible_host }})"
-          - "Hostname    : {{ domain_hostname | default('N/A') }}"
-          - "FQDN        : {{ domain_hostname | default('N/A') }}.{{ domain_sub_prefix | default('N/A') }}.{{ domain_root | default('N/A') }}"
-          - "Subdomain   : {{ domain_sub_prefix | default('N/A') }}.{{ domain_root | default('N/A') }}"
-          - "Root Domain : {{ domain_root | default('N/A') }}"
-          - "Target Type : {{ target_type | default('N/A') }}"
+          - "Hostname    : {{ domain_hostname }}"
+          - "FQDN        : {{ domain_hostname }}.{{ domain_sub_prefix }}.{{ domain_root }}"
+          - "Subdomain   : {{ domain_sub_prefix }}.{{ domain_root }}"
+          - "Root Domain : {{ domain_root }}"
+          - "Target Type : {{ target_type }}"
 
     - name: display network interfaces configured for this host
       ansible.builtin.debug:
