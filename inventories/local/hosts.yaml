@@ -40,6 +40,12 @@ all:
         failsafe-002.dns.gregrob.net:
            ansible_host: failsafe-002.dns.gregrob.net
 
+    debian_config_target:
+      hosts:
+        #dns-001.dns.gregrob.net: {}
+        #dns-002.dns.gregrob.net: {}
+        failsafe-002.dns.gregrob.net: {}
+
     network_config_target:
       hosts:
         dns-001.dns.gregrob.net: {}
