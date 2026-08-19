@@ -88,17 +88,17 @@
           User {{ secret_server.secrets_user }}
           IdentityFile {{ secrets_key_filename_base }}
           IdentitiesOnly yes
-
-# Add secrets server to known_hosts in plain text format.
-  # 'name' is passed a single hostname to satisfy Ansible lookup requirements.
-  # 'key' contains 'hostname,IP' so OpenSSH verifies both alias and IP address.
+ 
+  # Add secrets server to known_hosts
+  # 'name' receives a single hostname to satisfy Ansible lookup requirements.
+  # 'key' contains 'hostname,IP' so OpenSSH verifies both alias and IP address on disk.
   - name: Add secrets server to known_hosts
     ansible.builtin.known_hosts:
       name: "{{ secret_server.hostname }}"
       key: "{{ item }}"
       path: "/home/{{ admin_user }}/.ssh/known_hosts"
-    loop: "{{ lookup('pipe', 'ssh-keyscan ' + secrets_target_address + ' | grep -v \"^#\" | sed \"s/^' + secrets_target_address + '/' + secrets_known_hosts_prefix + '/\"').splitlines() }}"
-
+    loop: "{{ lookup('pipe', 'ssh-keyscan ' + secrets_target_address + ' | sed \"s/^' + secrets_target_address + '/' + secrets_known_hosts_prefix + '/\"').splitlines() | reject('match', '^#') | list }}"
+  
   # Add the secrets server host to the inventory dynamically
   - name: Add secret server host dynamically
     ansible.builtin.add_host:
