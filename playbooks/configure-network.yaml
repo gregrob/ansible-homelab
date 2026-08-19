@@ -77,15 +77,31 @@
           - "│                                                              │"
           - "│ Ensure you have console access before continuing.            │"
           - "└──────────────────────────────────────────────────────────────┘"
-          - "Target    : {{ inventory_hostname }}"
-          - "Current IP: {{ ansible_host }}"
-          - "──────────────────────────────────────────────────────────────"
-          - "Press Enter to continue or Ctrl+C then A to abort."
-          - "──────────────────────────────────────────────────────────────"
+          - "Target Host : {{ inventory_hostname }} (SSH: {{ ansible_host }})"
+          - "Hostname    : {{ domain_hostname | default('N/A') }}"
+          - "FQDN        : {{ domain_hostname | default('N/A') }}.{{ domain_sub_prefix | default('N/A') }}.{{ domain_root | default('N/A') }}"
+          - "Subdomain   : {{ domain_sub_prefix | default('N/A') }}.{{ domain_root | default('N/A') }}"
+          - "Root Domain : {{ domain_root | default('N/A') }}"
+          - "Target Type : {{ target_type | default('N/A') }}"
+
+    - name: display network interfaces configured for this host
+      ansible.builtin.debug:
+        msg: "{{ '%-16s -> %-15s  (%s)%s' | format(item.name, item.address | default('no IP (manual)'), item.purpose | default('no purpose set'), item.vlan_id is defined and (' vlan ' ~ item.vlan_id) or '') }}"
+      loop: "{{ network_interfaces }}"
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: display firewalled interface allow-lists
+      ansible.builtin.debug:
+        msg: "{{ item.0.name }} allows: {{ item.1 }}"
+      loop: "{{ network_interfaces | subelements('allowed_ips', skip_missing=True) }}"
+      loop_control:
+        label: "{{ item.0.name }} <- {{ item.1 }}"
+      when: item.0.firewalled | default(false)
 
     - name: wait for confirmation to proceed
       ansible.builtin.pause:
-        prompt: ""
+        prompt: "Press Enter to continue or Ctrl+C then A to abort."
       when: not (skip_confirmation | default(false) | bool)
 
   roles:
