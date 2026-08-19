@@ -29,9 +29,14 @@
       - netdev          # manage network interfaces without sudo
       - systemd-journal # read systemd journal logs via journalctl without sudo
       
-    specific_packages:
-      - nfs-common        # NFS client utilities (i.e. mount in nfs_mounts role)
-      - "{{ 'qemu-guest-agent' if (target_type | default('none') == 'vm') else omit }}" # Only install QEMU agent on VMs
+    # Specific packages to be installed
+    # NFS client utilities (i.e. mount in nfs_mounts role)
+    # Only install QEMU agent on VMs
+    specific_packages: >-
+      {{
+        ['nfs-common'] +
+        (['qemu-guest-agent'] if (target_type | default('none') == 'vm') else [])
+      }}
       
   pre_tasks:
     - name: Ensure target_type is a valid enum value
