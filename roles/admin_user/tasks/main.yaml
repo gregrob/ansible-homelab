@@ -17,7 +17,7 @@
     database: group
     key: lpadmin
   failed_when: false
-  when: is_raspberry_pi | default(false) | bool
+  when: (target_type | default('none')) == 'rpi'
 
 # Shift lpadmin GID away if it conflicts with admin_gid on Raspberry Pi hosts
 - name: Shift lpadmin GID away from admin_gid
@@ -26,7 +26,7 @@
     gid: "{{ lpadmin_shift_gid }}"
     state: present
   when:
-    - is_raspberry_pi | default(false) | bool
+    - (target_type | default('none')) == 'rpi'
     - getent_group.lpadmin is defined
     - getent_group.lpadmin != None
     - getent_group.lpadmin[1] | int == (admin_gid | int)
