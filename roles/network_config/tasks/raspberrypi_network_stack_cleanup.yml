@@ -16,10 +16,10 @@
 - name: assert this is actually a Raspberry Pi host before purging its network stack
   ansible.builtin.assert:
     that:
-      - is_raspberry_pi | default(false)
+      - (target_type | default('none')) == 'rpi'
     fail_msg: >-
       raspberrypi_cleanup was requested against a host with
-      is_raspberry_pi not set to true in its host_vars. Refusing to
+      target_type not set to 'rpi' in its host_vars. Refusing to
       purge network-manager/dhcpcd on a host this task set wasn't meant
       for.
   tags: [never, raspberrypi_cleanup]

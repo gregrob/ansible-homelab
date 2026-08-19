@@ -73,7 +73,7 @@
     owner: root
     group: root
     mode: '0644'
-  when: is_raspberry_pi
+  when: (target_type | default('none')) == 'rpi'
   register: cloud_init_network_disabled
 
 - name: purge cloud-init entirely on Raspberry Pi
@@ -82,12 +82,17 @@
     state: absent
     purge: true
     autoremove: true
-  when: is_raspberry_pi and raspberry_pi_purge_cloud_init
+  when:
+    - (target_type | default('none')) == 'rpi'
+    - raspberry_pi_purge_cloud_init | default(false) | bool
 
 - name: clean cloud-init state so the disable takes effect cleanly
   ansible.builtin.shell: cloud-init clean --logs
   changed_when: false
-  when: is_raspberry_pi and not raspberry_pi_purge_cloud_init and cloud_init_network_disabled.changed
+  when:
+    - (target_type | default('none')) == 'rpi'
+    - not (raspberry_pi_purge_cloud_init | default(false) | bool)
+    - cloud_init_network_disabled.changed | default(false)
 
 - name: flush existing iptables rules for firewalled interfaces
   ansible.builtin.shell: |

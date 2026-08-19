@@ -32,6 +32,14 @@
     - ../group_vars/all/nas.yaml
 
   pre_tasks:
+    - name: Ensure target_type is a valid enum value
+      ansible.builtin.assert:
+        that:
+          - (target_type | default('none')) in ['vm', 'lxc', 'rpi']
+        fail_msg: >-
+          'target_type' is missing or invalid on {{ inventory_hostname }} (currently: '{{ target_type | default('undefined') }}').
+          Please set 'target_type' to 'vm', 'lxc', or 'rpi' in host_vars/{{ inventory_hostname }}.yaml.
+
     - name: display network configuration warning
       ansible.builtin.debug:
         msg:

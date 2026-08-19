@@ -24,10 +24,10 @@
 - name: assert this is actually a Raspberry Pi host before touching its network stack
   ansible.builtin.assert:
     that:
-      - is_raspberry_pi | default(false)
+      - (target_type | default('none')) == 'rpi'
     fail_msg: >-
       raspberrypi_bootstrap was requested against a host with
-      is_raspberry_pi not set to true in its host_vars. Refusing to touch
+      target_type not set to 'rpi' in its host_vars. Refusing to touch
       the network stack - this task set assumes RPi OS's default
       NetworkManager setup and would be the wrong thing to run against a
       VM or LXC.

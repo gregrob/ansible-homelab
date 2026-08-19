@@ -1,20 +1,12 @@
----
 # Default variables for the network_config role
 
 # ─────────────────────────────────────────────────────────────────────────
-# Raspberry Pi handling
+# Raspberry Pi / Cloud-Init Options
 # ─────────────────────────────────────────────────────────────────────────
 
-# Set true in host_vars for any Raspberry Pi OS target. RPi OS ships
-# cloud-init, which regenerates network config on boot and will silently
-# overwrite /etc/network/interfaces if left enabled. When true, this role
-# disables cloud-init's network-config stage (see tasks/main.yaml).
-is_raspberry_pi: false
-
-# When is_raspberry_pi is true, also fully purge the cloud-init package
-# rather than just disabling its network stage. Leave false if you still
-# rely on cloud-init (e.g. via Raspberry Pi Imager) for anything else on
-# first boot.
+# When target_type is 'rpi', setting this to true will fully purge the
+# cloud-init package rather than just disabling its network stage. Leave false
+# if you still rely on cloud-init (e.g. via Raspberry Pi Imager) on first boot.
 raspberry_pi_purge_cloud_init: false
 
 # ─────────────────────────────────────────────────────────────────────────

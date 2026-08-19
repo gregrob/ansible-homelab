@@ -1,5 +1,7 @@
 ---
+# --------------------------------------------------------
 # Host-specific variables for failsafe-002.dns.gregrob.net
+# --------------------------------------------------------
 # Raspberry Pi - multi-purpose homelab failsafe node. First role is
 # Technitium DNS failsafe (standby, not part of the IPVS load-balancer
 # rotation - see keepalived_priority below); will also pick up other
@@ -35,11 +37,12 @@
 # See network_config/tasks/raspberrypi_network_stack_bootstrap.yml and
 # raspberrypi_network_stack_cleanup.yml for the full safety design.
 
-is_raspberry_pi: true
+# Target type
+target_type: rpi
+
 # Leave false unless you want cloud-init fully removed rather than just
 # stopped from touching networking - see role defaults for details.
 raspberry_pi_purge_cloud_init: false
-
 
 # Network settings
 # Define the following settings this way to prevent lazy evaluation with jinja2
@@ -105,9 +108,6 @@ network_interfaces:
 
 # No NFS shares needed on this node
 nfs_mounts: []
-
-# Physical Pi, not a VM or LXC
-is_lxc: false
 
 # Set to true for hosts (e.g., local DNS servers) that cannot resolve internal DNS domains natively.
 # When true, SSH config configures 'HostName <IP>' so 'ssh secrets@secrets.max.lan' routes directly 
