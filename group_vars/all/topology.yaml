@@ -20,4 +20,4 @@ gateway_ip_dns: 10.24.19.1
 dns_servers_gateway_dns: "{{ gateway_ip_dns }}"
 
 # Internal DNS server
-# dns_servers_internal: 10.24.19.x
+dns_servers_internal: 10.24.19.20
