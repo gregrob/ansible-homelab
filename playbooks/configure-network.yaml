@@ -40,6 +40,32 @@
           'target_type' is missing or invalid on {{ inventory_hostname }} (currently: '{{ target_type | default('undefined') }}').
           Please set 'target_type' to 'vm', 'lxc', or 'rpi' in host_vars/{{ inventory_hostname }}.yaml.
 
+    # ───────────────────────────────────────────────────────────────────────
+    # LXC Bypass Check
+    # LXC network, hostname, and DNS settings are managed centrally via the
+    # Proxmox GUI / API (container config) rather than guest network interfaces.
+    # ───────────────────────────────────────────────────────────────────────
+    - name: Check if target is an LXC container
+      when: (target_type | default('none')) == 'lxc'
+      block:
+        - name: Explain LXC network management policy
+          ansible.builtin.debug:
+            msg:
+              - "┌──────────────────────────────────────────────────────────────┐"
+              - "│                  LXC Host Skipped                            │"
+              - "├──────────────────────────────────────────────────────────────┤"
+              - "│ {{ inventory_hostname }} is flagged as an LXC container.       │"
+              - "│                                                              │"
+              - "│ Network interfaces, static IPs, hostnames, and DNS search    │"
+              - "│ paths for LXC containers are managed directly within the    │"
+              - "│ Proxmox VE GUI/API (Container -> Network / DNS).             │"
+              - "│                                                              │"
+              - "│ Skipping in-guest network configuration.                     │"
+              - "└──────────────────────────────────────────────────────────────┘"
+
+        - name: End host execution gracefully for LXC
+          ansible.builtin.meta: end_host
+
     - name: display network configuration warning
       ansible.builtin.debug:
         msg:
