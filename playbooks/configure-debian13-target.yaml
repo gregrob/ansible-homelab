@@ -1,18 +1,16 @@
----
-# Configure Debian 13 VM or LXC - common base playbook
-# Sets up a complete production Debian 13 VM or LXC: system configuration,
-# user setup, Git/GitHub access, and Docker installation.
+# Configure Debian 13 Target - Common Base Playbook
+# Sets up a complete production Debian 13 host (VM, LXC, or Raspberry Pi):
+# system configuration, user setup, Git/GitHub access, storage, and Docker.
 #
 # Usage:
 #   ansible-playbook -i inventories/local/hosts.yaml playbooks/configure-debian13-target.yaml --ask-vault-pass
 #
-#   To skip the pre-flight guide's confirmation pause (info banner still
-#   displays either way):
+#   To skip the pre-flight guide's confirmation pause:
 #     ansible-playbook -i inventories/local/hosts.yaml playbooks/configure-debian13-target.yaml \
 #       --ask-vault-pass -e skip_confirmation=true
 
-- name: Configure a Debian 13 VM or LXC
-  hosts: debian_config_target, configure_target
+- name: Configure a Debian 13 Target (VM, LXC, or Raspberry Pi)
+  hosts: debian_config_target
   gather_facts: yes
   become: yes
   
@@ -25,7 +23,6 @@
     - ../group_vars/all/topology.yaml   # gateway_ip_dns and friends - needed to resolve network_interfaces-derived vars below
     
   vars:
-
     admin_supplementary_groups:
       - adm             # read system logs in /var/log
       - sudo            # execute commands as root via sudo
@@ -34,16 +31,17 @@
       
     specific_packages:
       - nfs-common        # NFS client utilities (i.e. mount in nfs_mounts role)
-      - qemu-guest-agent  # QEMU guest agent for Proxmox integration
+      - "{{ 'qemu-guest-agent' if (target_type | default('none') == 'vm') else omit }}" # Only install QEMU agent on VMs
       
   pre_tasks:
-    # network_interfaces is required - the legacy frontend_*/backbone_*
-    # format is no longer supported by this playbook. Fails loudly and
-    # immediately rather than silently falling back, so a not-yet-migrated
-    # host (e.g. download-001) can't slip through unnoticed - migrate its
-    # host_vars to network_interfaces (see
-    # roles/network_config/defaults/main.yaml for the schema) before
-    # running this playbook against it again.
+    - name: Ensure target_type is a valid enum value
+      ansible.builtin.assert:
+        that:
+          - (target_type | default('none')) in ['vm', 'lxc', 'rpi']
+        fail_msg: >-
+          'target_type' is missing or invalid on {{ inventory_hostname }} (currently: '{{ target_type | default('undefined') }}').
+          Please set 'target_type' to 'vm', 'lxc', or 'rpi' in host_vars/{{ inventory_hostname }}.yaml.
+
     - name: fail if this host is still using the deprecated legacy frontend_*/backbone_* var format
       ansible.builtin.assert:
         that:
@@ -54,8 +52,8 @@
           by this playbook - migrate this host's host_vars to
           network_interfaces before running this playbook again.
 
-    # Display comprehensive setup guide with target info and pre-flight checklist
-    - name: display playbook setup guide (vm)
+    # 1. Display VM Setup Guide
+    - name: display playbook setup guide (VM)
       ansible.builtin.debug:
         msg:
           - "┌───────────────────────────────────────────────────────────┐"
@@ -66,7 +64,7 @@
           - "  Host      : {{ inventory_hostname }}"
           - "  IP        : {{ ansible_host }}"
           - ""
-          - "── VM settings ─────────────────────────────────────────────────"
+          - "── Proxmox / KVM VM Settings ──────────────────────────────────"
           - "  System:"
           - "    - Graphics card: VirtIO-GPU (for better performance and compatibility)"
           - "    - Machine: q35 (modern hardware support - pcie)"
@@ -92,25 +90,13 @@
           - "  1. Vault password available"
           - "  2. SSH key access to target host confirmed (installed under root)"
           - "  3. Network configured with configure-network playbook"
-          - "     (see interface list below for this host's actual configuration)"
-          - "  4. NFS shares exported on NAS with the appropriate interface(s) permitted"
-          - "  5. GitHub deploy keys configured for required repositories"
-          - "  6. Secrets server accessible from target host"
-          - ""
-          - "── Roles to be applied ─────────────────────────────────────────"
-          - "  - packages       : update system and install common packages"
-          - "  - timezone       : configure system timezone"
-          - "  - admin_user     : create admin user with SSH access"
-          - "  - git_setup      : configure git and GitHub SSH key"
-          - "  - docker_setup   : install and configure Docker"
-          - "  - nfs_mounts     : configure NFS mounts for media and shares"
-          - "  - github_clone   : clone GitHub repositories"
-          - "  - secrets_connect: setup secrets server SSH connection"
-          - ""
+          - "  4. NFS shares exported on NAS with appropriate interface(s)"
+          - "  5. Secrets server accessible"
           - "──────────────────────────────────────────────────────────────"
-      when: not is_lxc
+      when: target_type == 'vm'
 
-    - name: display playbook setup guide (lxc)
+    # 2. Display LXC Setup Guide
+    - name: display playbook setup guide (LXC)
       ansible.builtin.debug:
         msg:
           - "┌───────────────────────────────────────────────────────────┐"
@@ -121,29 +107,36 @@
           - "  Host      : {{ inventory_hostname }}"
           - "  IP        : {{ ansible_host }}"
           - ""
-          - "── LXC settings ───────────────────────────────────────────────"
+          - "── LXC Options Required ───────────────────────────────────────"
           - "  - fuse = 1"
           - "  - nesting = 1"
           - ""
           - "── Pre-flight Checklist ────────────────────────────────────────"
           - "  1. Vault password available"
-          - "  2. SSH key access to target host confirmed (installed under root)"
-          - "  3. GitHub deploy keys configured for required repositories"
-          - "  4. Secrets server accessible from target host"
-          - ""
-          - "── Roles to be applied ─────────────────────────────────────────"
-          - "  - disable_systemd_networkd : disable systemd-networkd for LXC"
-          - "  - packages                 : update system and install common packages"
-          - "  - timezone                 : configure system timezone"
-          - "  - admin_user               : create admin user with SSH access"
-          - "  - git_setup                : configure git and GitHub SSH key"
-          - "  - docker_setup             : install and configure Docker"
-          - "  - lxc_share_user           : configure shared folder access for LXC"
-          - "  - github_clone             : clone GitHub repositories"
-          - "  - secrets_connect          : setup secrets server SSH connection"
-          - ""
+          - "  2. SSH key access to target host confirmed"
+          - "  3. Secrets server accessible"
           - "──────────────────────────────────────────────────────────────"
-      when: is_lxc
+      when: target_type == 'lxc'
+
+    # 3. Display Raspberry Pi Setup Guide
+    - name: display playbook setup guide (Raspberry Pi)
+      ansible.builtin.debug:
+        msg:
+          - "┌───────────────────────────────────────────────────────────┐"
+          - "│    Configure Debian 13 Raspberry Pi - Setup Guide         │"
+          - "└───────────────────────────────────────────────────────────┘"
+          - ""
+          - "── Target ─────────────────────────────────────────────────────"
+          - "  Host      : {{ inventory_hostname }}"
+          - "  IP        : {{ ansible_host }}"
+          - "  Arch      : {{ ansible_architecture }}"
+          - ""
+          - "── Raspberry Pi Checklist ─────────────────────────────────────"
+          - "  1. Debian 13 / Raspbian OS freshly flashed & booted"
+          - "  2. Storage filesystem expanded if needed"
+          - "  3. Network configured with configure-network playbook"
+          - "──────────────────────────────────────────────────────────────"
+      when: target_type == 'rpi'
 
     - name: display network interfaces configured for this host
       ansible.builtin.debug:
@@ -159,32 +152,27 @@
       loop_control:
         label: "{{ item.0.name }} <- {{ item.1 }}"
 
-    # Pause for user confirmation before proceeding with role execution.
-    # Matches configure-network.yaml / keepalived playbook convention: the
-    # guide above always displays, only the pause itself is skippable.
     - name: wait for confirmation to proceed
       ansible.builtin.pause:
         prompt: "Press Enter to continue..."
       when: not (skip_confirmation | default(false) | bool)
 
   roles:
-    # LXC only
-    - { role: disable_systemd_networkd, tags: [base],    when: is_lxc }     # lxc uses ifupdown, not systemd-networkd
+    # LXC specific base tuning
+    - { role: disable_systemd_networkd, tags: [base],    when: target_type == 'lxc' }
 
-    - { role: packages,                 tags: [base] }                      # update system and install common packages
-    - { role: timezone,                 tags: [base] }                      # configure system timezone
-    - { role: admin_user,               tags: [base] }                      # create admin user with SSH access
-    - { role: git_setup,                tags: [git] }                       # configure git settings and GitHub SSH key
-    - { role: docker_setup,             tags: [docker] }                    # install and configure Docker with admin access
+    # Common across ALL target types (vm, lxc, rpi)
+    - { role: packages,                 tags: [base] }
+    - { role: timezone,                 tags: [base] }
+    - { role: admin_user,               tags: [base] }
+    - { role: git_setup,                tags: [git] }
+    - { role: docker_setup,             tags: [docker] }
 
-    # LXC only
-    - { role: lxc_share_user,           tags: [storage], when: is_lxc }     # setup LXC shared folder access with proper GID mapping
-    
-    # VM only - alternative to lxc_share_user
-    - { role: nfs_mounts,               tags: [storage], when: not is_lxc } # configure NFS mounts for media and server shares
+    # Storage routing
+    - { role: lxc_share_user,           tags: [storage], when: target_type == 'lxc' }
+    - { role: nfs_mounts,               tags: [storage], when: target_type != 'lxc' }
 
-    - { role: github_clone,             tags: [repos] }                     # clone GitHub repositories with SSH key authentication
-    - { role: secrets_connect,          tags: [secrets] }                   # setup SSH connection to secrets server and decrypt secrets
-        
-    # Next role is for ANSIBLE machine only
-    #- ansible_setup            # install and configure Ansible on the container
+    # Repos & Secrets
+    - { role: github_clone,             tags: [repos] }
+    - { role: secrets_connect,          tags: [secrets] }
+  

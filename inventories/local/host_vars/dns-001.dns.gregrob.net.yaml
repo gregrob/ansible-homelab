@@ -1,6 +1,10 @@
 --- 
+# ---------------------------------------------------
 # Host-specific variables for dns-001.dns.gregrob.net
-# Network configuration settings specific to this target host
+# ---------------------------------------------------
+
+# target type
+target_type: vm
 
 # Network settings
 # Define the following settings this way to prevent lazy evaluation with jinja2
@@ -22,9 +26,6 @@ network_interfaces:
 
 # No NFS shares needed on this VM
 nfs_mounts: []
-
-# VM
-is_lxc: false
 
 # Set to true for hosts (e.g., local DNS servers) that cannot resolve internal DNS domains natively.
 # When true, SSH config configures 'HostName <IP>' so 'ssh secrets@secrets.max.lan' routes directly 
