@@ -24,7 +24,8 @@
       ansible.builtin.include_role:
         name: github_keygen
 
-    # Display a user-friendly message with the public key and confirmation instructions
+    # Display a user-friendly message with the public key
+    # Always displays so the public key is always logged/visible in playbook output
     - name: Display confirmation box and public key
       ansible.builtin.debug:
         msg:
@@ -37,10 +38,13 @@
           - "SSH public key for {{ github_repo_name }}:"
           - "{{ public_key_content.content | b64decode | trim }}"
 
-    # Pause the playbook until the user confirms the key has been added
+    # Pause for user confirmation before proceeding
+    # Matches configure-network.yaml / keepalived playbook convention:
+    # the debug box above always displays, only the pause itself is skippable.
     - name: Wait for user to confirm
       ansible.builtin.pause:
         prompt: "Press Enter to continue..."
+      when: not (skip_confirmation | default(false) | bool)
 
     # Ensure the repo directory exists with the correct permissions
     # Run as root in case parent directory (e.g. /srv) is not owned by admin_user
