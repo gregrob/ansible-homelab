@@ -20,6 +20,10 @@
 # WARNING: This playbook restarts networking on the target host.
 #          Ensure you have console access (Proxmox console, or physical/UART
 #          access for a Raspberry Pi) before continuing.
+#
+#          For clean / uninterrupted access, temport add the static ip to the 
+#          adapter first:
+#            e.g. ip addr add 10.24.4.X/24 dev ens18
 
 - name: Configure network interfaces
   hosts: network_config_target
