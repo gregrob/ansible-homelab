@@ -18,12 +18,17 @@ all:
         frigate-001.containers.max.lan: {}
         jellyfin-001.containers.max.lan: {}
         development-002.containers.max.lan: {}
-        #ollama-001.containers.max.lan: {}
 
     docker_unprivileged:
       hosts:
         3dprinter-001.containers.max.lan: {}
         infisical-001.trusted.max.lan: {}
+
+    # All LXC's
+    lxcs:
+      hosts:
+        ollama-001.apps.gregrob.net:
+          ansible_host: ollama-001.apps.gregrob.net
 
     # All virtual machines
     vms:
@@ -48,8 +53,7 @@ all:
         failsafe-002.dns.gregrob.net: {}
         download-001.apps.gregrob.net: {}
 
-        # The following still need migration to gregrob.net        
-        # ollama-001.containers.max.lan: {} # LXC so Proxmox manages the interface in the GUI not Ansible
+        ollama-001.apps.gregrob.net: {}
 
     network_config_target:
       hosts:
@@ -58,8 +62,7 @@ all:
         failsafe-002.dns.gregrob.net: {}
         download-001.apps.gregrob.net: {}
 
-        # The following still need migration to gregrob.net        
-        # ollama-001.containers.max.lan: {} # LXC so Proxmox manages the interface in the GUI not Ansible
+        ollama-001.apps.gregrob.net: {} # Here for completness as LXCs are managed in the Proxmox GUI
 
     keepalived_dns_target:
       hosts:
@@ -79,18 +82,13 @@ all:
       hosts:
         localhost:
           ansible_connection: local
-
-    lxcs:
-      children:
-        ansible:
-        docker_privileged:
-        docker_unprivileged:
-    
+  
     git_hosts:
       children:
         ansible:
         docker_privileged:
         docker_unprivileged:
+        lxcs:
         vms:
         pms:
     
@@ -99,4 +97,6 @@ all:
         ansible:
         docker_privileged:
         docker_unprivileged:
+        lxcs:
         vms:
+        pms:
