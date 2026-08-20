@@ -1,0 +1,24 @@
+--- 
+# -------------------------------------------------------
+# Host-specific variables for ollama-001.apps.gregrob.net
+# -------------------------------------------------------
+
+# Target type
+target_type: lxc
+
+# Domain settings
+domain_root: gregrob.net
+domain_sub_prefix: apps
+domain_hostname: ollama-001
+
+# Network settings
+network_interfaces:
+  - name: eth0
+    id: frontend
+    address: 10.24.4.70
+    netmask: 255.255.255.0
+    gateway: "{{ gateway_ip_apps }}"
+    dns_nameservers: "{{ dns_servers_internal }}"
+    dns_search: "{{ domain_sub_prefix }}.{{ domain_root }} {{ domain_root }}"
+    purpose: "frontend (client-facing traffic)"
+    firewalled: false
