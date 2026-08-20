@@ -73,12 +73,20 @@
       Components: stable
       Architectures: {{ docker_arch }}
       Signed-By: /etc/apt/keyrings/docker.asc
+  register: docker_repo_file
 
-# Update the apt cache after adding Docker repository
-- name: update apt cache (maybe CHANGED)
+# Update the apt cache forcefully ONLY if the repo file was just added/changed
+- name: force apt cache update after adding repo
+  ansible.builtin.apt:
+    update_cache: yes
+  when: docker_repo_file.changed
+
+# (Optional) Standard cache update for subsequent runs if the file didn't change
+- name: update apt cache normally (maybe CHANGED)
   ansible.builtin.apt:
     update_cache: yes
     cache_valid_time: "{{ apt_cache_valid_time | default(3600) }}"
+  when: not docker_repo_file.changed
 
 # Install Docker packages
 - name: install Docker packages
