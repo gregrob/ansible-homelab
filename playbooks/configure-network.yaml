@@ -63,6 +63,33 @@
               - "│ Skipping in-guest network configuration.                     │"
               - "└──────────────────────────────────────────────────────────────┘"
 
+        # network_interfaces on an LXC host is a documentation mirror only
+        # (see the host's own host_vars comment) - it's not applied here,
+        # but the values are exactly what need to be punched into Proxmox's
+        # Container -> Network tab (or `pct set`) by hand. IP/gateway are
+        # per-NIC in Proxmox's model (net0, net1, ...); nameserver/search
+        # are set once at the container level, not per-interface - called
+        # out separately below so this doesn't imply a 1:1 mapping that
+        # doesn't exist in Proxmox.
+        - name: Show the Proxmox net0/net1/... values this host's documentation expects
+          ansible.builtin.debug:
+            msg: >-
+              [{{ inventory_hostname }}] net{{ loop_index }} ({{ item.purpose | default('no purpose set') }}):
+              ip={{ item.address | default('DHCP/manual, no static IP') }}{{ ' netmask=' ~ item.netmask if item.netmask is defined else '' }}
+              {{ 'gw=' ~ item.gateway if item.gateway is defined else '(no gateway on this interface)' }}
+          loop: "{{ network_interfaces }}"
+          loop_control:
+            index_var: loop_index
+            label: "{{ item.name }}"
+
+        - name: Show the Proxmox container-level DNS settings this host's documentation expects
+          ansible.builtin.debug:
+            msg:
+              - "[{{ inventory_hostname }}] Proxmox container-level DNS (not per-interface - set once via"
+              - "Container -> DNS, or 'pct set <vmid> --nameserver ... --searchdomain ...'):"
+              - "  nameserver  : {{ (network_interfaces | selectattr('dns_nameservers', 'defined') | map(attribute='dns_nameservers') | list | first) | default('not set on any interface in host_vars') }}"
+              - "  searchdomain: {{ (network_interfaces | selectattr('dns_search', 'defined') | map(attribute='dns_search') | list | first) | default('not set on any interface in host_vars') }}"
+
         - name: End host execution gracefully for LXC
           ansible.builtin.meta: end_host
 
