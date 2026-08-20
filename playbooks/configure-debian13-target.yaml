@@ -186,7 +186,7 @@
     - { role: docker_setup,             tags: [docker] }
 
     # Storage routing
-    - { role: lxc_share_user,           tags: [storage], when: target_type == 'lxc' }
+    - { role: lxc_share_user,           tags: [storage], when: target_type == 'lxc' } # Only needed for unprivileged lxc but include in both for simplicity
     - { role: nfs_mounts,               tags: [storage], when: target_type != 'lxc' }
 
     # Repos & Secrets
