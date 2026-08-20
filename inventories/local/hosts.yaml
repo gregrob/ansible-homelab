@@ -21,7 +21,6 @@ all:
 
     docker_unprivileged:
       hosts:
-        3dprinter-001.containers.max.lan: {}
         infisical-001.trusted.max.lan: {}
 
     # All LXC's
