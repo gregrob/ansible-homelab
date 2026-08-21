@@ -9,6 +9,11 @@
 # Convention: third octet = VLAN ID (10.24.<vlan_id>.x), consistent
 # across every VLAN in this network.
 
+# VLAN 2 - Management
+mgmt_vlan_id: 2
+gateway_ip_mgmt: 10.24.2.1
+dns_servers_gateway_mgmt: "{{ gateway_ip_mgmt }}"
+
 # VLAN 4 - APPS
 apps_vlan_id: 4
 gateway_ip_apps: 10.24.4.1
