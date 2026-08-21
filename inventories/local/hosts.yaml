@@ -39,7 +39,9 @@ all:
         download-001.apps.gregrob.net:
           ansible_host: download-001.apps.gregrob.net
         3dprinter-002.apps.gregrob.net:
-          ansible_host: 3dprinter-002.apps.gregrob.net         
+          ansible_host: 3dprinter-002.apps.gregrob.net
+        portal-001.apps.gregrob.net:
+          ansible_host: portal-001.apps.gregrob.net
           
     # All physical machines
     pms:
@@ -57,6 +59,7 @@ all:
         download-001.apps.gregrob.net: {}
         3dprinter-002.apps.gregrob.net: {}
         monitoring-001.mgmt.gregrob.net: {}
+        portal-001.apps.gregrob.net: {}
 
         ollama-001.apps.gregrob.net: {}
 
@@ -68,6 +71,7 @@ all:
         download-001.apps.gregrob.net: {}
         3dprinter-002.apps.gregrob.net: {}
         monitoring-001.mgmt.gregrob.net: {}
+        portal-001.apps.gregrob.net: {}
 
         ollama-001.apps.gregrob.net: {} # Here for completness as LXCs are managed in the Proxmox GUI
 
