@@ -2,22 +2,17 @@
 # --------------------------------------------------------
 # Host-specific variables for failsafe-002.dns.gregrob.net
 # --------------------------------------------------------
-# Raspberry Pi - multi-purpose homelab failsafe node. First role is
 # Technitium DNS failsafe (standby, not part of the IPVS load-balancer
-# rotation - see keepalived_priority below); will also pick up other
-# backup roles (Uptime Kuma, MeshCommander, etc) as it's onboarded onto
-# further VLANs.
+# rotation - see keepalived_priority below).
 #
 # This is the canonical inventory identity (DNS stays its primary/
 # first-established role). Once it's multi-homed it will also answer to
-# failsafe-002.containers.gregrob.net (or similar) on the containers
+# failsafe-002.dns.gregrob.net (or similar) on the containers
 # VLAN, plus a shortened CNAME - those are additional DNS records
 # layered on top of this canonical name, not separate inventory hosts.
 #
 # Single physical NIC trunking multiple VLANs, so this host defines
-# network_interfaces directly rather than using the legacy
-# frontend_/backbone_ vars. Add further VLAN sub-interfaces below as this
-# node picks up other backup roles.
+# network_interfaces directly.
 #
 # NetworkManager -> ifupdown migration for this host is a two-phase,
 # explicit-opt-in process (neither runs on a normal playbook run):
@@ -74,40 +69,6 @@ network_interfaces:
     dns_search: "{{ domain_sub_prefix }}.{{ domain_root }} {{ domain_root }}"
     purpose: "DNS VLAN - Technitium failsafe"
     firewalled: false
-
-  # Future: containers VLAN, once onboarded - would also pick up a
-  # failsafe-002.containers.gregrob.net DNS record at that point
-  # - name: "eth0.{{ containers_vlan_id }}"
-  #   id: containers_vlan
-  #   parent: eth0
-  #   vlan_id: "{{ containers_vlan_id }}"
-  #   address: 10.24.4.XX
-  #   netmask: 255.255.255.0
-  #   purpose: "containers VLAN - future workloads"
-  #   firewalled: false
-
-  # Future: Uptime Kuma VLAN
-  # - name: "eth0.{{ monitoring_vlan_id }}"
-  #   id: monitoring_vlan
-  #   parent: eth0
-  #   vlan_id: "{{ monitoring_vlan_id }}"
-  #   address: 10.24.XX.XX
-  #   netmask: 255.255.255.0
-  #   purpose: "monitoring VLAN - Uptime Kuma"
-  #   firewalled: false
-
-  # Future: MeshCommander (AMT/vPro out-of-band mgmt) VLAN - likely wants
-  # firewalled: true with a tight allowed_ips list given what it can do
-  # - name: "eth0.{{ meshcommander_vlan_id }}"
-  #   id: meshcommander_vlan
-  #   parent: eth0
-  #   vlan_id: "{{ meshcommander_vlan_id }}"
-  #   address: 10.24.XX.XX
-  #   netmask: 255.255.255.0
-  #   purpose: "MeshCommander VLAN - AMT/vPro out-of-band management"
-  #   firewalled: true
-  #   allowed_ips:
-  #     - 10.24.XX.XX   # your management workstation
 
 # No NFS shares needed on this node
 nfs_mounts: []
