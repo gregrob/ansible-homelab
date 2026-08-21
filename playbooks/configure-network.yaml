@@ -21,9 +21,16 @@
 #          Ensure you have console access (Proxmox console, or physical/UART
 #          access for a Raspberry Pi) before continuing.
 #
-#          For clean / uninterrupted access, temport add the static ip to the 
-#          adapter first:
-#            e.g. ip addr add 10.24.4.X/24 dev ens18
+#          For clean / uninterrupted access, temporarily add the static IP to the 
+#          adapter first. 
+#
+#          For a standard interface:
+#            e.g. sudo ip addr add 10.24.4.X/24 dev ens18
+#
+#          For a VLAN interface (e.g., VLAN 2 on eth0):
+#            1. sudo ip link add link eth0 name eth0.2 type vlan id 2
+#            2. sudo ip link set dev eth0.2 up
+#            3. sudo ip addr add 10.24.2.X/24 dev eth0.2
 
 - name: Configure network interfaces
   hosts: network_config_target
