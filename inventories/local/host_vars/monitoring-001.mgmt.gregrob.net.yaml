@@ -1,0 +1,67 @@
+---
+# -----------------------------------------------------------
+# Host-specific variables for monitoring-001.mgmt.gregrob.net
+# -----------------------------------------------------------
+#
+# Single physical NIC trunking multiple VLANs, so this host defines
+# network_interfaces directly. Add further VLAN sub-interfaces below as this
+# node picks up other backup roles.
+#
+# NetworkManager -> ifupdown migration for this host is a two-phase,
+# explicit-opt-in process (neither runs on a normal playbook run):
+#
+#   1. ansible-playbook configure-network.yaml --limit monitoring-001.mgmt.gregrob.net \
+#        --tags raspberrypi_bootstrap
+#      Installs ifupdown, deploys this config, reboots once, verifies.
+#      Does NOT touch NetworkManager live - only disables it for the
+#      next boot. Confirm SSH is stable from a second terminal after
+#      this completes before proceeding.
+#
+#   2. ansible-playbook configure-network.yaml --limit monitoring-001.mgmt.gregrob.net \
+#        --tags raspberrypi_cleanup -e confirm_pi_network_cleanup=true
+#      Purges NetworkManager/dhcpcd. Only run after independently
+#      confirming step 1 worked.
+#
+# See network_config/tasks/raspberrypi_network_stack_bootstrap.yml and
+# raspberrypi_network_stack_cleanup.yml for the full safety design.
+
+# Target type
+target_type: rpi
+
+# Leave false unless you want cloud-init fully removed rather than just
+# stopped from touching networking - see role defaults for details.
+raspberry_pi_purge_cloud_init: false
+
+# Domain settings
+domain_root: gregrob.net
+domain_sub_prefix: mgmt
+domain_hostname: monitoring-001
+
+# Network settings
+# Define the following settings this way to prevent lazy evaluation with jinja2
+# expressions in the keepalived vars
+network_frontend_ip: "10.24.2.101"
+network_all_interface: "eth0"
+
+# Network interface definition itself
+network_interfaces:
+  # Physical trunk - carries all tagged VLANs below, no IP of its own
+  # (no address/netmask - rendered as "iface eth0 inet manual")
+  - name: "{{ network_all_interface }}"
+    id: trunk
+    purpose: "trunk (802.1Q, no direct IP traffic)"
+
+  - name: "{{ network_all_interface }}.{{ mgmt_vlan_id }}"
+    id: dns_vlan
+    parent: eth0
+    vlan_id: "{{ mgmt_vlan_id }}"
+    address: "{{ network_frontend_ip }}"
+    netmask: 255.255.255.0
+    gateway: "{{ gateway_ip_mgmt }}"
+    dns_nameservers: "{{ dns_servers_internal }}"
+    dns_search: "{{ domain_sub_prefix }}.{{ domain_root }} {{ domain_root }}"
+    purpose: "frontend (client-facing traffic)"
+    firewalled: false
+
+# No NFS shares needed on this node
+nfs_mounts: []
