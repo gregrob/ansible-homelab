@@ -1,10 +1,31 @@
----
-# Role to configure the system timezone.
+# ───────────────────────────────────────────────────────────────────────
+# Role: Timezone Configuration
 #
-# Steps performed:
-#  1. Set the system timezone using the timezone_name variable
+# Configures system timezone across all targets:
+#   1. Standard systemd timezone update for all hosts.
+#   2. Raspberry Pi specific debconf/tzdata sync block to prevent reboot reverts.
+# ───────────────────────────────────────────────────────────────────────
 
-# Set the system timezone using the specified variable
-- name: Set timezone
+- name: Set systemd runtime timezone
   ansible.builtin.timezone:
     name: "{{ timezone_name }}"
+
+# ───────────────────────────────────────────────────────────────────────
+# Raspberry Pi Specific Persistence Quirk
+# Raspberry Pi OS reads debconf/tzdata on boot and overwrites /etc/localtime.
+# ───────────────────────────────────────────────────────────────────────
+- name: Fix Raspberry Pi timezone persistence
+  when: (target_type | default('none')) == 'rpi'
+  block:
+    - name: Sync /etc/timezone file on RPi
+      ansible.builtin.copy:
+        content: "{{ timezone_name }}\n"
+        dest: /etc/timezone
+        owner: root
+        group: root
+        mode: '0644'
+      register: rpi_timezone_file
+
+    - name: Update debconf database from /etc/timezone
+      ansible.builtin.command: dpkg-reconfigure -f noninteractive tzdata
+      when: rpi_timezone_file.changed | default(false)
