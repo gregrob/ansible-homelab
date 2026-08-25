@@ -1,0 +1,27 @@
+--- 
+# -------------------------------------------------------------
+# Host-specific variables for ansible-002.mgmt.gregrob.net.yaml
+# -------------------------------------------------------------
+
+# Target type
+target_type: vm
+
+# Domain settings
+domain_root: gregrob.net
+domain_sub_prefix: mgmt
+domain_hostname: ansible-002
+
+# Network settings
+network_interfaces:
+  - name: ens18
+    id: frontend
+    address: 10.24.2.60
+    netmask: 255.255.255.0
+    gateway: "{{ gateway_ip_mgmt }}"
+    dns_nameservers: "{{ dns_servers_internal }}"
+    dns_search: "{{ domain_sub_prefix }}.{{ domain_root }} {{ domain_root }}"
+    purpose: "frontend (client-facing traffic)"
+    firewalled: false
+
+# List of NFS shares to mount with their corresponding local mount points
+nfs_mounts: []
