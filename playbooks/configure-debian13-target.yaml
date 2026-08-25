@@ -169,6 +169,17 @@
       loop_control:
         label: "{{ item.0.name }} <- {{ item.1 }}"
 
+    - name: Display expected warning advisory
+      ansible.builtin.debug:
+        msg:
+          - "------------------------------------------------------------------"
+          - " NOTICE: Upstream Python deprecation warnings (to_native, to_bytes,"
+          - " exit_json) from mount & authorized_key modules are HARMLESS."
+          - " They stem from ansible-core 2.20+ runtime internal collection code."
+          - " Playbook execution and state enforcement are unaffected."
+          - "------------------------------------------------------------------"
+      run_once: true
+      
     - name: wait for confirmation to proceed
       ansible.builtin.pause:
         prompt: "Press Enter to continue..."

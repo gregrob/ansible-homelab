@@ -15,21 +15,21 @@
 # Set Docker architecture fact using Debian/Docker naming conventions
 - name: set docker architecture fact
   ansible.builtin.set_fact:
-    docker_arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64', 'armv7l': 'armhf'}[ansible_architecture] | default(ansible_architecture) }}"
+    docker_arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64', 'armv7l': 'armhf'}[ansible_facts['architecture']] | default(ansible_facts['architecture']) }}"
 
 # Determine OS repository endpoint (Raspberry Pi OS & Debian use 'debian')
 - name: set docker OS distribution fact
   ansible.builtin.set_fact:
-    docker_os: "{{ 'debian' if ansible_distribution in ['Debian', 'Raspbian', 'Raspberry Pi OS'] else ansible_distribution | lower }}"
+    docker_os: "{{ 'debian' if ansible_facts['distribution'] in ['Debian', 'Raspbian', 'Raspberry Pi OS'] else ansible_facts['distribution'] | lower }}"
 
 # Show detected system info
 - name: show detected architecture and OS codename
   ansible.builtin.debug:
     msg:
-      - "Ansible architecture: {{ ansible_architecture }}"
+      - "Ansible architecture: {{ ansible_facts['architecture'] }}"
       - "Mapped Docker architecture: {{ docker_arch }}"
       - "Docker OS repository: {{ docker_os }}"
-      - "OS codename: {{ ansible_distribution_release }}"
+      - "OS codename: {{ ansible_facts['distribution_release'] }}"
 
 # Install base packages needed for Docker setup
 - name: install required packages for Docker setup
@@ -69,7 +69,7 @@
     content: |
       Types: deb
       URIs: https://download.docker.com/linux/{{ docker_os }}
-      Suites: {{ ansible_distribution_release }}
+      Suites: {{ ansible_facts['distribution_release'] }}
       Components: stable
       Architectures: {{ docker_arch }}
       Signed-By: /etc/apt/keyrings/docker.asc

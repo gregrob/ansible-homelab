@@ -27,9 +27,9 @@
     state: present
   when:
     - (target_type | default('none')) == 'rpi'
-    - getent_group.lpadmin is defined
-    - getent_group.lpadmin != None
-    - getent_group.lpadmin[1] | int == (admin_gid | int)
+    - ansible_facts.getent_group.lpadmin is defined
+    - ansible_facts.getent_group.lpadmin != None
+    - ansible_facts.getent_group.lpadmin[1] | int == (admin_gid | int)
 
 # Ensure the admin group exists with the specified GID
 - name: Ensure admin group exists with correct gid
