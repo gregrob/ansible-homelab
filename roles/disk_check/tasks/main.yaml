@@ -97,4 +97,4 @@
       - "Threshold: {{ disk_usage_high_threshold }}%"
       - "Status: {{ 'CRITICAL' if (root_disk_usage.stdout | int) > disk_usage_high_threshold else 'OK' }}"
       - "Notifications: {{ 'Enabled' if disk_notify_enabled else 'Disabled' }}"
-      - "Timestamp: {{ ansible_date_time.iso8601 }}"
+      - "Timestamp: {{ ansible_facts['date_time']['iso8601'] }}"
