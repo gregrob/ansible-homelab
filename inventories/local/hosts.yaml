@@ -4,6 +4,11 @@
 all:
   children:
 
+    local:
+      hosts:
+        localhost:
+          ansible_connection: local
+
     configure_target:
       hosts:
         #nut-001.trusted.max.lan: {}
@@ -89,19 +94,10 @@ all:
         dns-002.dns.gregrob.net: {}
         failsafe-002.dns.gregrob.net: {}
 
-    test_target:
-      hosts:
-        {}
-
-    secrets:
+    secrets_targets:
       hosts:
         secrets.max.lan: {}
-        
-    local:
-      hosts:
-        localhost:
-          ansible_connection: local
-  
+          
     git_targets:
       children:
         ansible:
