@@ -7,9 +7,9 @@
 #   ansible-playbook -i inventories/local/hosts.yaml playbooks/backup-ansible-controller.yaml --ask-vault-pass
 
 - name: Backup Ansible Controller Keys and Vault
-  hosts: localhost
-  connection: local
+  hosts: ansible_target
   gather_facts: yes
+  become: yes
 
   vars_files:
     - ../group_vars/all/vault.yaml

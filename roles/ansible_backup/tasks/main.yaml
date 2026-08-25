@@ -1,7 +1,6 @@
 ---
 # Tasks: ansible_backup
-# Archives local Ansible controller SSH keys and Vault files,
-# then transfers the unencrypted tarball to the NAS via SCP.
+# Archives local SSH keys and Vault files per host, then transfers tarballs to the NAS via SCP.
 
 - name: Generate timestamp for backup filename
   ansible.builtin.set_fact:
@@ -15,7 +14,7 @@
 
 - name: Create compressed tarball of Ansible backup targets
   ansible.builtin.command:
-    cmd: "tar -czf {{ ansible_backup_staging_dir }}/ansible-controller-{{ backup_timestamp }}.tar.gz {{ ansible_backup_targets | join(' ') }}"
+    cmd: "tar -czf {{ ansible_backup_staging_dir }}/{{ inventory_hostname }}-ansible-backup-{{ backup_timestamp }}.tar.gz {{ ansible_backup_targets | join(' ') }}"
   changed_when: true
 
 - name: Ensure destination directory exists on NAS
@@ -30,7 +29,7 @@
   ansible.builtin.command:
     cmd: >
       sshpass -e scp -o StrictHostKeyChecking=accept-new
-      {{ ansible_backup_staging_dir }}/ansible-controller-{{ backup_timestamp }}.tar.gz
+      {{ ansible_backup_staging_dir }}/{{ inventory_hostname }}-ansible-backup-{{ backup_timestamp }}.tar.gz
       {{ ansible_backup_nas_user }}@{{ ansible_backup_nas_host }}:{{ ansible_backup_nas_dest_dir }}/
   environment:
     SSHPASS: "{{ ansible_backup_nas_password }}"
