@@ -126,25 +126,41 @@
       {{ macs }}
   when: keepalived_load_balancer_enabled | bool
 
-# Each real server may need a different value for the extra arg passed to
-# check.sh (e.g. if API tokens were ever per-host instead of shared). This
-# builds a lookup dict - real server IP -> that server's own
-# keepalived_check_extra_arg - so keepalived.conf.j2 can pass the RIGHT
-# server's extra arg to each MISC_CHECK, not just this node's own value.
-# Same hostvars cross-lookup technique as the peer MAC task above.
+# ==============================================================================
+# FIX: Bypass Ansible's hostvars lazy-evaluation bug on nested vault variables.
+# 1. Force native evaluation on each host to flatten the vault template to a string.
+# ==============================================================================
+- name: Pre-evaluate extra check args to flatten the Vault template
+  set_fact:
+    _evaluated_keepalived_check_extra_arg: "{{ keepalived_check_extra_arg | default('') }}"
+
+# ==============================================================================
+# 2. Build the dictionary using the pre-evaluated strings (no recursion required!)
+# ==============================================================================
 - name: Determine per-real-server check extra args
   set_fact:
-    keepalived_real_server_extra_args: "{{ dict(_rs_extra_arg_pairs) }}"
+    keepalived_real_server_extra_args: >-
+      {{
+        keepalived_real_server_extra_args | default({}) | combine({
+          host_ip: hostvars[item]['_evaluated_keepalived_check_extra_arg']
+        })
+      }}
   vars:
-    _rs_extra_arg_pairs: >-
-      {%- set pairs = [] -%}
-      {%- for host in groups[keepalived_inventory_group] -%}
-        {%- set host_ip = hostvars[host]['keepalived_unicast_src_ip'].split('/')[0] -%}
-        {%- if host_ip in (keepalived_real_servers | map(attribute='ip') | list) -%}
-          {%- set _ = pairs.append([host_ip, hostvars[host]['keepalived_check_extra_arg'] | default('')]) -%}
-        {%- endif -%}
-      {%- endfor -%}
-      {{ pairs }}
+    host_ip: "{{ hostvars[item]['keepalived_unicast_src_ip'].split('/')[0] }}"
+    valid_ips: "{{ keepalived_real_servers | map(attribute='ip') | list }}"
+  loop: "{{ groups[keepalived_inventory_group] }}"
+  when: 
+    - keepalived_load_balancer_enabled | bool
+    - host_ip in valid_ips
+
+# ==============================================================================
+# 3. DEBUG: Verify the dictionary is populated correctly
+# ==============================================================================
+- name: DEBUG - Verify per-real-server check extra args dictionary
+  debug:
+    msg: 
+      - "Real Server Extra Args Mapping for {{ inventory_hostname }}:"
+      - "{{ keepalived_real_server_extra_args | to_nice_json }}"
   when: keepalived_load_balancer_enabled | bool
 
 # Deploy the mangle-rule script itself (idempotent, safe to re-run) - see
