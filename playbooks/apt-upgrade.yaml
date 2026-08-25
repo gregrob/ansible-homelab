@@ -11,35 +11,19 @@
 - name: APT Update and Upgrade
   hosts: update_targets
   gather_facts: yes
-  become: false  # Role handles privilege escalation as needed
-  
+  become: true
+  environment: "{{ debian_noninteractive_env }}"
+
   vars_files:
     - ../group_vars/all/vault.yaml
     - ../group_vars/all/admin-user.yaml    # Admin user details
     - ../group_vars/all/ansible-user.yaml  # Override vault to use admin user
-
-  environment:
-    DEBIAN_FRONTEND: noninteractive  # Prevent interactive prompts during package operations
-    NEEDRESTART_MODE: a              # Automatically restart all services without prompting
 
   pre_tasks:
     - name: Verify target is Debian/Ubuntu
       ansible.builtin.fail:
         msg: "This playbook only supports Debian/Ubuntu systems"
       when: ansible_facts['os_family'] != "Debian"
-
-    - name: Set non-interactive frontend for apt
-      ansible.builtin.set_fact:
-        ansible_env: "{{ ansible_facts['env'] | combine({'DEBIAN_FRONTEND': 'noninteractive'}) }}"
-
-    - name: Configure automatic service restarts
-      ansible.builtin.lineinfile:
-        path: /etc/needrestart/needrestart.conf
-        regexp: '^#?\$nrconf\{restart\}'
-        line: '$nrconf{restart} = "a";'
-        create: yes
-      become: yes
-      ignore_errors: yes  # File might not exist on all systems
 
     - name: Display target information
       ansible.builtin.debug:
@@ -57,7 +41,7 @@
         name: apt_upgrade
 
   post_tasks:
-    - name: Check for config file changes
+    - name: Check for dpkg configuration conflicts
       ansible.builtin.find:
         paths: /etc
         patterns: "*.dpkg-dist"
@@ -65,9 +49,11 @@
       register: dpkg_dist_files
       become: yes
 
-    - name: Display config file change notification
+    - name: Display dpkg configuration status
       ansible.builtin.debug:
-        msg:
+        msg: "{{ dpkg_notice if (dpkg_dist_files.files | length > 0) else 'No configuration file conflicts detected.' }}"
+      vars:
+        dpkg_notice:
           - "=== Configuration File Changes Detected ==="
           - "{{ dpkg_dist_files.files | length }} config files have updates available"
           - "Files: {{ dpkg_dist_files.files | map(attribute='path') | map('regex_replace', '\\.dpkg-dist$', '') | map('basename') | list }}"
@@ -75,9 +61,3 @@
           - "To review changes later, check for .dpkg-dist files in /etc:"
           - "  find /etc -name '*.dpkg-dist' -type f"
           - "  diff /path/to/config /path/to/config.dpkg-dist"
-      when: dpkg_dist_files.files | length > 0
-
-    - name: No config file changes
-      ansible.builtin.debug:
-        msg: "No configuration file conflicts detected."
-      when: dpkg_dist_files.files | length == 0

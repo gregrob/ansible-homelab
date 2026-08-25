@@ -13,6 +13,7 @@
   hosts: debian_config_target
   gather_facts: yes
   become: yes
+  environment: "{{ debian_noninteractive_env }}"
   
   vars_files:
     - ../group_vars/all/vault.yaml

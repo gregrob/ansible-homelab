@@ -1,5 +1,10 @@
 ---
+# Global Inventory Variables (inventories/local/group_vars/all/env.yaml)
 
-# ansible user details stored in the vault
-
+# Explicitly set Python interpreter path for Debian/Ubuntu nodes
 ansible_python_interpreter: /usr/bin/python3
+
+# Non-interactive environment for APT package operations
+debian_noninteractive_env:
+  DEBIAN_FRONTEND: noninteractive
+  NEEDRESTART_MODE: a
