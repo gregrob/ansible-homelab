@@ -14,10 +14,6 @@ all:
         #nut-001.trusted.max.lan: {}
         {}
 
-    ansible:
-      hosts:
-        ansible-001.containers.max.lan: {}
-
     docker_privileged:
       hosts:
         frigate-001.containers.max.lan: {}
@@ -100,7 +96,6 @@ all:
           
     git_targets:
       children:
-        ansible:
         docker_privileged:
         docker_unprivileged:
         lxcs:
@@ -109,7 +104,6 @@ all:
     
     update_targets:
       children:
-        ansible:
         docker_privileged:
         docker_unprivileged:
         lxcs:
@@ -118,7 +112,6 @@ all:
 
     disk_check_targets:
       children:
-        ansible:
         docker_privileged:
         docker_unprivileged:
         lxcs:
