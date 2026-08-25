@@ -18,7 +18,8 @@
 #   ansible-playbook -i inventories/local/hosts.yaml playbooks/disk-check.yaml --ask-vault-pass -e disk_show_details=false
 
 - name: Check Disk Usage on Target Hosts
-  hosts: all:!localhost
+  #hosts: all:!localhost
+  hosts: disk_check_targets
   gather_facts: yes
   become: false
 

@@ -9,7 +9,7 @@
 #   ansible-playbook -i inventories/local/hosts.yaml playbooks/apt-upgrade.yaml -e apt_upgrade_strategy=security
 
 - name: APT Update and Upgrade
-  hosts: update_hosts
+  hosts: update_targets
   gather_facts: yes
   become: false  # Role handles privilege escalation as needed
   

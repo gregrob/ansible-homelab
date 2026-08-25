@@ -102,7 +102,7 @@ all:
         localhost:
           ansible_connection: local
   
-    git_hosts:
+    git_targets:
       children:
         ansible:
         docker_privileged:
@@ -111,7 +111,16 @@ all:
         vms:
         pms:
     
-    update_hosts:
+    update_targets:
+      children:
+        ansible:
+        docker_privileged:
+        docker_unprivileged:
+        lxcs:
+        vms:
+        pms:
+
+    disk_check_targets:
       children:
         ansible:
         docker_privileged:

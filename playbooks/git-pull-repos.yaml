@@ -10,7 +10,7 @@
 #   ansible-playbook -i inventories/local/hosts.yaml playbooks/git-pull-repos.yaml -e git_notify_enabled=true
 
 - name: Git Pull All Repositories in Base Folder
-  hosts: git_hosts
+  hosts: git_targets
   gather_facts: yes
   become: false
 
