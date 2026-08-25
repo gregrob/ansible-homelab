@@ -146,7 +146,7 @@
           - "  Subdomain   : {{ domain_sub_prefix }}.{{ domain_root }}"
           - "  Root Domain : {{ domain_root }}"
           - "  Target Type : {{ target_type }}"
-          - "  Arch        : {{ ansible_architecture }}"
+          - "  Arch        : {{ ansible_facts['architecture'] }}"
           - ""
           - "── Raspberry Pi Checklist ─────────────────────────────────────"
           - "  1. Debian 13 / Raspbian OS freshly flashed & booted"
