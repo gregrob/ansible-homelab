@@ -58,7 +58,7 @@ network_interfaces:
     address: "{{ network_frontend_ip }}"
     netmask: 255.255.255.0
     gateway: "{{ gateway_ip_mgmt }}"
-    dns_nameservers: "{{ dns_servers_internal }}"
+    dns_nameservers: "{{ dns_servers_internal_technitium }}"
     dns_search: "{{ domain_sub_prefix }}.{{ domain_root }} {{ domain_root }}"
     purpose: "frontend (client-facing traffic)"
     firewalled: false
