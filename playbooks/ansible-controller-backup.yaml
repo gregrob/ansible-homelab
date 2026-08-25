@@ -1,7 +1,7 @@
 ---
 # Backup Ansible Controller Keys and Vault Playbook
 # Performs a local backup of controller SSH keys and Ansible Vault credentials,
-# then pushes the archive directly to the FlashStor NAS.
+# then pushes the archive directly to the NAS.
 #
 # Usage:
 #   ansible-playbook -i inventories/local/hosts.yaml playbooks/backup-ansible-controller.yaml --ask-vault-pass

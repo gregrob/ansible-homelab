@@ -1,7 +1,7 @@
 ---
 # Tasks: ansible_backup
 # Archives local Ansible controller SSH keys and Vault files,
-# then transfers the unencrypted tarball to the FlashStor NAS via SCP.
+# then transfers the unencrypted tarball to the NAS via SCP.
 
 - name: Generate timestamp for backup filename
   ansible.builtin.set_fact:
@@ -18,7 +18,7 @@
     cmd: "tar -czf {{ ansible_backup_staging_dir }}/ansible-controller-{{ backup_timestamp }}.tar.gz {{ ansible_backup_targets | join(' ') }}"
   changed_when: true
 
-- name: Ensure destination directory exists on FlashStor NAS
+- name: Ensure destination directory exists on NAS
   ansible.builtin.command:
     cmd: "sshpass -e ssh -o StrictHostKeyChecking=accept-new {{ ansible_backup_nas_user }}@{{ ansible_backup_nas_host }} 'mkdir -p {{ ansible_backup_nas_dest_dir }}'"
   environment:
@@ -26,7 +26,7 @@
   changed_when: false
   no_log: true
 
-- name: Push backup tarball to FlashStor NAS via SCP
+- name: Push backup tarball to NAS via SCP
   ansible.builtin.command:
     cmd: >
       sshpass -e scp -o StrictHostKeyChecking=accept-new
