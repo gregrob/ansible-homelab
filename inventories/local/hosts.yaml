@@ -79,6 +79,10 @@ all:
 
         ollama-001.apps.gregrob.net: {} # Here for completness as LXCs are managed in the Proxmox GUI
 
+    ansible_target:
+      hosts:
+        ansible-002.mgmt.gregrob.net: {}
+
     keepalived_dns_target:
       hosts:
         dns-001.dns.gregrob.net: {}

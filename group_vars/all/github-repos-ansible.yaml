@@ -5,7 +5,4 @@
 github_repos:
   - name: "ansible-homelab"
     dest: "/srv/ansible-homelab"
-
-  - name: "docker-homelab"
-    dest: "/srv/docker-homelab"
   

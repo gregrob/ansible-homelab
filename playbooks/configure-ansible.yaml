@@ -1,0 +1,47 @@
+---
+# Configure Ansible Machine
+#
+# Sets up the target host as an Ansible environment and clones the necessary 
+# GitHub repositories. 
+#
+# Usage:
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/configure-ansible.yaml --ask-vault-pass
+#
+# To skip the interactive confirmation pause (e.g. running from an Ansible
+# GUI/runner with no interactive terminal to press Enter in), pass:
+#   -e skip_confirmation=true
+
+- name: Configure Ansible Machine
+  hosts: ansible_target
+  gather_facts: yes
+  become: yes
+
+  vars_files:
+    - ../group_vars/all/vault.yaml
+    - ../group_vars/all/github-user.yaml
+    - ../group_vars/all/github-repos-ansible.yaml
+    - ../group_vars/all/admin-user.yaml # Loads admin user variables
+
+  pre_tasks:
+    # Display target-specific info so it's obvious which node is about to
+    # be configured before anything actually changes on the host.
+    - name: Display playbook setup guide
+      ansible.builtin.debug:
+        msg: 
+          - "=== Configuring Ansible Environment ==="
+          - "Target Host: {{ inventory_hostname }}"
+          - "Roles to apply: ansible_setup, github_clone"
+          
+    # Confirmation gate — skipped when skip_confirmation=true is passed
+    # (e.g. -e skip_confirmation=true, or however your GUI runner sets
+    # extra vars). Defaults to false, so running interactively from a
+    # terminal still pauses for a manual Enter by default.
+    - name: Wait for confirmation to proceed
+      ansible.builtin.pause:
+        prompt: "Press Enter to continue, or Ctrl+C to abort..."
+      when: not (skip_confirmation | default(false) | bool)
+
+  roles:
+    - { role: ansible_setup, tags: [ansible] }
+    - { role: github_clone,  tags: [repos] }
+  
