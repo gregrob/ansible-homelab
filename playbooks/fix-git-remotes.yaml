@@ -6,7 +6,7 @@
 #   ansible-playbook -i inventories/local/hosts.yaml playbooks/fix-git-remotes.yaml --ask-vault-pass
 
 - name: Fix corrupted Git remote URLs
-  hosts: configure_target
+  hosts: configure_target_FAIL_ME_INTENT_UNCLEAR_DEP
   gather_facts: yes
   become: false  # Role handles privilege escalation as needed
   
