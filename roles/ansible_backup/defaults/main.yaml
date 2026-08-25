@@ -1,0 +1,23 @@
+---
+# Role Defaults: ansible_backup
+# Target files, staging paths, and NAS destination mappings
+
+# Local staging directory on the Ansible controller
+ansible_backup_staging_dir: "/tmp/ansible_controller_backup"
+
+# Controller SSH keys and Vault secrets to back up
+ansible_backup_targets:
+  # SSH Keys
+  - "/home/admin/.ssh/id_ed25519_ansible_controller"
+  - "/home/admin/.ssh/id_ed25519_ansible_controller.pub"
+
+  # Vault & Encryption Credentials
+  - "/srv/ansible-homelab/group_vars/all/vault.yaml"
+  - "/srv/ansible-homelab/group_vars/all/vault_keys.txt"
+  - "/srv/ansible-homelab/.ansible_vault_pass.txt"
+
+# NAS connection and destination mapping (inherits from group_vars/all/nas.yaml)
+ansible_backup_nas_host: "{{ nas_host }}"
+ansible_backup_nas_user: "{{ nas_user }}"
+ansible_backup_nas_password: "{{ nas_password }}"
+ansible_backup_nas_dest_dir: "{{ nas_folder_ansible_backup }}"
