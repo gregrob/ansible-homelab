@@ -26,11 +26,11 @@
     - name: Verify target is Debian/Ubuntu
       ansible.builtin.fail:
         msg: "This playbook only supports Debian/Ubuntu systems"
-      when: ansible_os_family != "Debian"
+      when: ansible_facts['os_family'] != "Debian"
 
     - name: Set non-interactive frontend for apt
       ansible.builtin.set_fact:
-        ansible_env: "{{ ansible_env | combine({'DEBIAN_FRONTEND': 'noninteractive'}) }}"
+        ansible_env: "{{ ansible_facts['env'] | combine({'DEBIAN_FRONTEND': 'noninteractive'}) }}"
 
     - name: Configure automatic service restarts
       ansible.builtin.lineinfile:
@@ -46,9 +46,9 @@
         msg:
           - "=== Target System Information ==="
           - "Host: {{ inventory_hostname }}"
-          - "Distribution: {{ ansible_distribution }} {{ ansible_distribution_version }}"
-          - "Architecture: {{ ansible_architecture }}"
-          - "Current time: {{ ansible_date_time.iso8601 }}"
+          - "Distribution: {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_version'] }}"
+          - "Architecture: {{ ansible_facts['architecture'] }}"
+          - "Current time: {{ ansible_facts['date_time']['iso8601'] }}"
           - "Non-interactive mode: enabled"
 
   tasks:
