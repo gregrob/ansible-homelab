@@ -13,7 +13,7 @@
 - name: Update apt cache
   ansible.builtin.apt:
     update_cache: yes
-    cache_valid_time: 3600
+    cache_valid_time: "{{ apt_cache_valid_time | default(3600) }}"
   check_mode: false
 
 # 2. Display the combined target package list before installing (Useful for debugging).
