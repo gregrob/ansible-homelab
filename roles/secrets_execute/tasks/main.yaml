@@ -21,7 +21,7 @@
   when: (secrets_commands | default([])) | length == 0
 
 # Execute each command on the secrets server
-- name: Execute commands on secrets server
+- name: Execute commands on secrets server (CHANGED because execution task)
   ansible.builtin.shell:
     cmd: "{{ item.cmd }}"
     chdir: "{{ secrets_working_dir }}"
