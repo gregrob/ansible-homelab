@@ -1,0 +1,25 @@
+# System-wide tab completion for the 'cdh' homelab navigation helper
+# Managed by Ansible - homelab_nav role
+
+_cdh_complete() {
+    local cur="${COMP_WORDS[COMP_CWORD]}"
+    local host_name="$(hostname)"
+    local base_path="{{ docker_homelab_dest }}"
+    
+    # Path resolution priority: modern layout -> legacy layout -> base root
+    local base_dir="${base_path}/servers/${host_name}"
+    
+    if [ ! -d "$base_dir" ]; then
+        base_dir="${base_path}/${host_name}"
+    fi
+
+    if [ ! -d "$base_dir" ]; then
+        base_dir="${base_path}"
+    fi
+
+    if [ -d "$base_dir" ]; then
+        COMPREPLY=( $(compgen -W "$(ls -1 "$base_dir" 2>/dev/null)" -- "$cur") )
+    fi
+}
+
+complete -F _cdh_complete cdh

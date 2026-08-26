@@ -1,0 +1,45 @@
+---
+# ==============================================================================
+# Role: homelab_nav
+# Description:
+#   Deploys a system-wide shell shortcut ('cdh') and interactive tab completion
+#   for navigating homelab and container directories.
+#
+# Functionality & Usage:
+#   - 'cdh'              -> Jumps to host's base docker target directory.
+#   - 'cdh <container>'  -> Jumps directly to <docker_homelab_dest>/servers/<hostname>/<container>
+#   - 'cdh [TAB][TAB]'   -> Auto-completes available container directory names.
+#
+# Path Resolution Priority:
+#   1. Modern Layout  : <docker_homelab_dest>/servers/<hostname>/
+#   2. Legacy Layout  : <docker_homelab_dest>/<hostname>/
+#   3. Root Fallback  : <docker_homelab_dest>/
+#
+# Requirements & Variables:
+#   - Relies on 'github_repos' variable from group_vars/all/github-repos-docker.yaml
+#   - Safe Execution: Skips execution ('when: docker_homelab_dest != ""') if the 
+#     'docker-homelab' repository is not targeted for deployment on the target host.
+# ==============================================================================
+
+- name: Extract docker-homelab destination path
+  ansible.builtin.set_fact:
+    docker_homelab_dest: "{{ (github_repos | default([]) | selectattr('name', 'equalto', 'docker-homelab') | map(attribute='dest') | first) | default('') }}"
+
+- name: Deploy cdh tab completion script
+  ansible.builtin.template:
+    src: cdh_completion.j2
+    dest: /etc/bash_completion.d/cdh
+    owner: root
+    group: root
+    mode: '0644'
+  when: docker_homelab_dest != ''
+
+- name: Deploy cdh shell function system-wide
+  ansible.builtin.template:
+    src: cdh_function.j2
+    dest: /etc/profile.d/cdh.sh
+    owner: root
+    group: root
+    mode: '0644'
+  when: docker_homelab_dest != ''
+  

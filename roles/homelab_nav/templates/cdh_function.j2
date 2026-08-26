@@ -1,0 +1,19 @@
+# System-wide 'cdh' function for homelab directory navigation
+# Managed by Ansible - homelab_nav role
+
+cdh() {
+    local host_name="$(hostname)"
+    local base_path="{{ docker_homelab_dest }}"
+    local target_dir="${base_path}/servers/${host_name}"
+
+    # Path resolution priority: modern layout -> legacy layout -> base root
+    if [ ! -d "$target_dir" ]; then
+        target_dir="${base_path}/${host_name}"
+    fi
+
+    if [ ! -d "$target_dir" ]; then
+        target_dir="${base_path}"
+    fi
+
+    cd "${target_dir}/${1:-}"
+}
