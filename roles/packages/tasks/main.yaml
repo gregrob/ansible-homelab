@@ -1,48 +1,71 @@
----
-# Role to update the system and install packages.
-# Performs system maintenance including package updates, cleanup, and installation of essential tools.
-#
-# Steps performed:
-#  1. Update apt package cache (with cache validity to speed up runs)
-#  2. Display the packages to be installed for debug purposes
-#  3. Install all packages specified (ensures needrestart is present to track reboots)
-#  4. Perform full system upgrade (dist-upgrade)
-#  5. Remove and purge automatically installed packages that are no longer needed
-#  6. Check if a kernel reboot is required after updates using needrestart
-#  7. Reboot the system if needrestart flagged a new kernel
+# Role: packages (System Update & Maintenance)
+# Description: Performs system maintenance including package updates, cleanup, 
+# service restarts, and intelligent reboot handling across VMs, LXCs, and physical RPis.
 
-# 1. Update the apt cache first so package installations don't hit 404 errors
-# 'check_mode: false' forces the cache to actually update even during a dry run,
-# ensuring subsequent check-mode tasks see the absolute latest available packages.
+# ==============================================================================
+# PHASE 1: PACKAGE MANAGEMENT
+# ==============================================================================
+
+# 1. Update the apt cache first so package installations don't hit 404 errors.
+# We set 'check_mode: false' to force the cache to actually update even during a 
+# dry run (--check). This ensures subsequent check-mode tasks see the absolute 
+# latest available packages rather than stale cache data.
 - name: Update apt cache
   ansible.builtin.apt:
     update_cache: yes
     cache_valid_time: 3600
   check_mode: false
 
-# 2. Display the target package list before installing
+# 2. Display the combined target package list before installing (Useful for debugging).
 - name: Display packages queued for installation
   ansible.builtin.debug:
     msg: "Packages to install: {{ common_packages + (specific_packages | default([])) }}"
 
-# 3. Install common and specific packages FIRST, so tools like needrestart are present
+# 3. Install common and specific packages FIRST.
+# This guarantees that 'needrestart' is physically present on fresh hosts 
+# before we attempt to use it in Phase 2 & 3.
 - name: Install common and specific packages
   ansible.builtin.apt:
     name: "{{ common_packages + (specific_packages | default([])) }}"
     state: present
 
-# 4. Perform a full system upgrade (kernels, libc6, etc.)
+# 4. Perform a full system upgrade.
+# 'upgrade: dist' handles kernel updates, libc6 changes, and dependency resolution.
 - name: Upgrade packages
   ansible.builtin.apt:
     upgrade: dist
 
-# 5. Remove packages that were automatically installed but are no longer needed
+# 5. Clean up the system.
+# Removes orphan packages that were installed as dependencies but are no longer needed.
 - name: Autoremove unused packages
   ansible.builtin.apt:
     autoremove: yes
     purge: yes
 
-# Deploy official needrestart kernel filter for Raspberry Pi
+# ==============================================================================
+# PHASE 2: RASPBERRY PI QUIRK HANDLING
+# ==============================================================================
+
+# Ensure the conf.d directory exists. 
+# On a completely fresh Pi during a dry-run, 'needrestart' isn't actually installed,
+# so the copy task below would fail complaining about a missing destination folder.
+- name: Ensure needrestart conf.d directory exists
+  ansible.builtin.file:
+    path: /etc/needrestart/conf.d
+    state: directory
+    mode: '0755'
+  when: target_type == 'rpi'
+
+# Fix needrestart kernel detection on Raspberry Pi.
+# By default, Raspberry Pi OS installs '/etc/needrestart/conf.d/rpi-kernel.conf' 
+# which completely disables kernel upgrade detection ($nrconf{kernelhints} = 0). 
+# They do this to avoid the infinite-reboot bug caused by having multiple kernel 
+# flavors (v8, 2712) sitting together in the /boot directory.
+#
+# This task creates a file with a '99-' prefix so it loads LAST, overriding the 
+# OS default. It turns kernel detection back ON, and applies a smart regex filter 
+# so 'needrestart' only evaluates kernels built for the active hardware architecture.
+# Fix needrestart kernel detection on Raspberry Pi
 - name: Fix needrestart kernel detection on Raspberry Pi
   ansible.builtin.copy:
     dest: /etc/needrestart/conf.d/99-rpi-kernel.conf
@@ -50,26 +73,55 @@
     group: root
     mode: '0644'
     content: |
-      # Officially supported Raspberry Pi kernel filter (ignores v8 vs 2712 mismatch)
+      # ==============================================================================
+      # Managed by Ansible - do not edit directly!
+      # File: /etc/needrestart/conf.d/99-rpi-kernel.conf
+      # ==============================================================================
+
+      # 1. Re-enable kernel upgrade detection
+      # Overrides the 'kernelhints = 0' setting forced by the OS in rpi-kernel.conf.
+      $nrconf{kernelhints} = 1;
+
+      # 2. Get the exact kernel suffix currently running in memory (e.g., 2712, v8, v7l)
       my $flavor = `uname -r`;
       chomp($flavor);
 
-      # Extract the architecture suffix (e.g., 2712, v8, v7l) and filter kernels matching it
+      # 3. Apply the official kernel filter regex
+      # If the system is running a standard Pi kernel, we extract the suffix (e.g., '2712').
+      # The 'qr/-$1$/' variable tells needrestart to completely ignore all kernel files 
+      # in /boot UNLESS they end with that exact same suffix.
       if ($flavor =~ /-(2712|v8|v7|v7l)$/) {
           $nrconf{kernelfilter} = qr/-$1$/;
       }
   when: target_type == 'rpi'
 
-# 5.5 Restart out-of-date services (Runs on EVERYTHING: VMs and LXCs)
-- name: Restart out-of-date services
+# ==============================================================================
+# PHASE 3: SERVICE RESTARTS & REBOOT EVALUATION
+# ==============================================================================
+
+# 5.5 Restart out-of-date services without rebooting (Runs on VMs, LXCs, and RPis).
+# EXIT CODE HANDLING FOR NEEDRESTART -R:
+#   0   = Success (Services restarted successfully, or nothing needed restarting).
+#   1   = Warnings (Some services couldn't be restarted, e.g., dbus/systemd).
+#   128 = Daemon Failure (A specific service crashed or timed out during restart).
+# We accept 128 so a single stubborn daemon doesn't fail the entire playbook,
+# especially since the machine will likely reboot in step 8 anyway.
+- name: Restart out-of-date services (CHANGED because execution task)
   ansible.builtin.command:
     cmd: needrestart -r a
   register: needrestart_svc_result
-  # Accept 0 (success), 1 (warnings/no ops), and 128 (failed daemon restarts)
   failed_when: needrestart_svc_result.rc not in [0, 1, 128]
   changed_when: needrestart_svc_result.rc == 0
+  environment:
+    DEBIAN_FRONTEND: noninteractive # Prevents apt/dpkg prompts from hanging Ansible
+    NEEDRESTART_MODE: a             # Forces automatic mode, answering 'yes' to restarts
 
-# 6. Check if kernel reboot is required (Runs in check mode safely)
+# 6. Check if kernel reboot is required.
+# 'check_mode: false' forces this shell command to execute even during a dry run.
+# SHELL PIPELINE EXIT CODE HANDLING:
+#   127 = 'needrestart' binary not found (Test fails instantly on fresh dry runs).
+#   0   = 'grep' successfully found "NEEDRESTART-KSTA: 3" (Reboot is REQUIRED).
+#   1   = 'grep' failed to find string (System is UP TO DATE, no reboot needed).
 - name: Check if kernel reboot is required (via needrestart)
   ansible.builtin.shell:
     cmd: 'test -x "$(command -v needrestart)" || exit 127; needrestart -b | grep -E "NEEDRESTART-KSTA: 3"'
@@ -78,7 +130,9 @@
   changed_when: false
   check_mode: false
 
-# 7. DRY RUN TEST: Display reboot status
+# 7. DRY RUN TEST: Display reboot status.
+# Translates the raw shell exit codes from Step 6 into human-readable debug messages.
+# Explicitly separates logic for LXC containers (which share the Proxmox host kernel).
 - name: Evaluate reboot requirements (Dry Run)
   ansible.builtin.debug:
     msg: >-
@@ -94,11 +148,13 @@
         {% if target_type == 'lxc' %}
           [NO REBOOT NEEDED] Host kernel is up to date (NEEDRESTART-KSTA: 1).
         {% else %}
-          [NO REBOOT REQUIRED] VM kernel is up to date (NEEDRESTART-KSTA: 1).
+          [NO REBOOT REQUIRED] VM/Pi kernel is up to date (NEEDRESTART-KSTA: 1).
         {% endif %}
       {% endif %}
 
-# 8. Reboot the system if needrestart flagged a new kernel (VMs ONLY)
+# 8. Reboot the system if a new kernel is pending.
+# This task is completely skipped for LXC containers, as rebooting an LXC 
+# does not switch the kernel (the Proxmox host must be rebooted manually).
 - name: Reboot if kernel was updated
   ansible.builtin.reboot:
     msg: "Reboot triggered by Ansible: needrestart detected a kernel update."
