@@ -1,6 +1,7 @@
 # Configure Debian 13 Target - Common Base Playbook
 # Sets up a complete production Debian 13 host (VM, LXC, or Raspberry Pi):
-# system configuration, user setup, Git/GitHub access, storage, and Docker.
+# system configuration, user setup, Git/GitHub access, storage, Docker, 
+# and shell helpers.
 #
 # Usage:
 #   ansible-playbook -i inventories/local/hosts.yaml playbooks/configure-debian13-target.yaml --ask-vault-pass
@@ -203,5 +204,6 @@
 
     # Repos & Secrets
     - { role: github_clone,             tags: [repos] }
+    - { role: homelab_nav,              tags: [helpers] } # cdh CLI directory shortcut
     - { role: secrets_connect,          tags: [secrets] }
   
