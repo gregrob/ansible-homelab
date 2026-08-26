@@ -1,19 +1,13 @@
-# System-wide 'cdh' function for homelab directory navigation
+# System-wide 'cdh' navigation function
 # Managed by Ansible - homelab_nav role
 
 cdh() {
-    local host_name="$(hostname)"
-    local base_path="{{ docker_homelab_dest }}"
-    local target_dir="${base_path}/servers/${host_name}"
-
-    # Path resolution priority: modern layout -> legacy layout -> base root
-    if [ ! -d "$target_dir" ]; then
-        target_dir="${base_path}/${host_name}"
-    fi
-
-    if [ ! -d "$target_dir" ]; then
-        target_dir="${base_path}"
-    fi
-
-    cd "${target_dir}/${1:-}"
+    # Jinja2 injects the base repository path dynamically at deployment.
+    # The $(hostname) command automatically resolves the current node's name.
+    # 
+    # ${1:-} means:
+    # - Take the first argument provided (e.g., 'pihole')
+    # - If no argument is provided, default to nothing (meaning it just 
+    #   drops you into the root $(hostname) folder).
+    cd "{{ docker_homelab_dest }}/servers/$(hostname)/${1:-}"
 }

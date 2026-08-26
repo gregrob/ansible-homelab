@@ -7,24 +7,20 @@
 #
 # Functionality & Usage:
 #   - 'cdh'              -> Jumps to host's base docker target directory.
-#   - 'cdh <container>'  -> Jumps directly to <docker_homelab_dest>/servers/<hostname>/<container>
+#   - 'cdh <container>'  -> Jumps directly to <dest>/servers/<hostname>/<container>
 #   - 'cdh [TAB][TAB]'   -> Auto-completes available container directory names.
-#
-# Path Resolution Priority:
-#   1. Modern Layout  : <docker_homelab_dest>/servers/<hostname>/
-#   2. Legacy Layout  : <docker_homelab_dest>/<hostname>/
-#   3. Root Fallback  : <docker_homelab_dest>/
-#
-# Requirements & Variables:
-#   - Relies on 'github_repos' variable from group_vars/all/github-repos-docker.yaml
-#   - Safe Execution: Skips execution ('when: docker_homelab_dest != ""') if the 
-#     'docker-homelab' repository is not targeted for deployment on the target host.
 # ==============================================================================
 
+# Look through the github_repos list (defined in group_vars) and pull out 
+# the 'dest' path specifically for 'docker-homelab'. 
+# If the repo isn't in the list for this host, it returns an empty string.
 - name: Extract docker-homelab destination path
   ansible.builtin.set_fact:
     docker_homelab_dest: "{{ (github_repos | default([]) | selectattr('name', 'equalto', 'docker-homelab') | map(attribute='dest') | first) | default('') }}"
 
+# Deploy the bash completion script to the system-wide completion directory.
+# We use the 'when' clause to ensure this only runs on nodes that actually
+# have the docker-homelab repo configured.
 - name: Deploy cdh tab completion script
   ansible.builtin.template:
     src: cdh_completion.j2
@@ -34,6 +30,8 @@
     mode: '0644'
   when: docker_homelab_dest != ''
 
+# Deploy the shell function to the system-wide profile directory so 
+# it loads automatically for all users upon login.
 - name: Deploy cdh shell function system-wide
   ansible.builtin.template:
     src: cdh_function.j2

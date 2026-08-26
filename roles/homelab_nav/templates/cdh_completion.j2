@@ -1,25 +1,23 @@
-# System-wide tab completion for the 'cdh' homelab navigation helper
+# System-wide tab completion for the 'cdh' command
 # Managed by Ansible - homelab_nav role
 
 _cdh_complete() {
+    # COMP_WORDS contains the current command line words
+    # COMP_CWORD is the index of the word currently being typed
     local cur="${COMP_WORDS[COMP_CWORD]}"
-    local host_name="$(hostname)"
-    local base_path="{{ docker_homelab_dest }}"
     
-    # Path resolution priority: modern layout -> legacy layout -> base root
-    local base_dir="${base_path}/servers/${host_name}"
-    
-    if [ ! -d "$base_dir" ]; then
-        base_dir="${base_path}/${host_name}"
-    fi
+    # Jinja2 injects the base repository path dynamically at deployment.
+    # We append /servers/$(hostname) to point to this specific node's folder.
+    local base_dir="{{ docker_homelab_dest }}/servers/$(hostname)"
 
-    if [ ! -d "$base_dir" ]; then
-        base_dir="${base_path}"
-    fi
-
+    # Only attempt to generate completions if the node directory actually exists
     if [ -d "$base_dir" ]; then
+        # - ls -1 lists all folders inside the node's directory.
+        # - compgen -W takes that list and filters it down based on what 
+        #   the user has already typed in the 'cur' variable.
         COMPREPLY=( $(compgen -W "$(ls -1 "$base_dir" 2>/dev/null)" -- "$cur") )
     fi
 }
 
+# Bind the '_cdh_complete' function to the 'cdh' command
 complete -F _cdh_complete cdh
