@@ -1,0 +1,23 @@
+---
+# System Update Playbook
+# Applies package updates, ensures core tools exist, handles service restarts,
+# and reboots nodes if a new kernel is active (safely skipping LXCs).
+#
+# Usage:
+#   ansible-playbook playbooks/system-update.yaml
+#   ansible-playbook playbooks/system-update.yaml --limit '!ansible-002.mgmt.gregrob.net'
+
+- name: Perform System Maintenance and Package Updates
+  hosts: debian_config_target
+  gather_facts: yes
+  become: yes
+
+  vars_files:
+    - ../group_vars/all/vault.yaml
+
+  tasks:
+    - name: Run packages role
+      ansible.builtin.include_role:
+        name: packages
+      tags:
+        - base
