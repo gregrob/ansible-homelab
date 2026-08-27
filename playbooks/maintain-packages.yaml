@@ -15,9 +15,11 @@
   vars_files:
     - ../group_vars/all/vault.yaml
 
-  tasks:
-    - name: Run packages role
-      ansible.builtin.include_role:
-        name: packages
-      tags:
-        - base
+  pre_tasks:
+    - name: Validate target hardware type
+      ansible.builtin.import_role:
+        name: common
+        tasks_from: validate_target_type
+
+  roles:
+    - { role: packages, tags: [base] }
