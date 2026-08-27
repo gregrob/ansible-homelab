@@ -1,0 +1,27 @@
+# ==============================================================================
+# Task: Validate Target Hardware Type
+# Path: roles/common/tasks/validate_target_type.yaml
+#
+# Description:
+#   Validates that the mandatory 'target_type' host variable is explicitly set
+#   and contains a supported hardware profile before executing playbook tasks.
+#
+# Allowed Enum Values:
+#   - vm  : Virtual Machine (e.g., QEMU/KVM node requiring guest agents)
+#   - lxc : Linux Container (e.g., Proxmox LXC container)
+#   - rpi : Raspberry Pi / Bare-metal ARM hardware
+#
+# Execution Behavior:
+#   - Tagged with 'always' to ensure execution even during filtered (--tags) runs.
+#   - Fails fast with actionable guidance if target_type is missing or invalid.
+# ==============================================================================
+
+- name: Ensure target_type is a valid enum value
+  ansible.builtin.assert:
+    that:
+      - (target_type | default('none')) in ['vm', 'lxc', 'rpi']
+    fail_msg: >-
+      'target_type' is missing or invalid on {{ inventory_hostname }} (currently: '{{ target_type | default('undefined') }}').
+      Please set 'target_type' to 'vm', 'lxc', or 'rpi' in host_vars/{{ inventory_hostname }}.yaml.
+  tags:
+    - always
