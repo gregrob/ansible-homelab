@@ -22,3 +22,11 @@ network_interfaces:
     dns_search: "{{ domain_sub_prefix }}.{{ domain_root }} {{ domain_root }}"
     purpose: "frontend (client-facing traffic)"
     firewalled: false
+
+# NFS shares to be mounted. NOTE: For LXCs, these entries are for reference
+# only — the actual mount points are defined via bind mounts in the
+# Proxmox host's LXC .conf, not by this role.
+nfs_mounts:
+  - share: server-mounts/application/ollama
+    mountpoint: ollama
+    mode: rw
