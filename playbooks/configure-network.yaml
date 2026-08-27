@@ -43,13 +43,10 @@
     - ../group_vars/all/nas.yaml
 
   pre_tasks:
-    - name: Ensure target_type is a valid enum value
-      ansible.builtin.assert:
-        that:
-          - (target_type | default('none')) in ['vm', 'lxc', 'rpi']
-        fail_msg: >-
-          'target_type' is missing or invalid on {{ inventory_hostname }} (currently: '{{ target_type | default('undefined') }}').
-          Please set 'target_type' to 'vm', 'lxc', or 'rpi' in host_vars/{{ inventory_hostname }}.yaml.
+    - name: Validate target hardware type
+      ansible.builtin.import_role:
+        name: common
+        tasks_from: validate_target_type
 
     # ───────────────────────────────────────────────────────────────────────
     # LXC Bypass Check
@@ -143,4 +140,4 @@
       when: not (skip_confirmation | default(false) | bool)
 
   roles:
-    - network_config
+    - { role: network_config, tags: [network] }
