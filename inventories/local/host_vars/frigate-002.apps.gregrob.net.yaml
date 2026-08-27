@@ -1,0 +1,40 @@
+--- 
+# --------------------------------------------------------
+# Host-specific variables for frigate-002.apps.gregrob.net
+# --------------------------------------------------------
+
+# Target type
+target_type: lxc
+
+# Domain settings
+domain_root: gregrob.net
+domain_sub_prefix: apps
+domain_alt1_prefix: home
+domain_hostname: frigate-002
+
+# Network settings
+network_interfaces:
+  - name: eth0
+    id: backend
+    address: 10.24.4.73
+    netmask: 255.255.255.0
+    gateway: "{{ gateway_ip_apps }}"
+    dns_nameservers: "{{ dns_servers_internal }}"
+    dns_search: "{{ domain_sub_prefix }}.{{ domain_root }} {{ domain_alt1_prefix }}.{{ domain_root }} {{ domain_root }}"
+    purpose: "backend - unauthenticated access"
+    firewalled: false
+
+  - name: eth1
+    id: frontend
+    address: 192.168.1.67
+    netmask: 255.255.255.0
+    purpose: "frontend - authenticated access"
+    firewalled: false
+
+# NFS shares to be mounted. NOTE: For LXCs, these entries are for reference
+# only — the actual mount points are defined via bind mounts in the
+# Proxmox host's LXC .conf, not by this role.
+nfs_mounts:
+  - share: server-mounts/application/frigate-poseidon
+    mountpoint: frigate-data
+    mode: rw
