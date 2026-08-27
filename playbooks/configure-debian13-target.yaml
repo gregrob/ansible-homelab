@@ -30,34 +30,17 @@
       - sudo            # execute commands as root via sudo
       - netdev          # manage network interfaces without sudo
       - systemd-journal # read systemd journal logs via journalctl without sudo
-      
-    # Specific packages to be installed
-    # NFS client utilities (i.e. mount in nfs_mounts role)
-    # Only install QEMU agent on VMs
-    specific_packages: >-
-      {{
-        ['nfs-common'] +
-        (['qemu-guest-agent'] if (target_type | default('none') == 'vm') else [])
-      }}
-      
-  pre_tasks:
-    - name: Ensure target_type is a valid enum value
-      ansible.builtin.assert:
-        that:
-          - (target_type | default('none')) in ['vm', 'lxc', 'rpi']
-        fail_msg: >-
-          'target_type' is missing or invalid on {{ inventory_hostname }} (currently: '{{ target_type | default('undefined') }}').
-          Please set 'target_type' to 'vm', 'lxc', or 'rpi' in host_vars/{{ inventory_hostname }}.yaml.
 
-    - name: fail if this host is still using the deprecated legacy frontend_*/backbone_* var format
-      ansible.builtin.assert:
-        that:
-          - network_interfaces is defined
-        fail_msg: >-
-          {{ inventory_hostname }} does not define network_interfaces.
-          The legacy frontend_*/backbone_* vars are no longer supported
-          by this playbook - migrate this host's host_vars to
-          network_interfaces before running this playbook again.
+    # NOTE: Do not define package lists here (vars are scoped only to this playbook).
+    # Baseline packages (nfs-common, qemu-guest-agent) are defined in
+    # roles/packages/defaults/main.yaml so setup and update playbooks stay in sync.
+    #specific_packages: []
+          
+  pre_tasks:
+    - name: Validate target hardware type
+      ansible.builtin.import_role:
+        name: common
+        tasks_from: validate_target_type
 
     # 1. Display VM Setup Guide
     - name: display playbook setup guide (VM)
