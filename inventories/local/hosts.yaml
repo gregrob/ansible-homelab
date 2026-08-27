@@ -16,7 +16,6 @@ all:
 
     docker_privileged:
       hosts:
-        frigate-001.containers.max.lan: {}
         jellyfin-001.containers.max.lan: {}
         development-002.containers.max.lan: {}
 
@@ -68,6 +67,7 @@ all:
         ansible-002.mgmt.gregrob.net: {}
 
         ollama-001.apps.gregrob.net: {}
+        frigate-002.apps.gregrob.net: {}
 
     network_config_target:
       hosts:
