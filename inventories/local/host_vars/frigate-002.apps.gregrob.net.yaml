@@ -15,20 +15,20 @@ domain_hostname: frigate-002
 # Network settings
 network_interfaces:
   - name: eth0
-    id: backend
+    id: api
     address: 10.24.4.73
     netmask: 255.255.255.0
     gateway: "{{ gateway_ip_apps }}"
     dns_nameservers: "{{ dns_servers_internal }}"
     dns_search: "{{ domain_sub_prefix }}.{{ domain_root }} {{ domain_alt1_prefix }}.{{ domain_root }} {{ domain_root }}"
-    purpose: "backend - unauthenticated access"
+    purpose: "system api & home assistant integration (api & ui relay, unauthenticated)"
     firewalled: false
 
   - name: eth1
-    id: frontend
+    id: ui
     address: 192.168.1.67
     netmask: 255.255.255.0
-    purpose: "frontend - authenticated access"
+    purpose: "user web ui & direct video streaming (authenticated)"
     firewalled: false
 
 # NFS shares to be mounted. NOTE: For LXCs, these entries are for reference
