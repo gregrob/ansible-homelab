@@ -21,7 +21,7 @@
 # How it works:
 #   1. Extracts the docker-homelab repo path for this host.
 #   2. Builds the container's directory:
-#      {{ docker_homelab_dest }}/servers/{{ ansible_hostname }}/{{ target_container }}
+#      {{ docker_homelab_dest }}/servers/{{ ansible_facts['hostname'] }}/{{ target_container }}
 #   3. Verifies the directory exists; if missing, skips this host cleanly
 #      rather than failing the playbook.
 #   4. Executes the stop script and logs its output.
@@ -47,10 +47,9 @@
     docker_homelab_dest: "{{ (github_repos | default([]) | selectattr('name', 'equalto', 'docker-homelab') | map(attribute='dest') | first) | default('') }}"
 
 # build the path to this container's directory for this host
-# using ansible_hostname to perfectly match bash $(hostname)
 - name: set container directory path
   ansible.builtin.set_fact:
-    container_dir: "{{ docker_homelab_dest }}/servers/{{ ansible_hostname }}/{{ target_container }}"
+    container_dir: "{{ docker_homelab_dest }}/servers/{{ ansible_facts['hostname'] }}/{{ target_container }}"
   when: docker_homelab_dest != ''
 
 # check if the specific container directory actually exists on this host
@@ -69,7 +68,7 @@
 # if the directory doesn't exist, inform the user but do not fail the playbook
 - name: report missing container directory
   ansible.builtin.debug:
-    msg: "container '{{ target_container }}' does not exist on host {{ ansible_hostname }}. skipping."
+    msg: "container '{{ target_container }}' does not exist on host {{ ansible_facts['hostname'] }}. skipping."
   when: not container_found
 
 # block to execute the restart logic only if the directory exists.
