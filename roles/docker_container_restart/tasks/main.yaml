@@ -1,0 +1,112 @@
+---
+# =============================================================================
+# docker_container_restart.yaml
+#
+# Restarts a single docker container on the current host by running its
+# stop/start scripts from docker-homelab.
+#
+# See the wiki for full details. Summary:
+#
+# Variables:
+#   target_container          (required) name of the container directory to
+#                              target, e.g. -e target_container=frigate
+#   docker_restart_wait_time  seconds to wait between stop and start (default 5)
+#   docker_script_version     version/interface tag passed to the stop/start
+#                              scripts (default v2)
+#   docker_stop_script        stop script, relative to the container's
+#                              directory (default ../docker-stop.sh {{ docker_script_version }})
+#   docker_start_script       start script, relative to the container's
+#                              directory (default ../docker-start.sh {{ docker_script_version }})
+#
+# How it works:
+#   1. Extracts the docker-homelab repo path for this host.
+#   2. Builds the container's directory:
+#      {{ docker_homelab_dest }}/servers/{{ inventory_hostname }}/{{ target_container }}
+#   3. Verifies the directory exists; if missing, skips this host cleanly
+#      rather than failing the playbook.
+#   4. Executes the stop script and logs its output.
+#   5. Pauses for docker_restart_wait_time.
+#   6. Executes the start script and logs its output.
+#
+# Note on the "../" paths: container scripts live in a shared folder in the
+# docker-homelab repo and are symlinked under each host's directory, so a
+# relative "../" from the container's directory resolves to the correct
+# shared script on any host.
+# =============================================================================
+
+- name: ensure target_container variable is defined
+  ansible.builtin.assert:
+    that: target_container is defined
+    msg: "target_container variable must be provided (e.g., -e target_container=frigate)"
+
+# look through the github_repos list (defined in group_vars) and pull out
+# the 'dest' path specifically for 'docker-homelab'
+- name: extract docker-homelab destination path
+  ansible.builtin.set_fact:
+    docker_homelab_dest: "{{ (github_repos | default([]) | selectattr('name', 'equalto', 'docker-homelab') | map(attribute='dest') | first) | default('') }}"
+
+# build the path to this container's directory for this host
+# note: using inventory_hostname to match the directory structure.
+# if your directories use the machine's actual hostname rather than the
+# ansible inventory name, change this to ansible_hostname
+- name: set container directory path
+  ansible.builtin.set_fact:
+    container_dir: "{{ docker_homelab_dest }}/servers/{{ inventory_hostname }}/{{ target_container }}"
+  when: docker_homelab_dest != ''
+
+# check if the specific container directory actually exists on this host
+- name: check if container directory exists
+  ansible.builtin.stat:
+    path: "{{ container_dir }}"
+  register: container_dir_stat
+  when: docker_homelab_dest != ''
+
+# single source of truth for "did we find a valid, existing container dir?"
+# computed once here so the report/skip task and the restart block below
+# can't drift out of sync with each other
+- name: determine if container was found
+  ansible.builtin.set_fact:
+    container_found: "{{ docker_homelab_dest != '' and (container_dir_stat.stat.exists | default(false)) }}"
+
+# if the directory doesn't exist, inform the user but do not fail the playbook
+- name: report missing container directory
+  ansible.builtin.debug:
+    msg: "container '{{ target_container }}' does not exist on host {{ inventory_hostname }}. skipping."
+  when: not container_found
+
+# block to execute the restart logic only if the directory exists
+- name: process container restart
+  when: container_found
+  block:
+    # run the stop script from within the container directory
+    # command (not shell) is used since the script needs no pipes,
+    # redirects, or shell expansion - just a path and an argument
+    - name: execute docker stop script
+      ansible.builtin.command: "{{ docker_stop_script }}"
+      args:
+        chdir: "{{ container_dir }}"
+      register: stop_script_output
+      changed_when: true
+
+    # display the output of the stop script for debugging
+    - name: display stop script output
+      ansible.builtin.debug:
+        var: stop_script_output.stdout_lines
+
+    # wait the configured amount of time before starting
+    - name: wait before starting container
+      ansible.builtin.pause:
+        seconds: "{{ docker_restart_wait_time }}"
+
+    # run the start script from within the container directory
+    - name: execute docker start script
+      ansible.builtin.command: "{{ docker_start_script }}"
+      args:
+        chdir: "{{ container_dir }}"
+      register: start_script_output
+      changed_when: true
+
+    # display the output of the start script for debugging
+    - name: display start script output
+      ansible.builtin.debug:
+        var: start_script_output.stdout_lines

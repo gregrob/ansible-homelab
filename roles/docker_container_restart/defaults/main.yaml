@@ -1,0 +1,19 @@
+---
+# =============================================================================
+# defaults/main.yml
+# =============================================================================
+
+# wait time between stop and start, in seconds
+docker_restart_wait_time: 1
+
+# version/interface tag passed to the stop/start scripts.
+# kept as its own variable (rather than baked into the script strings below)
+# so a future change to the script's expected argument only needs to be
+# updated in one place.
+docker_script_version: v2
+
+# scripts to execute (relative to the container directory, or absolute).
+# relative "../" resolves through the docker-homelab symlink structure -
+# see restart_container.yml header for details.
+docker_stop_script: "../docker-stop.sh {{ docker_script_version }}"
+docker_start_script: "../docker-start.sh {{ docker_script_version }}"
