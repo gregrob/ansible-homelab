@@ -25,13 +25,14 @@
 #   3. Verifies the directory exists; if missing, skips this host cleanly
 #      rather than failing the playbook.
 #   4. Executes the stop script and logs its output.
-#   5. Pauses for docker_restart_wait_time.
+#   5. Waits for docker_restart_wait_time using wait_for (per-host evaluation).
 #   6. Executes the start script and logs its output.
 #
-# Note on the "../" paths: container scripts live in a shared folder in the
-# docker-homelab repo and are symlinked under each host's directory, so a
-# relative "../" from the container's directory resolves to the correct
-# shared script on any host.
+# Note on the "../" paths: containers live in a shared folder under
+# /docker/ in the docker-homelab repo, and are symlinked under each host's
+# directory. That's why the stop/start scripts are referenced with a
+# relative "../" path - it resolves through the symlink to the shared
+# /docker/ scripts, regardless of which host is running it.
 # =============================================================================
 
 - name: ensure target_container variable is defined
@@ -71,9 +72,13 @@
     msg: "container '{{ target_container }}' does not exist on host {{ ansible_hostname }}. skipping."
   when: not container_found
 
-# block to execute the restart logic only if the directory exists
+# block to execute the restart logic only if the directory exists.
+# runs as admin_user (not the default root from play-level become) since
+# that's the identity with working SSH access to the secrets host
+# that docker-stop.sh/docker-start.sh call out to
 - name: process container restart
   when: container_found
+  become_user: "{{ admin_user }}"
   block:
     # run the stop script from within the container directory
     # command (not shell) is used since the script needs no pipes,
@@ -90,10 +95,16 @@
       ansible.builtin.debug:
         var: stop_script_output.stdout_lines
 
-    # wait the configured amount of time before starting
+    # wait the configured amount of time before starting using wait_for
+    # so it evaluates correctly per-host instead of globally.
+    # check_mode: false forces this to actually run even under --check -
+    # wait_for refuses to run in check mode by default (it has no side
+    # effects to simulate) and would otherwise silently skip, which would
+    # be misread as the container not being found.
     - name: wait before starting container
-      ansible.builtin.pause:
-        seconds: "{{ docker_restart_wait_time }}"
+      ansible.builtin.wait_for:
+        timeout: "{{ docker_restart_wait_time }}"
+      check_mode: false
 
     # run the start script from within the container directory
     - name: execute docker start script
