@@ -1,0 +1,23 @@
+---
+# restart-docker-containers.yaml
+#
+# Restarts one or more Docker containers across the homelab fleet by
+# calling the restart_docker_containers role. See the wiki for role
+# details (variables, symlink structure, etc).
+#
+# Usage:
+#   ansible-playbook playbooks/restart-docker-containers.yaml -e target_container=frigate
+#
+
+- name: Restart Docker Containers
+  hosts: debian_config_target
+  gather_facts: yes
+  become: yes
+
+  vars_files:
+    - ../group_vars/all/vault.yaml
+    - ../group_vars/all/github-repos-docker.yaml
+    - ../group_vars/all/admin-user.yaml # access to the secrets requires admin user
+
+  roles:
+    - { role: docker_container_restart, tags: [docker] }
