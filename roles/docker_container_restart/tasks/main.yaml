@@ -21,7 +21,7 @@
 # How it works:
 #   1. Extracts the docker-homelab repo path for this host.
 #   2. Builds the container's directory:
-#      {{ docker_homelab_dest }}/servers/{{ inventory_hostname }}/{{ target_container }}
+#      {{ docker_homelab_dest }}/servers/{{ ansible_hostname }}/{{ target_container }}
 #   3. Verifies the directory exists; if missing, skips this host cleanly
 #      rather than failing the playbook.
 #   4. Executes the stop script and logs its output.
@@ -46,12 +46,10 @@
     docker_homelab_dest: "{{ (github_repos | default([]) | selectattr('name', 'equalto', 'docker-homelab') | map(attribute='dest') | first) | default('') }}"
 
 # build the path to this container's directory for this host
-# note: using inventory_hostname to match the directory structure.
-# if your directories use the machine's actual hostname rather than the
-# ansible inventory name, change this to ansible_hostname
+# using ansible_hostname to perfectly match bash $(hostname)
 - name: set container directory path
   ansible.builtin.set_fact:
-    container_dir: "{{ docker_homelab_dest }}/servers/{{ inventory_hostname }}/{{ target_container }}"
+    container_dir: "{{ docker_homelab_dest }}/servers/{{ ansible_hostname }}/{{ target_container }}"
   when: docker_homelab_dest != ''
 
 # check if the specific container directory actually exists on this host
@@ -62,16 +60,15 @@
   when: docker_homelab_dest != ''
 
 # single source of truth for "did we find a valid, existing container dir?"
-# computed once here so the report/skip task and the restart block below
-# can't drift out of sync with each other
+# written carefully to avoid undefined dictionary errors if stat was skipped
 - name: determine if container was found
   ansible.builtin.set_fact:
-    container_found: "{{ docker_homelab_dest != '' and (container_dir_stat.stat.exists | default(false)) }}"
+    container_found: "{{ docker_homelab_dest != '' and (container_dir_stat.stat.exists | default(false)) | bool }}"
 
 # if the directory doesn't exist, inform the user but do not fail the playbook
 - name: report missing container directory
   ansible.builtin.debug:
-    msg: "container '{{ target_container }}' does not exist on host {{ inventory_hostname }}. skipping."
+    msg: "container '{{ target_container }}' does not exist on host {{ ansible_hostname }}. skipping."
   when: not container_found
 
 # block to execute the restart logic only if the directory exists
