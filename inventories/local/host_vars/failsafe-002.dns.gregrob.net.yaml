@@ -50,24 +50,24 @@ domain_hostname: failsafe-002
 network_frontend_ip: "10.24.19.34"
 network_all_interface: "eth0"
 
-# Network interface definition itself
+# Network settings
 network_interfaces:
   # Physical trunk - carries all tagged VLANs below, no IP of its own
-  # (no address/netmask - rendered as "iface eth0 inet manual")
   - name: "{{ network_all_interface }}"
     id: trunk
-    purpose: "trunk (802.1Q, no direct IP traffic)"
+    purpose: "physical trunk interface for vlan tagging (no direct ip traffic)"
 
+  # Tagged VLAN sub-interface
   - name: "{{ network_all_interface }}.{{ dns_vlan_id }}"
-    id: dns_vlan
-    parent: eth0
+    id: primary
+    parent: "{{ network_all_interface }}"
     vlan_id: "{{ dns_vlan_id }}"
     address: "{{ network_frontend_ip }}"
     netmask: 255.255.255.0
     gateway: "{{ gateway_ip_dns }}"
     dns_nameservers: "{{ dns_servers_gateway_dns }}" # Use gateway - avoids resolving against a not-yet-ready itself
     dns_search: "{{ domain_sub_prefix }}.{{ domain_root }} {{ domain_root }}"
-    purpose: "DNS VLAN - Technitium failsafe"
+    purpose: "primary interface for all traffic"
     firewalled: false
 
 # No NFS shares needed on this node
