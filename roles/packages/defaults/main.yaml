@@ -11,6 +11,7 @@ base_packages:
   - htop              # Interactive process viewer and system monitor (an improved 'top')
   - needrestart       # Evaluates daemon and kernel restart requirements
   - nfs-common        # NFS client utilities (i.e. mount in nfs_mounts role)
+  - rsync             # File sync/transfer tool (used by rsync_setup role's server wrapper)
 
 # List of VM specific packages to be installed on the system  
 vm_packages:

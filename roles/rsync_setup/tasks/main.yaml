@@ -1,0 +1,55 @@
+---
+# Deploys a restricted rsync wrapper allowing the admin user to run
+# rsync --server as root via sudo, scoped strictly to paths under /srv/.
+#
+# Defense in depth: the script is only executable by root and admin_group
+# members (not world-executable), independent of the sudo restriction below.
+
+- name: Create strict rsync wrapper script
+  ansible.builtin.copy:
+    dest: /usr/local/bin/rsync-srv-wrapper
+    mode: '0750'
+    owner: root
+    group: "{{ admin_group }}"
+    content: |
+      #!/bin/bash
+      # ============================================================
+      # ANSIBLE MANAGED — do not edit directly.
+      # Managed by role: rsync_setup
+      # Changes will be overwritten on next playbook run.
+      # ============================================================
+
+      # 1. Enforce server mode to prevent local copy exploits
+      if [[ "$1" != "--server" ]]; then
+          echo "SECURITY HALT: Only server-mode rsync is permitted." >&2
+          exit 1
+      fi
+
+      # 2. Block directory traversal completely
+      if echo "$*" | grep -q '\.\.'; then
+          echo "SECURITY HALT: Path traversal (..) is forbidden." >&2
+          exit 1
+      fi
+
+      # 3. Extract the target path (always the last argument in rsync --server)
+      TARGET="${@: -1}"
+
+      # 4. Require the path to be strictly inside /srv/
+      if [[ "$TARGET" != /srv/* ]]; then
+          echo "SECURITY HALT: Target path must be inside /srv/" >&2
+          exit 1
+      fi
+
+      # All checks passed, execute the real rsync
+      exec /usr/bin/rsync "$@"
+
+- name: Allow admin user to run ONLY the wrapper via sudo
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/ansible-rsync
+    mode: '0440'
+    owner: root
+    group: root
+    validate: 'visudo -cf %s'
+    content: |
+      # ANSIBLE MANAGED — see role: rsync_setup
+      {{ admin_user }} ALL=(root) NOPASSWD: /usr/local/bin/rsync-srv-wrapper

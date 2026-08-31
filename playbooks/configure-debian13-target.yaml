@@ -183,6 +183,9 @@
     - { role: git_setup,                tags: [git] }
     - { role: docker_setup,             tags: [docker] }
 
+    # Restricted rsync access for admin user (root, scoped to /srv/)
+    - { role: rsync_setup,              tags: [rsync] }
+
     # Storage routing
     #   lxc_share_user is technically only required for unprivileged LXCs,
     #   but applied to both privileged and unprivileged for simplicity
