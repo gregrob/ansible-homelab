@@ -1,3 +1,8 @@
 # Ignore all vault files or private group_vars with .yaml extension
 **/vault.yaml
 .ansible_vault_pass.txt
+
+# Python / Custom Modules byte code
+__pycache__/
+*.py[cod]
+*$py.class
