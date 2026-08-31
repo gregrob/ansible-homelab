@@ -1,0 +1,11 @@
+---
+# Defines the list of external Ansible Galaxy collections required for your playbooks.
+collections:
+  
+  # The 'ansible.posix' collection provides core Linux/POSIX modules.
+  # This includes modules like 'sysctl' (useful for network routing/IPVS), 'mount', and 'synchronize'.
+  - name: ansible.posix
+    
+    # Version constraint: Ensures Ansible downloads version 1.5.0 or newer.
+    # Prevents older, potentially incompatible versions from breaking your playbooks.
+    version: ">=1.5.0"
