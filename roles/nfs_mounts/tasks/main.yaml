@@ -15,7 +15,7 @@
   ansible.builtin.debug:
     msg:
       - "┌──────────────────────────────────────────────────────────────┐"
-      - "│         NFS Share Configuration Required on NAS              │"
+      - "│          NFS Share Configuration Required on NAS             │"
       - "│ Ensure the following shares are exported and the target host │"
       - "│ has been granted access in the NAS NFS permissions.          │"
       - "└──────────────────────────────────────────────────────────────┘"
@@ -67,6 +67,7 @@
     src: "{{ nfs_host }}:{{ item.share }}"
     fstype: nfs
     opts: "{{ nfs_common_opts }},{{ item.mode }}"
+    boot: "{{ nfs_mount_boot }}"
     state: present
   loop: "{{ nfs_mounts }}"
   loop_control:
@@ -79,6 +80,7 @@
     src: "{{ nfs_host }}:{{ item.share }}"
     fstype: nfs
     opts: "{{ nfs_common_opts }},{{ item.mode }}"
+    boot: "{{ nfs_mount_boot }}"
     state: mounted
   loop: "{{ nfs_mounts }}"
   ignore_errors: true
