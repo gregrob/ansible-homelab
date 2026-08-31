@@ -171,22 +171,27 @@
       when: not (skip_confirmation | default(false) | bool)
 
   roles:
+    # Identity — everything below assumes this user exists
+    - { role: admin_user,               tags: [base] }
+
     # LXC specific base tuning
     - { role: disable_systemd_networkd, tags: [base],    when: target_type == 'lxc' }
 
     # Common across ALL target types (vm, lxc, rpi)
     - { role: packages,                 tags: [base] }
     - { role: timezone,                 tags: [base] }
-    - { role: admin_user,               tags: [base] }
     - { role: git_setup,                tags: [git] }
     - { role: docker_setup,             tags: [docker] }
 
     # Storage routing
-    - { role: lxc_share_user,           tags: [storage], when: target_type == 'lxc' } # Only needed for unprivileged lxc but include in both for simplicity
+    #   lxc_share_user is technically only required for unprivileged LXCs,
+    #   but applied to both privileged and unprivileged for simplicity
+    - { role: lxc_share_user,           tags: [storage], when: target_type == 'lxc' }
     - { role: nfs_mounts,               tags: [storage], when: target_type != 'lxc' }
 
     # Repos & Secrets
     - { role: github_clone,             tags: [repos] }
-    - { role: homelab_nav,              tags: [helpers] } # cdh CLI directory shortcut
+    #   homelab_nav: deploys 'cdh' shell shortcut + tab completion for
+    #   jumping to homelab container dirs (depends on docker-homelab repo path)
+    - { role: homelab_nav,              tags: [helpers] }
     - { role: secrets_connect,          tags: [secrets] }
-  
