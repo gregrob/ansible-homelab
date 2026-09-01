@@ -17,7 +17,6 @@ all:
     docker_privileged:
       hosts:
         jellyfin-001.containers.max.lan: {}
-        development-002.containers.max.lan: {}
 
     docker_unprivileged:
       hosts:
