@@ -14,10 +14,6 @@ all:
         #nut-001.trusted.max.lan: {}
         {}
 
-    docker_privileged:
-      hosts:
-        jellyfin-001.containers.max.lan: {}
-
     docker_unprivileged:
       hosts:
         infisical-001.trusted.max.lan: {}
@@ -107,7 +103,6 @@ all:
           
     git_targets:
       children:
-        docker_privileged:
         docker_unprivileged:
         lxcs:
         vms:
@@ -115,7 +110,6 @@ all:
     
     update_targets:
       children:
-        docker_privileged:
         docker_unprivileged:
         lxcs:
         vms:
@@ -123,7 +117,6 @@ all:
 
     disk_check_targets:
       children:
-        docker_privileged:
         docker_unprivileged:
         lxcs:
         vms:
