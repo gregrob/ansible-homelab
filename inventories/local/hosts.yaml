@@ -45,7 +45,9 @@ all:
           ansible_host: development-003.apps.gregrob.net
         ansible-002.mgmt.gregrob.net:
           ansible_host: ansible-002.mgmt.gregrob.net
-          
+        tools-001.mgmt.gregrob.net:
+          ansible_host: tools-001.mgmt.gregrob.net
+
     # All physical machines
     pms:
       hosts:
@@ -65,6 +67,7 @@ all:
         portal-001.apps.gregrob.net: {}
         development-003.apps.gregrob.net: {}
         ansible-002.mgmt.gregrob.net: {}
+        tools-001.mgmt.gregrob.net: {}
 
         ollama-001.apps.gregrob.net: {}
         frigate-002.apps.gregrob.net: {}
@@ -81,6 +84,7 @@ all:
         portal-001.apps.gregrob.net: {}
         development-003.apps.gregrob.net: {}
         ansible-002.mgmt.gregrob.net: {}
+        tools-001.mgmt.gregrob.net: {}
 
         # Here for completness as LXCs are managed in the Proxmox GUI
         ollama-001.apps.gregrob.net: {}
