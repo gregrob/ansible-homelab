@@ -1,0 +1,70 @@
+--- 
+# ---------------------------------------------------------
+# Host-specific variables for jellyfin-002.apps.gregrob.net
+# ---------------------------------------------------------
+
+# Target type
+target_type: lxc
+
+# Domain settings
+domain_root: gregrob.net
+domain_sub_prefix: apps
+domain_alt1_prefix: home
+domain_hostname: jellyfin-002
+
+# Network settings
+# NOTE: eth0/eth1 are both dual-purpose endpoints for user-facing traffic
+# (web UI, direct-play/streaming, network discovery) — identical role,
+# just serving different VLANs so clients hit whichever network they
+# originate on. Media/data storage does NOT ride these NICs: Proxmox
+# mounts the NAS over its own 10GbE link and passes the storage in via
+# an LXC bind mount, so from inside the container it's just a local path.
+network_interfaces:
+  - name: eth0
+    id: apps
+    address: 10.24.4.75
+    netmask: 255.255.255.0
+    gateway: "{{ gateway_ip_apps }}"
+    dns_nameservers: "{{ dns_servers_internal }}"
+    dns_search: "{{ domain_sub_prefix }}.{{ domain_root }} {{ domain_alt1_prefix }}.{{ domain_root }} {{ domain_root }}"
+    purpose: "user web ui, direct video streaming & network discovery - apps vlan"
+    firewalled: false
+
+  - name: eth1
+    id: home
+    address: 192.168.1.68
+    netmask: 255.255.255.0
+    purpose: "user web ui, direct video streaming & network discovery - home vlan"
+    firewalled: false
+
+# NFS shares to be mounted. NOTE: For LXCs, these entries are for reference
+# only — the actual mount points are defined via bind mounts in the
+# Proxmox host's LXC .conf, not by this role.
+nfs_mounts:
+  
+  # Media libraries
+  - share: media
+    mountpoint: media
+    mode: ro
+  - share: photo-library
+    mountpoint: photo-library
+    mode: ro
+  - share: video
+    mountpoint: video
+    mode: ro
+  
+  # Downloads
+  - share: downloads/qbittorrent/complete/movies
+    mountpoint: downloads/movies
+    mode: ro
+  - share: downloads/qbittorrent/complete/tv
+    mountpoint: downloads/tv
+    mode: ro
+  - share: downloads/qbittorrent-pub/complete
+    mountpoint: downloads/qbittorrent-pub
+    mode: ro
+
+  # For transcodes
+  - share: server-mounts/application/jellyfin
+    mountpoint: data
+    mode: rw

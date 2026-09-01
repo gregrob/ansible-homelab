@@ -29,6 +29,8 @@ all:
           ansible_host: ollama-001.apps.gregrob.net
         frigate-002.apps.gregrob.net:
           ansible_host: frigate-002.apps.gregrob.net
+        jellyfin-002.apps.gregrob.net:
+          ansible_host: jellyfin-002.apps.gregrob.net
 
     # All virtual machines
     vms:
@@ -70,6 +72,7 @@ all:
 
         ollama-001.apps.gregrob.net: {}
         frigate-002.apps.gregrob.net: {}
+        jellyfin-002.apps.gregrob.net: {}
 
     network_config_target:
       hosts:
@@ -86,6 +89,7 @@ all:
         # Here for completness as LXCs are managed in the Proxmox GUI
         ollama-001.apps.gregrob.net: {}
         frigate-002.apps.gregrob.net: {}
+        jellyfin-002.apps.gregrob.net: {}
 
     ansible_target:
       hosts:
