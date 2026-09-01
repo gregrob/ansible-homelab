@@ -10,7 +10,7 @@
 # We set 'check_mode: false' to force the cache to actually update even during a 
 # dry run (--check). This ensures subsequent check-mode tasks see the absolute 
 # latest available packages rather than stale cache data.
-- name: Update apt cache
+- name: Update apt cache (possibly CHANGED because executes in check mode)
   ansible.builtin.apt:
     update_cache: yes
     cache_valid_time: "{{ apt_cache_valid_time | default(3600) }}"
