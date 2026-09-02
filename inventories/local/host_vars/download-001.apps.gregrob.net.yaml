@@ -40,3 +40,6 @@ nfs_mounts:
   - share: /volume1/server-mounts
     mountpoint: server-mounts
     mode: rw
+  - share: /volume1/media/video/tv
+    mountpoint: media/tv
+    mode: ro
