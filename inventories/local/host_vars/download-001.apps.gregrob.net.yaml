@@ -43,3 +43,6 @@ nfs_mounts:
   - share: /volume1/media/video/tv
     mountpoint: media/tv
     mode: rw # so files can be automatically moved into place
+  - share: /volume1/media/video/movies
+    mountpoint: media/movies
+    mode: rw # so files can be automatically moved into place
