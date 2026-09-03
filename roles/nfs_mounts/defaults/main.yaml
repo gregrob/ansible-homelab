@@ -8,30 +8,41 @@ nfs_host: "{{ nas_host }}"
 nfs_base_path: /mnt
 
 # Controls system startup behavior (boot parameter in ansible.builtin.mount).
-# Set to 'false' because we use x-systemd.automount below.
-#
-# NOTE: Ansible automatically appends 'noauto' to /etc/fstab when boot is false.
-# Do NOT add 'noauto' to nfs_common_opts below, or Ansible will append it twice 
-# and trigger an idempotency loop on every run.
-nfs_mount_boot: false
+# Set to 'true' — the mount is attempted at boot; if the NAS is unreachable,
+# the 'bg' option below (not automount) handles retrying without blocking
+# boot, so we want systemd to actually attempt the mount rather than defer
+# it lazily.
+nfs_mount_boot: true
 
 # Common NFS mount options applied to all shares
 #
-# Boot & systemd integration:
-#   _netdev                 - wait for network stack before attempting mount
-#   x-systemd.automount     - mount on first access; auto-reconnects if NAS reboots
-#   x-systemd.idle-timeout=60 - auto-unmount after 60s of inactivity (clears stale mounts)
-#   x-systemd.device-timeout=10 - fail fast (10s) at boot if NAS is completely unreachable
+# Boot & network:
+#   _netdev   - wait for network stack before attempting mount
+#   bg        - if the initial mount attempt fails (NAS unreachable), fork
+#               and retry in the background rather than blocking boot;
+#               once the NAS returns, the backgrounded attempt succeeds and
+#               the mount just appears — no manual intervention needed.
+#               Works identically inside both VMs and LXCs (unlike
+#               x-systemd.automount, which systemd refuses to run inside
+#               containers at all).
 #
-# Resilience (NAS rebooting / network drop):
-#   soft                    - return I/O errors to app if server unreachable (prevents lockup)
-#   timeo=30                - timeout after 3s (30 x 0.1s) before retrying
-#   retrans=3               - retry 3 times before returning an error
+# Resilience & data integrity (NAS rebooting / network drop):
+#   hard      - block and retry indefinitely rather than erroring out if the
+#               NAS is unreachable mid-operation. Safer than 'soft' for
+#               read-write shares: soft mounts can silently corrupt writes if
+#               an app doesn't properly check the returned I/O error. A hard
+#               mount only pauses the specific process touching this share
+#               while the NAS is down — it does not lock up the host, and
+#               resumes cleanly once the NAS returns.
+#   timeo=30  - timeout (in tenths of a second: 3s) before each retry
+#   retrans=3 - number of retries per request before considered failed
+#               (irrelevant with 'hard', which retries indefinitely anyway,
+#               but kept for clarity/consistency)
 #
 # Performance:
-#   noatime                 - do not write file access timestamps (reduces NAS disk I/O)
-#   nfsvers=4               - force NFSv4 protocol
-nfs_common_opts: "_netdev,noatime,nfsvers=4,soft,timeo=30,retrans=3,x-systemd.automount,x-systemd.idle-timeout=60,x-systemd.device-timeout=10"
+#   noatime   - do not write file access timestamps (reduces NAS disk I/O)
+#   nfsvers=4 - force NFSv4 protocol
+nfs_common_opts: "_netdev,noatime,nfsvers=4,hard,bg,timeo=30,retrans=3"
 
 # List of NFS shares to mount with their corresponding local mount points
 nfs_mounts:
