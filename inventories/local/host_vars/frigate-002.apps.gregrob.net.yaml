@@ -35,6 +35,6 @@ network_interfaces:
 # only — the actual mount points are defined via bind mounts in the
 # Proxmox host's LXC .conf, not by this role.
 nfs_mounts:
-  - share: server-mounts/application/frigate-poseidon
+  - share: /volume1/server-mounts/application/frigate-poseidon
     mountpoint: frigate-data
     mode: rw
