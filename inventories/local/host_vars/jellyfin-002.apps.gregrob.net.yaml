@@ -43,28 +43,34 @@ network_interfaces:
 nfs_mounts:
   
   # Media libraries
-  - share: media
+  - share: /volume1/media
     mountpoint: media
     mode: ro
-  - share: photo-library
+  - share: /volume1/photo-library
     mountpoint: photo-library
     mode: ro
-  - share: video
+  - share: /volume1/video
     mountpoint: video
     mode: ro
   
   # Downloads
-  - share: downloads/qbittorrent/complete/movies
+  - share: /volume1/downloads/qbittorrent/complete/movies
     mountpoint: downloads/movies
     mode: ro
-  - share: downloads/qbittorrent/complete/tv
+  - share: /volume1/downloads/qbittorrent/complete/tv
     mountpoint: downloads/tv
     mode: ro
-  - share: downloads/qbittorrent-pub/complete
+  - share: /volume1/downloads/qbittorrent-pub/complete
     mountpoint: downloads/qbittorrent-pub
     mode: ro
 
   # For transcodes
-  - share: server-mounts/application/jellyfin
+  - share: /volume1/server-mounts/application/jellyfin
     mountpoint: data
     mode: rw
+
+  # New media library - linked to arr stack
+  - share: /volume1/arr
+    mountpoint: arr
+    mode: ro
+    mount_in_guest: true
