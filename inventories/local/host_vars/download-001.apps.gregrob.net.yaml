@@ -46,3 +46,8 @@ nfs_mounts:
   - share: /volume1/media/video/movies
     mountpoint: media/movies
     mode: rw # so files can be automatically moved into place
+
+  # New media library - linked to arr stack
+  - share: /volume1/arr
+    mountpoint: arr
+    mode: rw # so files can be automatically moved into place
