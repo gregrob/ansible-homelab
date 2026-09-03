@@ -9,6 +9,18 @@
 #  5. Sets mount points immutable to prevent writes to local filesystem when NFS is unavailable
 #  6. Adds/updates NFS mount entries to /etc/fstab (regardless of current mount state)
 #  7. Mounts NFS shares if not already mounted (with error tolerance)
+#
+# NOTE ON mount_in_guest:
+# Each nfs_mounts entry may set `mount_in_guest: true/false` to control
+# whether THIS role actually mounts it inside the target host, rather
+# than just documenting it as a requirement. If omitted, it defaults
+# to `true` for VMs (unchanged existing behavior) and `false` for LXCs
+# (unchanged existing behavior — reference-only unless a share opts in).
+#
+# Setting mount_in_guest: true on an LXC entry requires that container
+# to be privileged with features: mount=nfs set on the Proxmox host,
+# plus nfs-common installed in the guest (one-time manual prerequisite,
+# see that host's wiki page).
 
 # Display informational message about NFS share configuration requirements
 - name: display NFS configuration requirements
@@ -25,7 +37,7 @@
 # Display list of NFS shares that need to be exported with their access modes
 - name: display required NFS shares
   ansible.builtin.debug:
-    msg: "  {{ item.share }} [{{ item.mode | upper }}]"
+    msg: "  {{ item.share }} [{{ item.mode | upper }}]{{ ' (guest-mounted)' if (item.get('mount_in_guest', target_type == 'vm') | bool) else ' (reference only)' }}"
   loop: "{{ nfs_mounts }}"
   loop_control:
     label: "{{ item.mountpoint }}"
@@ -36,6 +48,7 @@
     cmd: "mountpoint -q {{ nfs_base_path }}/{{ item.mountpoint }}"
   register: mount_check
   loop: "{{ nfs_mounts }}"
+  when: item.get('mount_in_guest', target_type == 'vm') | bool
   changed_when: false
   failed_when: false
 
@@ -46,7 +59,7 @@
     state: directory
     mode: '0755'
   loop: "{{ mount_check.results }}"
-  when: item.rc != 0
+  when: item.rc is defined and item.rc != 0
   loop_control:
     label: "{{ nfs_base_path }}/{{ item.item.mountpoint }}"
 
@@ -56,7 +69,7 @@
   ansible.builtin.command:
     cmd: "chattr +i {{ nfs_base_path }}/{{ item.item.mountpoint }}"
   loop: "{{ mount_check.results }}"
-  when: item.rc != 0
+  when: item.rc is defined and item.rc != 0
   loop_control:
     label: "{{ nfs_base_path }}/{{ item.item.mountpoint }}"
 
@@ -70,6 +83,7 @@
     boot: "{{ nfs_mount_boot }}"
     state: present
   loop: "{{ nfs_mounts }}"
+  when: item.get('mount_in_guest', target_type == 'vm') | bool
   loop_control:
     label: "{{ nfs_host }}:{{ item.share }} → {{ nfs_base_path }}/{{ item.mountpoint }}"
 
@@ -83,6 +97,7 @@
     boot: "{{ nfs_mount_boot }}"
     state: mounted
   loop: "{{ nfs_mounts }}"
+  when: item.get('mount_in_guest', target_type == 'vm') | bool
   ignore_errors: true
   loop_control:
     label: "{{ nfs_host }}:{{ item.share }} → {{ nfs_base_path }}/{{ item.mountpoint }}"

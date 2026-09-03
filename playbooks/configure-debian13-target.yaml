@@ -190,7 +190,7 @@
     #   lxc_share_user is technically only required for unprivileged LXCs,
     #   but applied to both privileged and unprivileged for simplicity
     - { role: lxc_share_user,           tags: [storage], when: target_type == 'lxc' }
-    - { role: nfs_mounts,               tags: [storage], when: target_type != 'lxc' }
+    - { role: nfs_mounts,               tags: [storage] }
 
     # Repos & Secrets
     - { role: github_clone,             tags: [repos] }
