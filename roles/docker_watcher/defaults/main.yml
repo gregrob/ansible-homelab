@@ -1,4 +1,11 @@
 ---
+# Set true (e.g. -e watchtower_debug=true) to re-enable the two
+# diagnostic debug tasks: the per-node normalised container dump, and
+# the repo/tag/node allocation matrix. Off by default to keep normal
+# runs quiet, but kept in the role rather than deleted — genuinely
+# useful when something looks wrong further down the pipeline.
+watchtower_debug: false
+
 # Set false if you only care about currently-running containers
 watchtower_include_stopped: true
 

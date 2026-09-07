@@ -40,6 +40,7 @@
       - "Total containers found: {{ watchtower_containers | length }}"
       - "Container details:"
       - "{{ watchtower_containers }}"
+  when: watchtower_debug
 
 # ------------------------------------------------------------------
 # Part 2 — runs ONCE, delegated to localhost, after every host has
@@ -74,6 +75,7 @@
 - name: Debug the version allocation matrix
   ansible.builtin.debug:
     var: fleet_version_summary
+  when: watchtower_debug
   run_once: true
 
 # ------------------------------------------------------------------
