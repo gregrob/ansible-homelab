@@ -1,0 +1,19 @@
+# Docker Container Version Audit Playbook
+# Gathers running container inventories across the Debian homelab fleet,
+# queries Docker Hub for upstream stable releases, evaluates version drift,
+# and outputs a formatted deployment matrix summary report.
+#
+# Usage:
+#   ansible-playbook playbooks/maintain-docker-watcher.yaml
+#   ansible-playbook playbooks/maintain-docker-watcher.yaml --limit dns-001.dns.gregrob.net
+
+- name: Audit fleet Docker container versions
+  hosts: debian_config_target
+  gather_facts: true
+  become: true
+
+  vars_files:
+    - ../group_vars/all/vault.yaml
+
+  roles:
+    - { role: docker_watcher, tags: [docker, audit] }
