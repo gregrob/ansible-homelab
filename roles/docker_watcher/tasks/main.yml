@@ -100,6 +100,13 @@
 - name: Initialize latest stable dictionary
   ansible.builtin.set_fact:
     watchtower_latest_stable: {}
+    # Per-repo outcome: 'resolved' (found a real match), 'no_match'
+    # (fetch worked, nothing matched the active regex — needs a
+    # repo-specific rule), or 'fetch_failed' (couldn't even fetch the
+    # tag list). Distinguishing these matters: 'no_match' is what led
+    # to writing the qbittorrent/gluetun/speedtest-tracker rules,
+    # 'fetch_failed' usually just means retry.
+    watchtower_check_status: {}
   run_once: true
   delegate_to: localhost
 
@@ -120,17 +127,23 @@
 
 - name: Work out the newest stable tag per repo
   ansible.builtin.set_fact:
-    watchtower_latest_stable: "{{ watchtower_latest_stable | combine({item.item: newest}) }}"
+    watchtower_latest_stable: "{{ watchtower_latest_stable | combine(latest_update) }}"
+    watchtower_check_status: "{{ watchtower_check_status | combine({item.item: status_label}) }}"
   loop: "{{ watchtower_hub_tag_results.results }}"
   loop_control:
     label: "{{ item.item }}"
-  when: item.status is defined and item.status == 200
   vars:
     # Ordered-list lookup, first-match-wins, resolved in Python
     # (filter_plugins/docker_utils.py) instead of a nested Jinja
     # loop — priority is now just "position in the list".
     active_regex: "{{ item.item | pick_tag_regex(watchtower_tag_rules, watchtower_default_tag_regex) }}"
-    newest: "{{ item.json.results | default([]) | get_latest_docker_tag(active_regex) }}"
+    fetch_ok: "{{ item.status is defined and item.status == 200 }}"
+    newest: "{{ (item.json.results | default([]) | get_latest_docker_tag(active_regex)) if fetch_ok else '' }}"
+    status_label: "{{ 'resolved' if (fetch_ok and newest != '') else ('no_match' if fetch_ok else 'fetch_failed') }}"
+    # Only add to watchtower_latest_stable when actually resolved —
+    # an empty string stored there would make the summary compare
+    # against '' and wrongly flag every host as needing an update.
+    latest_update: "{{ {item.item: newest} if (fetch_ok and newest != '') else {} }}"
   run_once: true
   delegate_to: localhost
 
@@ -180,12 +193,12 @@
 
 - name: Work out the newest stable tag per ghcr.io / lscr.io repo
   ansible.builtin.set_fact:
-    watchtower_latest_stable: "{{ watchtower_latest_stable | combine({result.item: newest}) }}"
+    watchtower_latest_stable: "{{ watchtower_latest_stable | combine(latest_update) }}"
+    watchtower_check_status: "{{ watchtower_check_status | combine({result.item: status_label}) }}"
   loop: "{{ watchtower_ghcr_tag_results.results }}"
   loop_control:
     loop_var: result
     label: "{{ result.item }}"
-  when: result.tags is defined and (result.tags | length) > 0
   vars:
     # Match against the host-stripped path ("linuxserver/sonarr"),
     # not the full "lscr.io/linuxserver/sonarr" — same reasoning as
@@ -193,7 +206,10 @@
     # registry actually served it.
     match_key: "{{ result.item.split('/', 1)[1] }}"
     active_regex: "{{ match_key | pick_tag_regex(watchtower_tag_rules, watchtower_default_tag_regex) }}"
-    newest: "{{ result.tags | get_latest_docker_tag(active_regex) }}"
+    fetch_ok: "{{ result.tags is defined and (result.tags | length) > 0 }}"
+    newest: "{{ (result.tags | get_latest_docker_tag(active_regex)) if fetch_ok else '' }}"
+    status_label: "{{ 'resolved' if (fetch_ok and newest != '') else ('no_match' if fetch_ok else 'fetch_failed') }}"
+    latest_update: "{{ {result.item: newest} if (fetch_ok and newest != '') else {} }}"
   run_once: true
   delegate_to: localhost
 
@@ -208,16 +224,25 @@
       {% endfor %}
       {{ '=' * 130 }}
   vars:
-    # One precomputed row per repo, rather than nested logic inside
-    # the msg template itself — easier to read/extend.
+    # One precomputed row per repo we actually attempted to check
+    # (Docker Hub + GHCR/lscr.io lists), rather than nested logic
+    # inside the msg template itself — easier to read/extend. Note
+    # this iterates the FULL attempted list, not just
+    # watchtower_latest_stable.items() — an unresolved repo still
+    # gets a row (see watchtower_check_status labels below), it just
+    # never gets a star, since a star implies a confirmed comparison.
     display_rows: >-
       {%- set rows = [] -%}
-      {%- for repo, latest_tag in watchtower_latest_stable.items() -%}
+      {%- set repo_list = ((watchtower_hub_repos | default([])) + (watchtower_ghcr_repos | default([]))) | unique | sort -%}
+      {%- for repo in repo_list -%}
+        {%- set latest_tag = watchtower_latest_stable.get(repo, '') -%}
+        {%- set status = watchtower_check_status.get(repo, 'fetch_failed') -%}
+        {%- set checked = status == 'resolved' -%}
         {%- set current_tags = (fleet_version_summary[repo].keys() | list) if fleet_version_summary[repo] is defined else [] -%}
-        {%- set up_to_date = (current_tags == [latest_tag]) if current_tags else false -%}
+        {%- set up_to_date = (current_tags == [latest_tag]) if (checked and current_tags) else true -%}
         {%- set outdated_hosts = [] -%}
         {%- set total_hosts = 0 -%}
-        {%- if fleet_version_summary[repo] is defined -%}
+        {%- if checked and fleet_version_summary[repo] is defined -%}
           {%- set total_hosts = (fleet_version_summary[repo].values() | map('length') | sum) -%}
           {%- for tag, nodes in fleet_version_summary[repo].items() -%}
             {%- if tag != latest_tag -%}
@@ -235,11 +260,16 @@
         {%- else -%}
           {%- set hosts_display = outdated_hosts | sort | join(', ') -%}
         {%- endif -%}
+        {%- set latest_display = (
+              latest_tag if status == 'resolved'
+              else ('no matching tag' if status == 'no_match'
+              else 'fetch failed')
+            ) -%}
         {%- set row = {
               'repo': repo,
               'current': (current_tags | join(', ')) if current_tags else 'Unknown',
-              'latest': latest_tag,
-              'flag': ('★' if not up_to_date else ''),
+              'latest': latest_display,
+              'flag': ('★' if (checked and not up_to_date) else ''),
               'hosts': hosts_display
             } -%}
         {%- set _ = rows.append(row) -%}
