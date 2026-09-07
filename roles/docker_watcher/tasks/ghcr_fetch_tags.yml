@@ -1,0 +1,72 @@
+---
+# Fetches ONE page of tags for ghcr_entry, appends them to
+# ghcr_accumulated_tags, then recurses via include_tasks if GHCR's
+# Link response header says there's another page — bounded by
+# watchtower_ghcr_max_pages as a safety cap against a runaway repo
+# (or an unexpected infinite-Link loop).
+#
+# Expects: ghcr_entry (repo/path/token), and — on recursive calls
+# only — ghcr_next_url / ghcr_page_count passed in by the previous
+# call. First call omits both, so the defaults below kick in.
+
+- name: "Fetch a page of GHCR tags for {{ ghcr_entry.repo }}"
+  ansible.builtin.uri:
+    url: "{{ ghcr_next_url | default('https://ghcr.io/v2/' ~ ghcr_entry.path ~ '/tags/list?n=1000', true) }}"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ ghcr_entry.token }}"
+    return_content: true
+  register: watchtower_ghcr_page
+  ignore_errors: true
+  check_mode: false
+  become: false
+  run_once: true
+  delegate_to: localhost
+
+- name: "Accumulate tags for {{ ghcr_entry.repo }}"
+  ansible.builtin.set_fact:
+    ghcr_accumulated_tags: "{{ (ghcr_accumulated_tags | default([])) + (watchtower_ghcr_page.json.tags | default([])) }}"
+  when: watchtower_ghcr_page.status is defined and watchtower_ghcr_page.status == 200
+  run_once: true
+  delegate_to: localhost
+
+- name: "Work out whether GHCR says there's another page for {{ ghcr_entry.repo }}"
+  ansible.builtin.set_fact:
+    # Always set explicitly (never left unset) — these facts are
+    # plain host facts that persist across recursive calls, so if we
+    # only set this when a next-link exists, a stale truthy value
+    # from an earlier page could wrongly trigger one recursion too
+    # many.
+    ghcr_next_page_url: "{{ (link_target[1:-1]) if (link_target and ('rel=\"next\"' in link_header)) else '' }}"
+  vars:
+    link_header: "{{ watchtower_ghcr_page.link | default('') }}"
+    link_target: "{{ link_header | regex_search('<[^>]+>') }}"
+  run_once: true
+  delegate_to: localhost
+
+- name: "Decide whether to fetch another page for {{ ghcr_entry.repo }}"
+  ansible.builtin.set_fact:
+    ghcr_has_next_page: "{{ ((ghcr_next_page_url | default('')) != '') and ((ghcr_page_count | default(0)) < watchtower_ghcr_max_pages) }}"
+  run_once: true
+  delegate_to: localhost
+
+- name: "Bump the page counter for {{ ghcr_entry.repo }} before recursing"
+  ansible.builtin.set_fact:
+    # A plain set_fact self-reference (like ghcr_accumulated_tags
+    # above) resolves immediately to a concrete value and is safe.
+    # The same expression passed through include_tasks' `vars:`
+    # instead builds a live, unresolved template one link deeper per
+    # recursion — that's what tripped Jinja's recursion guard here.
+    ghcr_page_count: "{{ (ghcr_page_count | default(0)) + 1 }}"
+  when: ghcr_has_next_page
+  run_once: true
+  delegate_to: localhost
+
+- name: "Recurse to the next page for {{ ghcr_entry.repo }}"
+  ansible.builtin.include_tasks: ghcr_fetch_tags.yml
+  vars:
+    # Fine to pass via include vars: — it's a different variable name
+    # on the right-hand side (ghcr_next_page_url), not a self
+    # reference, so it doesn't build the same chain.
+    ghcr_next_url: "{{ ghcr_next_page_url if (ghcr_next_page_url | regex_search('^https?://')) else ('https://ghcr.io' ~ ghcr_next_page_url) }}"
+  when: ghcr_has_next_page

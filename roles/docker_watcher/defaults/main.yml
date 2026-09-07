@@ -4,9 +4,20 @@ watchtower_include_stopped: true
 
 # Matches image repos with no registry host (i.e. Docker Hub), so
 # "portainer/agent" and "nginx" match but "ghcr.io/x/y" or
-# "lscr.io/x/y" don't (those aren't on Docker Hub's API — not
-# handled yet, see README).
+# "lscr.io/x/y" don't — those are handled separately via GHCR's API
+# (see watchtower_ghcr_max_pages below).
 watchtower_docker_hub_repo_regex: '^[^./:]+(/[^./:]+)?$'
+
+# GHCR's tag list has no "most recently updated" ordering like Docker
+# Hub's API does, so we page through it (following the Link response
+# header) until either it runs out or we hit this many pages — a
+# safety cap, not an expected normal value. At 1000 tags/page this
+# allows up to watchtower_ghcr_max_pages * 1000 tags per repo. Repos
+# with an extreme tag count (frigate — years of per-commit dev/cache
+# tags plus several arch-variant tags per release) may still not be
+# fully covered; they fail safe to "not checked" rather than risk a
+# wrong answer. Raise this if a repo you care about needs more pages.
+watchtower_ghcr_max_pages: 20
 
 # ORDERED list — first prefix match wins, everything after it is
 # never consulted for that repo. Put more specific prefixes above
@@ -33,14 +44,28 @@ watchtower_tag_rules:
     regex: '^v\d+\.\d+\.\d+$'
 
   # Linuxserver images generally: '<upstream_version>-ls<build>', e.g.
-  # 4.0.10.2544-ls259. The "-ls<build>" suffix is optional since some
-  # linuxserver tags omit it.
+  # 4.0.10.2544-ls259. The "-ls<build>" suffix is now REQUIRED, not
+  # optional — every real linuxserver tag we've actually confirmed
+  # (qbittorrent, prowlarr, radarr) has it. Leaving it optional let a
+  # bare numeric tag with no suffix (e.g. sonarr's "5.14", lidarr's
+  # "8.1.2135" — neither looks like a real linuxserver release tag)
+  # slip through and win the numeric-tuple sort purely by having a
+  # bigger leading digit, same bug class as gluetun's "1243".
   - prefix: "linuxserver/"
-    regex: '^\d+(\.\d+)*(-ls\d+)?$'
+    regex: '^\d+(\.\d+)*-ls\d+$'
 
   # Alpine: plain three-part versions only, no -rc/-edge.
   - prefix: "alpine"
     regex: '^\d+\.\d+\.\d+$'
+
+  # open-webui's real releases are always v-prefixed (v0.10.2,
+  # v0.8.3 — confirmed via their GHCR package page). A bare "0.6.22"
+  # with no "v" showed up and won the sort despite being an older
+  # release than what's actually running — almost certainly a stray
+  # legacy/mirror tag, not a real release marker. Requiring "v"
+  # excludes it.
+  - prefix: "open-webui/open-webui"
+    regex: '^v\d+\.\d+\.\d+$'
 
 # Used when no entry in watchtower_tag_rules matches the repo — plain
 # numeric (optionally v-prefixed), no letters, and REQUIRES at least

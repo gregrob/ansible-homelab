@@ -1,0 +1,35 @@
+---
+# Handles ONE ghcr.io/lscr.io repo end-to-end:
+#   1. reset this repo's tag accumulator (these are plain facts, so
+#      without an explicit reset here, a repo processed earlier in
+#      the loop would leak its tags into this one)
+#   2. fetch every page of tags (ghcr_fetch_tags.yml recurses across
+#      pages on its own, following the registry's Link header)
+#   3. resolve the newest tag matching this repo's rule and store it
+#      in watchtower_latest_stable, same as the Docker Hub path does
+#
+# Expects `ghcr_entry` (with .repo, .path, .token) to be set by the
+# caller's loop_control/vars.
+
+- name: "Reset tag accumulator before fetching {{ ghcr_entry.repo }}"
+  ansible.builtin.set_fact:
+    ghcr_accumulated_tags: []
+    ghcr_page_count: 0
+  run_once: true
+  delegate_to: localhost
+
+- name: "Fetch all pages of tags for {{ ghcr_entry.repo }}"
+  ansible.builtin.include_tasks: ghcr_fetch_tags.yml
+
+- name: "Work out the newest stable tag for {{ ghcr_entry.repo }}"
+  ansible.builtin.set_fact:
+    watchtower_latest_stable: "{{ watchtower_latest_stable | combine({ghcr_entry.repo: newest}) }}"
+  vars:
+    # Match against the host-stripped path ("linuxserver/sonarr"),
+    # not the full "lscr.io/linuxserver/sonarr" — same reasoning as
+    # the non-paginated version had.
+    active_regex: "{{ ghcr_entry.path | pick_tag_regex(watchtower_tag_rules, watchtower_default_tag_regex) }}"
+    newest: "{{ ghcr_accumulated_tags | get_latest_docker_tag(active_regex) }}"
+  when: (ghcr_accumulated_tags | default([]) | length) > 0
+  run_once: true
+  delegate_to: localhost
