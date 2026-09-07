@@ -9,14 +9,16 @@ watchtower_include_stopped: true
 watchtower_docker_hub_repo_regex: '^[^./:]+(/[^./:]+)?$'
 
 # GHCR's tag list has no "most recently updated" ordering like Docker
-# Hub's API does, so we page through it (following the Link response
-# header) until either it runs out or we hit this many pages — a
-# safety cap, not an expected normal value. At 1000 tags/page this
-# allows up to watchtower_ghcr_max_pages * 1000 tags per repo. Repos
-# with an extreme tag count (frigate — years of per-commit dev/cache
-# tags plus several arch-variant tags per release) may still not be
-# fully covered; they fail safe to "not checked" rather than risk a
-# wrong answer. Raise this if a repo you care about needs more pages.
+# Hub's API does, so library/ghcr_tags.py pages through it internally
+# (following the Link response header, in a single Python loop rather
+# than N recursive Ansible tasks) until either it runs out or hits
+# this many pages — a safety cap, not an expected normal value. At
+# 1000 tags/page this allows up to watchtower_ghcr_max_pages * 1000
+# tags per repo. Repos with an extreme tag count (frigate — years of
+# per-commit dev/cache tags plus several arch-variant tags per
+# release) may still not be fully covered; they fail safe to "not
+# checked" rather than risk a wrong answer. Raise this if a repo you
+# care about needs more pages.
 watchtower_ghcr_max_pages: 20
 
 # ORDERED list — first prefix match wins, everything after it is

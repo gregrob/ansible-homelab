@@ -141,14 +141,19 @@
 # (e.g. "linuxserver/qbittorrent") apply unchanged regardless of
 # which of the two actually served the image.
 #
-# GHCR needs its own two-step anonymous flow (no API key involved):
-#   1. GET a short-lived pull token scoped to that one repo
-#   2. GET the tag list using that token as a Bearer header
-# Unlike Docker Hub, GHCR's tag list has no "last_updated" ordering
-# to sort by, so ghcr_per_repo.yml / ghcr_fetch_tags.yml page through
-# it (following the Link response header) instead of trusting a
-# single large page — capped at watchtower_ghcr_max_pages as a safety
-# net (see defaults/main.yml).
+# The token fetch + Link-header pagination both happen INSIDE the
+# ghcr_tags module (library/ghcr_tags.py) — one Ansible task per repo,
+# not one task per page. Two things this fixes versus the earlier
+# recursive-include_tasks version:
+#   - speed: pagination now runs as a tight Python loop in a single
+#     module invocation, instead of N full Ansible task executions
+#     (each with its own templating/connection overhead) per repo.
+#   - correctness of run_once: dynamic include_tasks doesn't reliably
+#     dedupe run_once across hosts (each host re-expands it
+#     independently), which was silently multiplying this whole
+#     fetch by however many docker hosts are in the play. A plain
+#     module task doesn't have that problem — run_once here behaves
+#     exactly like it does in Part 3's Docker Hub tasks.
 # ------------------------------------------------------------------
 
 - name: Identify unique ghcr.io / lscr.io image repos in use
@@ -157,56 +162,38 @@
   run_once: true
   delegate_to: localhost
 
-- name: Request an anonymous GHCR pull token for each repo
-  ansible.builtin.uri:
-    url: "https://ghcr.io/token?scope=repository:{{ item.split('/', 1)[1] }}:pull&service=ghcr.io"
-    method: GET
-    return_content: true
+- name: Fetch every GHCR / lscr.io repo's full tag list (one task per repo)
+  ghcr_tags:
+    repo: "{{ item.split('/', 1)[1] }}"
+    max_pages: "{{ watchtower_ghcr_max_pages }}"
   loop: "{{ watchtower_ghcr_repos }}"
   loop_control:
     label: "{{ item }}"
-  register: watchtower_ghcr_token_raw
+  register: watchtower_ghcr_tag_results
   ignore_errors: true
   run_once: true
   delegate_to: localhost
   check_mode: false
   become: false
 
-- name: Build a clean list of repos with a usable GHCR token
+- name: Work out the newest stable tag per ghcr.io / lscr.io repo
   ansible.builtin.set_fact:
-    watchtower_ghcr_authed: >-
-      {{ watchtower_ghcr_authed | default([]) + [{
-           'repo': result.item,
-           'path': result.item.split('/', 1)[1],
-           'token': result.json.token
-         }] }}
-  loop: "{{ watchtower_ghcr_token_raw.results }}"
+    watchtower_latest_stable: "{{ watchtower_latest_stable | combine({result.item: newest}) }}"
+  loop: "{{ watchtower_ghcr_tag_results.results }}"
   loop_control:
     loop_var: result
     label: "{{ result.item }}"
-  when: result.status is defined and result.status == 200 and result.json is defined and result.json.token is defined
+  when: result.tags is defined and (result.tags | length) > 0
+  vars:
+    # Match against the host-stripped path ("linuxserver/sonarr"),
+    # not the full "lscr.io/linuxserver/sonarr" — same reasoning as
+    # the Docker Hub path: one rule covers a repo regardless of which
+    # registry actually served it.
+    match_key: "{{ result.item.split('/', 1)[1] }}"
+    active_regex: "{{ match_key | pick_tag_regex(watchtower_tag_rules, watchtower_default_tag_regex) }}"
+    newest: "{{ result.tags | get_latest_docker_tag(active_regex) }}"
   run_once: true
   delegate_to: localhost
-
-- name: Fetch (with pagination) and resolve the newest tag for each ghcr.io / lscr.io repo
-  ansible.builtin.include_tasks: ghcr_per_repo.yml
-  vars:
-    ghcr_entry: "{{ entry }}"
-  loop: "{{ watchtower_ghcr_authed | default([]) }}"
-  loop_control:
-    loop_var: entry
-    label: "{{ entry.repo }}"
-  # run_once doesn't reliably dedupe a DYNAMIC include across hosts —
-  # each host independently re-expands include_tasks at runtime, and
-  # the fresh task objects it generates aren't recognised as "already
-  # run" the way a normal static task's would be. Without this gate,
-  # this entire GHCR fetch (tokens + pagination for every repo) was
-  # very likely running once per docker host instead of once for the
-  # whole play — with 13 hosts, that's 13x the API calls and runtime.
-  # A plain `when:` restricting to a single host sidesteps the issue
-  # entirely, and has none of the delegate_to/apply version quirks
-  # we've been fighting on this task.
-  when: inventory_hostname == (ansible_play_hosts | first)
 
 - name: Display container update summary
   ansible.builtin.debug:
