@@ -135,16 +135,50 @@
 - name: Display container update summary
   ansible.builtin.debug:
     msg: |
-      {{ '=' * 110 }}
-      {{ '%-45s | %-20s | %-22s | %s' | format('REPOSITORY', 'CURRENT VERSION(S)', 'AVAILABLE VERSION', 'UPDATE?') }}
-      {{ '-' * 110 }}
-      {% for repo, latest_tag in watchtower_latest_stable.items() %}
-      {% set current_tags = (fleet_version_summary[repo].keys() | list) if fleet_version_summary[repo] is defined else [] %}
-      {% set current_tags_str = current_tags | join(', ') if current_tags else 'Unknown' %}
-      {% set up_to_date = (current_tags == [latest_tag]) if current_tags else false %}
-      {{ '%-45s | %-20s | %-22s | %s' | format(repo, current_tags_str, latest_tag, ('⭐ UPDATE' if not up_to_date else '')) }}
+      {{ '=' * 130 }}
+      {{ '%-45s | %-20s | %-22s | %-10s | %s' | format('REPOSITORY', 'CURRENT VERSION(S)', 'AVAILABLE VERSION', 'UPDATE?', 'HOSTS NEEDING UPDATE') }}
+      {{ '-' * 130 }}
+      {% for row in display_rows %}
+      {{ '%-45s | %-20s | %-22s | %-10s | %s' | format(row.repo, row.current, row.latest, row.flag, row.hosts) }}
       {% endfor %}
-      {{ '=' * 110 }}
+      {{ '=' * 130 }}
+  vars:
+    # One precomputed row per repo, rather than nested logic inside
+    # the msg template itself — easier to read/extend.
+    display_rows: >-
+      {%- set rows = [] -%}
+      {%- for repo, latest_tag in watchtower_latest_stable.items() -%}
+        {%- set current_tags = (fleet_version_summary[repo].keys() | list) if fleet_version_summary[repo] is defined else [] -%}
+        {%- set up_to_date = (current_tags == [latest_tag]) if current_tags else false -%}
+        {%- set outdated_hosts = [] -%}
+        {%- set total_hosts = 0 -%}
+        {%- if fleet_version_summary[repo] is defined -%}
+          {%- set total_hosts = (fleet_version_summary[repo].values() | map('length') | sum) -%}
+          {%- for tag, nodes in fleet_version_summary[repo].items() -%}
+            {%- if tag != latest_tag -%}
+              {%- set _ = outdated_hosts.extend(nodes | map('regex_replace', '\..*$', '') | list) -%}
+            {%- endif -%}
+          {%- endfor -%}
+        {%- endif -%}
+        {%- set outdated_count = outdated_hosts | length -%}
+        {%- if outdated_count == 0 -%}
+          {%- set hosts_display = '' -%}
+        {%- elif outdated_count == total_hosts and total_hosts > 5 -%}
+          {%- set hosts_display = 'ALL (' ~ outdated_count ~ ')' -%}
+        {%- elif outdated_count > 5 -%}
+          {%- set hosts_display = outdated_count ~ ' hosts' -%}
+        {%- else -%}
+          {%- set hosts_display = outdated_hosts | sort | join(', ') -%}
+        {%- endif -%}
+        {%- set row = {
+              'repo': repo,
+              'current': (current_tags | join(', ')) if current_tags else 'Unknown',
+              'latest': latest_tag,
+              'flag': ('★' if not up_to_date else ''),
+              'hosts': hosts_display
+            } -%}
+        {%- set _ = rows.append(row) -%}
+      {%- endfor -%}
+      {{ rows }}
   run_once: true
   delegate_to: localhost
-  
