@@ -26,7 +26,7 @@ watchtower_docker_hub_repo_regex: '^[^./:]+(/[^./:]+)?$'
 # release) may still not be fully covered; they fail safe to "not
 # checked" rather than risk a wrong answer. Raise this if a repo you
 # care about needs more pages.
-watchtower_ghcr_max_pages: 20
+watchtower_ghcr_max_pages: 40
 
 # ORDERED list — first prefix match wins, everything after it is
 # never consulted for that repo. Put more specific prefixes above
