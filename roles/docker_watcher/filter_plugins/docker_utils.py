@@ -1,5 +1,6 @@
 import re
 
+
 def get_latest_docker_tag(results_list, regex_pattern):
     """
     Takes a list of Docker Hub tag dictionaries, filters them by a regex,
@@ -10,7 +11,7 @@ def get_latest_docker_tag(results_list, regex_pattern):
 
     # 1. Extract only the tag names that match the strict regex
     valid_tags = [
-        tag['name'] for tag in results_list 
+        tag['name'] for tag in results_list
         if 'name' in tag and re.match(regex_pattern, tag['name'])
     ]
 
@@ -28,8 +29,33 @@ def get_latest_docker_tag(results_list, regex_pattern):
     valid_tags.sort(key=extract_numeric_tuple)
     return valid_tags[-1]
 
+
+def pick_tag_regex(repo, tag_rules, default_regex):
+    """
+    Walks an ORDERED list of {prefix, regex} dicts and returns the regex
+    for the first entry whose prefix the repo starts with. Order is the
+    only thing that decides priority — put more specific prefixes
+    (e.g. 'linuxserver/sonarr') before more general ones
+    (e.g. 'linuxserver/') in watchtower_tag_rules, since the first
+    match wins and later entries are never consulted once one hits.
+
+    Falls back to default_regex if nothing in the list matches.
+    """
+    if not tag_rules:
+        return default_regex
+
+    for rule in tag_rules:
+        prefix = rule.get('prefix', '')
+        regex = rule.get('regex')
+        if prefix and regex and repo.startswith(prefix):
+            return regex
+
+    return default_regex
+
+
 class FilterModule(object):
     def filters(self):
         return {
-            'get_latest_docker_tag': get_latest_docker_tag
+            'get_latest_docker_tag': get_latest_docker_tag,
+            'pick_tag_regex': pick_tag_regex,
         }

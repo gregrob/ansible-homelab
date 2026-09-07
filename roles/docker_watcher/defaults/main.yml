@@ -3,21 +3,53 @@
 watchtower_include_stopped: true
 
 # Matches image repos with no registry host (i.e. Docker Hub), so
-# "portainer/agent" and "nginx" match but "ghcr.io/x/y" doesn't.
+# "portainer/agent" and "nginx" match but "ghcr.io/x/y" or
+# "lscr.io/x/y" don't (those aren't on Docker Hub's API — not
+# handled yet, see README).
 watchtower_docker_hub_repo_regex: '^[^./:]+(/[^./:]+)?$'
 
-# Only tags matching this are treated as "real" versions when
-# checking for updates — plain numeric (optionally v-prefixed),
-# no letters. Deliberately excludes latest/nightly/edge/beta/rc/
-# dev/test/alpha/canary/etc, since those all contain letters.
-
+# ORDERED list — first prefix match wins, everything after it is
+# never consulted for that repo. Put more specific prefixes above
+# more general ones (e.g. a repo-specific rule above the family-wide
+# "linuxserver/" rule) so specificity is explicit, not accidental.
 watchtower_tag_rules:
-  # Linuxserver images usually follow 'version-ls<number>'
-  #"linuxserver/": '^\d+(\.\d+)+-ls\d+$'
-  "linuxserver/": '^\d+(\.\d+)*(-ls\d+)?$'
+  # qbittorrent's linuxserver tags are compound:
+  # <qbittorrent_version>_v<libtorrent_version>-ls<build>
+  # e.g. 5.2.3_v2.0.14-ls475. Must come BEFORE the generic
+  # "linuxserver/" rule below, since this repo also starts with
+  # "linuxserver/" and would otherwise be caught by that rule first
+  # (which can't match this format at all).
+  - prefix: "linuxserver/qbittorrent"
+    regex: '^\d+(\.\d+){1,3}_v\d+(\.\d+){1,3}-ls\d+$'
 
-  # Alpine usually has plain versions, we just want to avoid -rc or edge
-  "alpine": '^\d+\.\d+\.\d+$'
-  
-  # The default catch-all strict regex you originally wrote
-  "default": '^v?\d+(\.\d+){0,3}$'
+  # gluetun tags a bunch of non-release things (pr-####, issue-####,
+  # test, latest) plus a bare CI build-number tag (e.g. "1243") that
+  # matched the old default regex and won the numeric sort purely by
+  # being a bigger number. Require the FULL vX.Y.Z shape — this also
+  # excludes "v3" / "v3.41", which look like floating major/minor
+  # aliases rather than pinned releases (same idea as portainer's
+  # v1/v2 aliases).
+  - prefix: "qmcgaw/gluetun"
+    regex: '^v\d+\.\d+\.\d+$'
+
+  # Linuxserver images generally: '<upstream_version>-ls<build>', e.g.
+  # 4.0.10.2544-ls259. The "-ls<build>" suffix is optional since some
+  # linuxserver tags omit it.
+  - prefix: "linuxserver/"
+    regex: '^\d+(\.\d+)*(-ls\d+)?$'
+
+  # Alpine: plain three-part versions only, no -rc/-edge.
+  - prefix: "alpine"
+    regex: '^\d+\.\d+\.\d+$'
+
+# Used when no entry in watchtower_tag_rules matches the repo — plain
+# numeric (optionally v-prefixed), no letters, and REQUIRES at least
+# one dot. That last part matters: without it, a bare integer (a CI
+# build number, a date-stamp nightly tag like "2026090423") passes
+# the filter and then wins the numeric-tuple sort purely by being a
+# big single number — e.g. 2026090423 > (10, 11, 11) since Python
+# compares tuples element-by-element and the first element alone
+# already "wins". Requiring >=1 dot means a repo we haven't written a
+# specific rule for yet fails safe to "not checked" instead of
+# silently reporting a wrong "latest" version.
+watchtower_default_tag_regex: '^v?\d+(\.\d+){1,3}$'

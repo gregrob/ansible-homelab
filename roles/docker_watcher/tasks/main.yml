@@ -35,7 +35,7 @@
 
 - name: Debug normalised container list for this node
   ansible.builtin.debug:
-    msg: 
+    msg:
       - "Node: {{ inventory_hostname }}"
       - "Total containers found: {{ watchtower_containers | length }}"
       - "Container details:"
@@ -77,15 +77,16 @@
   run_once: true
 
 # ------------------------------------------------------------------
-# Part 3 — NEW: for images hosted on Docker Hub, look up what's
-# actually available upstream and flag repos where a newer *stable*
-# version exists. Deliberately narrow: only tags that are pure
-# numeric versions (optionally "v"-prefixed, e.g. 2.19.4, v1.4.0)
-# are considered — this naturally excludes "latest", "nightly",
-# "edge", "beta", "rc", "dev", "test", "alpha", "canary", etc.
-# without needing a maintained exclude-list, since all of those
-# contain letters. Non-Docker-Hub registries (ghcr.io, lscr.io,
-# quay.io, private registries) are skipped for now — see README.
+# Part 3 — for images hosted on Docker Hub, look up what's actually
+# available upstream and flag repos where a newer *stable* version
+# exists. Which tags count as "real" versions is decided per-repo by
+# watchtower_tag_rules (ordered, first-match-wins — see defaults),
+# falling back to watchtower_default_tag_regex. This naturally
+# excludes "latest", "nightly", "edge", "beta", "rc", "dev", "test",
+# "alpha", "canary", etc. without a maintained exclude-list, since
+# all of those contain letters. Non-Docker-Hub registries (ghcr.io,
+# lscr.io, quay.io, private registries) are skipped for now — see
+# README.
 # ------------------------------------------------------------------
 
 - name: Identify unique Docker Hub image repos in use (skip other registries)
@@ -94,7 +95,6 @@
   run_once: true
   delegate_to: localhost
 
-# FIX 1: Initialize the dictionary so it always exists, even if API calls fail or skip
 - name: Initialize latest stable dictionary
   ansible.builtin.set_fact:
     watchtower_latest_stable: {}
@@ -113,10 +113,10 @@
   ignore_errors: true
   run_once: true
   delegate_to: localhost
-  check_mode: false  # FIX 2: Force this to run even in dry-run/check-mode
+  check_mode: false
   become: false
 
-- name: Work out the newest stable tag per repo (Custom Filter Method)
+- name: Work out the newest stable tag per repo
   ansible.builtin.set_fact:
     watchtower_latest_stable: "{{ watchtower_latest_stable | combine({item.item: newest}) }}"
   loop: "{{ watchtower_hub_tag_results.results }}"
@@ -124,33 +124,27 @@
     label: "{{ item.item }}"
   when: item.status is defined and item.status == 200
   vars:
-    # 1. Figure out which regex rule applies to this specific repository
-    active_regex: >-
-      {%- set matched_rule = ['default'] -%}
-      {%- for prefix, regex in watchtower_tag_rules.items() -%}
-        {%- if prefix != 'default' and item.item.startswith(prefix) -%}
-          {%- set _ = matched_rule.append(regex) -%}
-        {%- endif -%}
-      {%- endfor -%}
-      {{ matched_rule | last if (matched_rule | length > 1) else watchtower_tag_rules['default'] }}
-
-    # 2. Pass the raw JSON array and the regex straight into our Python filter!
+    # Ordered-list lookup, first-match-wins, resolved in Python
+    # (filter_plugins/docker_utils.py) instead of a nested Jinja
+    # loop — priority is now just "position in the list".
+    active_regex: "{{ item.item | pick_tag_regex(watchtower_tag_rules, watchtower_default_tag_regex) }}"
     newest: "{{ item.json.results | default([]) | get_latest_docker_tag(active_regex) }}"
   run_once: true
   delegate_to: localhost
 
-
-- name: Display Container Update Summary
+- name: Display container update summary
   ansible.builtin.debug:
     msg: |
-      ================================================================================
-      {{ '%-45s | %-20s | %-15s' | format('REPOSITORY', 'CURRENT VERSION(S)', 'AVAILABLE VERSION') }}
-      --------------------------------------------------------------------------------
+      {{ '=' * 110 }}
+      {{ '%-45s | %-20s | %-22s | %s' | format('REPOSITORY', 'CURRENT VERSION(S)', 'AVAILABLE VERSION', 'UPDATE?') }}
+      {{ '-' * 110 }}
       {% for repo, latest_tag in watchtower_latest_stable.items() %}
-      {% set current_tags = fleet_version_summary[repo].keys() | list | join(', ') if fleet_version_summary[repo] is defined else 'Unknown' %}
-      {{ '%-45s | %-20s | %-15s' | format(repo, current_tags, latest_tag) }}
+      {% set current_tags = (fleet_version_summary[repo].keys() | list) if fleet_version_summary[repo] is defined else [] %}
+      {% set current_tags_str = current_tags | join(', ') if current_tags else 'Unknown' %}
+      {% set up_to_date = (current_tags == [latest_tag]) if current_tags else false %}
+      {{ '%-45s | %-20s | %-22s | %s' | format(repo, current_tags_str, latest_tag, ('⭐ UPDATE' if not up_to_date else '')) }}
       {% endfor %}
-      ================================================================================
+      {{ '=' * 110 }}
   run_once: true
   delegate_to: localhost
-
+  
