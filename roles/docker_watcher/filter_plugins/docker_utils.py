@@ -1,19 +1,36 @@
 import re
 
 
+def _extract_tag_names(results_list):
+    """
+    Normalises two different upstream shapes into a flat list of tag
+    name strings:
+      - Docker Hub: list of dicts, e.g. [{"name": "1.2.3", ...}, ...]
+      - GHCR:       flat list of strings, e.g. ["1.2.3", "latest", ...]
+    """
+    names = []
+    for item in results_list:
+        if isinstance(item, dict):
+            if 'name' in item:
+                names.append(item['name'])
+        elif isinstance(item, str):
+            names.append(item)
+    return names
+
+
 def get_latest_docker_tag(results_list, regex_pattern):
     """
-    Takes a list of Docker Hub tag dictionaries, filters them by a regex,
-    and sorts them safely by extracting purely numeric tuples.
+    Takes a list of tags (either Docker Hub's list-of-dicts or GHCR's
+    flat list-of-strings — see _extract_tag_names), filters them by a
+    regex, and sorts them safely by extracting purely numeric tuples.
     """
     if not results_list:
         return ""
 
+    tag_names = _extract_tag_names(results_list)
+
     # 1. Extract only the tag names that match the strict regex
-    valid_tags = [
-        tag['name'] for tag in results_list
-        if 'name' in tag and re.match(regex_pattern, tag['name'])
-    ]
+    valid_tags = [name for name in tag_names if re.match(regex_pattern, name)]
 
     if not valid_tags:
         return ""

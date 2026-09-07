@@ -132,6 +132,98 @@
   run_once: true
   delegate_to: localhost
 
+# ------------------------------------------------------------------
+# Part 4 — same idea as Part 3, but for ghcr.io and lscr.io.
+# lscr.io is linuxserver's own pull-through cache in front of
+# ghcr.io/linuxserver/*, so it's treated as the same backend here:
+# both get their registry host stripped down to "org/repo" before
+# doing anything else, which also means watchtower_tag_rules prefixes
+# (e.g. "linuxserver/qbittorrent") apply unchanged regardless of
+# which of the two actually served the image.
+#
+# GHCR needs its own two-step anonymous flow (no API key involved):
+#   1. GET a short-lived pull token scoped to that one repo
+#   2. GET the tag list using that token as a Bearer header
+# Unlike Docker Hub, GHCR's tag list has no "last_updated" ordering
+# to sort by, so we ask for a large page (?n=1000) and take the whole
+# thing — fine for anything with a normal number of tags, but a repo
+# with an extreme tag count could theoretically need real pagination
+# (following the Link header), which isn't implemented here.
+# ------------------------------------------------------------------
+
+- name: Identify unique ghcr.io / lscr.io image repos in use
+  ansible.builtin.set_fact:
+    watchtower_ghcr_repos: "{{ watchtower_all_containers | map(attribute='image_repo') | unique | select('match', '^(ghcr\\.io|lscr\\.io)/.+/.+$') | list }}"
+  run_once: true
+  delegate_to: localhost
+
+- name: Request an anonymous GHCR pull token for each repo
+  ansible.builtin.uri:
+    url: "https://ghcr.io/token?scope=repository:{{ item.split('/', 1)[1] }}:pull&service=ghcr.io"
+    method: GET
+    return_content: true
+  loop: "{{ watchtower_ghcr_repos }}"
+  loop_control:
+    label: "{{ item }}"
+  register: watchtower_ghcr_token_raw
+  ignore_errors: true
+  run_once: true
+  delegate_to: localhost
+  check_mode: false
+  become: false
+
+- name: Build a clean list of repos with a usable GHCR token
+  ansible.builtin.set_fact:
+    watchtower_ghcr_authed: >-
+      {{ watchtower_ghcr_authed | default([]) + [{
+           'repo': result.item,
+           'path': result.item.split('/', 1)[1],
+           'token': result.json.token
+         }] }}
+  loop: "{{ watchtower_ghcr_token_raw.results }}"
+  loop_control:
+    loop_var: result
+    label: "{{ result.item }}"
+  when: result.status is defined and result.status == 200 and result.json is defined and result.json.token is defined
+  run_once: true
+  delegate_to: localhost
+
+- name: Query GHCR for each authed repo's tag list
+  ansible.builtin.uri:
+    url: "https://ghcr.io/v2/{{ entry.path }}/tags/list?n=1000"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ entry.token }}"
+    return_content: true
+  loop: "{{ watchtower_ghcr_authed | default([]) }}"
+  loop_control:
+    loop_var: entry
+    label: "{{ entry.repo }}"
+  register: watchtower_ghcr_tags_raw
+  ignore_errors: true
+  run_once: true
+  delegate_to: localhost
+  check_mode: false
+  become: false
+
+- name: Work out the newest stable tag per ghcr.io / lscr.io repo
+  ansible.builtin.set_fact:
+    watchtower_latest_stable: "{{ watchtower_latest_stable | combine({result.entry.repo: newest}) }}"
+  loop: "{{ watchtower_ghcr_tags_raw.results }}"
+  loop_control:
+    loop_var: result
+    label: "{{ result.entry.repo }}"
+  when: result.status is defined and result.status == 200 and result.json is defined and result.json.tags is defined
+  vars:
+    # Match against the host-stripped path ("linuxserver/sonarr"),
+    # not the full "lscr.io/linuxserver/sonarr" — so existing
+    # watchtower_tag_rules entries apply the same way regardless of
+    # which registry actually served the image.
+    active_regex: "{{ result.entry.path | pick_tag_regex(watchtower_tag_rules, watchtower_default_tag_regex) }}"
+    newest: "{{ result.json.tags | get_latest_docker_tag(active_regex) }}"
+  run_once: true
+  delegate_to: localhost
+
 - name: Display container update summary
   ansible.builtin.debug:
     msg: |
