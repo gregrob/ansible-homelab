@@ -1,0 +1,16 @@
+---
+galaxy_info:
+  role_name: container_watchtower
+  description: >
+    Inventories running and stopped Docker containers across a set of hosts,
+    records the image/tag each is running, and renders a single consolidated
+    Markdown report grouped by container name so version drift between
+    nodes is obvious at a glance.
+  author: Greg
+  min_ansible_version: "2.14"
+
+dependencies: []
+
+collections:
+  - community.docker
+  - community.general

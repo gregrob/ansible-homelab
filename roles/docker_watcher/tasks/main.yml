@@ -1,0 +1,156 @@
+---
+# ------------------------------------------------------------------
+# Part 1 — runs on EVERY host in the play: gather that host's own
+# container list (running + stopped) and normalise it into a flat,
+# easy-to-report-on structure stored in the host's own facts.
+# ------------------------------------------------------------------
+
+- name: Gather full container inventory (running + stopped) for this node
+  community.docker.docker_host_info:
+    containers: true
+    containers_all: "{{ watchtower_include_stopped }}"
+  register: watchtower_docker_info
+
+- name: Initialise this node's normalised container list
+  ansible.builtin.set_fact:
+    watchtower_containers: []
+
+- name: Normalise each container's image/tag/state for this node
+  ansible.builtin.set_fact:
+    watchtower_containers: "{{ watchtower_containers + [entry] }}"
+  loop: "{{ watchtower_docker_info.containers }}"
+  loop_control:
+    loop_var: c
+    label: "{{ (c.Names[0] | default('unknown')) | regex_replace('^/', '') }}"
+  vars:
+    entry:
+      node: "{{ inventory_hostname }}"
+      name: "{{ (c.Names[0] | default('')) | regex_replace('^/', '') }}"
+      image: "{{ c.Image }}"
+      image_repo: "{{ c.Image.split(':')[0] }}"
+      image_tag: "{{ c.Image.split(':')[1] if ':' in c.Image else 'latest' }}"
+      image_id: "{{ c.ImageID | default('') }}"
+      state: "{{ c.State | default('unknown') }}"
+      status: "{{ c.Status | default('') }}"
+
+- name: Debug normalised container list for this node
+  ansible.builtin.debug:
+    msg: 
+      - "Node: {{ inventory_hostname }}"
+      - "Total containers found: {{ watchtower_containers | length }}"
+      - "Container details:"
+      - "{{ watchtower_containers }}"
+
+# ------------------------------------------------------------------
+# Part 2 — runs ONCE, delegated to localhost, after every host has
+# completed Part 1 above (Ansible executes task-by-task across the
+# whole play by default, so hostvars for every node are already
+# populated by the time we get here).
+# ------------------------------------------------------------------
+
+- name: Flatten every node's container list into one combined list
+  ansible.builtin.set_fact:
+    watchtower_all_containers: "{{ watchtower_all_containers | default([]) + (hostvars[item].watchtower_containers | default([])) }}"
+  loop: "{{ ansible_play_hosts }}"
+  run_once: true
+  delegate_to: localhost
+
+- name: Group containers by repo and tag to map version allocation across nodes
+  ansible.builtin.set_fact:
+    fleet_version_summary: >-
+      {%- set output = {} -%}
+      {%- for repo, repo_items in watchtower_all_containers | groupby('image_repo') -%}
+        {%- set tag_groups = {} -%}
+        {%- for tag, tag_items in repo_items | groupby('image_tag') -%}
+          {%- set nodes = tag_items | map(attribute='node') | unique | list -%}
+          {%- set _ = tag_groups.update({tag: nodes}) -%}
+        {%- endfor -%}
+        {%- set _ = output.update({repo: tag_groups}) -%}
+      {%- endfor -%}
+      {{ output }}
+  run_once: true
+  delegate_to: localhost
+
+- name: Debug the version allocation matrix
+  ansible.builtin.debug:
+    var: fleet_version_summary
+  run_once: true
+
+# ------------------------------------------------------------------
+# Part 3 — NEW: for images hosted on Docker Hub, look up what's
+# actually available upstream and flag repos where a newer *stable*
+# version exists. Deliberately narrow: only tags that are pure
+# numeric versions (optionally "v"-prefixed, e.g. 2.19.4, v1.4.0)
+# are considered — this naturally excludes "latest", "nightly",
+# "edge", "beta", "rc", "dev", "test", "alpha", "canary", etc.
+# without needing a maintained exclude-list, since all of those
+# contain letters. Non-Docker-Hub registries (ghcr.io, lscr.io,
+# quay.io, private registries) are skipped for now — see README.
+# ------------------------------------------------------------------
+
+- name: Identify unique Docker Hub image repos in use (skip other registries)
+  ansible.builtin.set_fact:
+    watchtower_hub_repos: "{{ watchtower_all_containers | selectattr('image_repo', 'match', watchtower_docker_hub_repo_regex) | map(attribute='image_repo') | unique | list }}"
+  run_once: true
+  delegate_to: localhost
+
+# FIX 1: Initialize the dictionary so it always exists, even if API calls fail or skip
+- name: Initialize latest stable dictionary
+  ansible.builtin.set_fact:
+    watchtower_latest_stable: {}
+  run_once: true
+  delegate_to: localhost
+
+- name: Query Docker Hub for each repo's recent tags
+  ansible.builtin.uri:
+    url: "https://hub.docker.com/v2/repositories/{{ (('/' in item) | ternary(item, 'library/' ~ item)) }}/tags?page_size=100&ordering=last_updated"
+    method: GET
+    return_content: true
+  loop: "{{ watchtower_hub_repos }}"
+  loop_control:
+    label: "{{ item }}"
+  register: watchtower_hub_tag_results
+  ignore_errors: true
+  run_once: true
+  delegate_to: localhost
+  check_mode: false  # FIX 2: Force this to run even in dry-run/check-mode
+  become: false
+
+- name: Work out the newest stable tag per repo (Custom Filter Method)
+  ansible.builtin.set_fact:
+    watchtower_latest_stable: "{{ watchtower_latest_stable | combine({item.item: newest}) }}"
+  loop: "{{ watchtower_hub_tag_results.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.status is defined and item.status == 200
+  vars:
+    # 1. Figure out which regex rule applies to this specific repository
+    active_regex: >-
+      {%- set matched_rule = ['default'] -%}
+      {%- for prefix, regex in watchtower_tag_rules.items() -%}
+        {%- if prefix != 'default' and item.item.startswith(prefix) -%}
+          {%- set _ = matched_rule.append(regex) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ matched_rule | last if (matched_rule | length > 1) else watchtower_tag_rules['default'] }}
+
+    # 2. Pass the raw JSON array and the regex straight into our Python filter!
+    newest: "{{ item.json.results | default([]) | get_latest_docker_tag(active_regex) }}"
+  run_once: true
+  delegate_to: localhost
+
+
+- name: Display Container Update Summary
+  ansible.builtin.debug:
+    msg: |
+      ================================================================================
+      {{ '%-45s | %-20s | %-15s' | format('REPOSITORY', 'CURRENT VERSION(S)', 'AVAILABLE VERSION') }}
+      --------------------------------------------------------------------------------
+      {% for repo, latest_tag in watchtower_latest_stable.items() %}
+      {% set current_tags = fleet_version_summary[repo].keys() | list | join(', ') if fleet_version_summary[repo] is defined else 'Unknown' %}
+      {{ '%-45s | %-20s | %-15s' | format(repo, current_tags, latest_tag) }}
+      {% endfor %}
+      ================================================================================
+  run_once: true
+  delegate_to: localhost
+

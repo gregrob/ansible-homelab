@@ -1,0 +1,23 @@
+---
+# Set false if you only care about currently-running containers
+watchtower_include_stopped: true
+
+# Matches image repos with no registry host (i.e. Docker Hub), so
+# "portainer/agent" and "nginx" match but "ghcr.io/x/y" doesn't.
+watchtower_docker_hub_repo_regex: '^[^./:]+(/[^./:]+)?$'
+
+# Only tags matching this are treated as "real" versions when
+# checking for updates — plain numeric (optionally v-prefixed),
+# no letters. Deliberately excludes latest/nightly/edge/beta/rc/
+# dev/test/alpha/canary/etc, since those all contain letters.
+
+watchtower_tag_rules:
+  # Linuxserver images usually follow 'version-ls<number>'
+  #"linuxserver/": '^\d+(\.\d+)+-ls\d+$'
+  "linuxserver/": '^\d+(\.\d+)*(-ls\d+)?$'
+
+  # Alpine usually has plain versions, we just want to avoid -rc or edge
+  "alpine": '^\d+\.\d+\.\d+$'
+  
+  # The default catch-all strict regex you originally wrote
+  "default": '^v?\d+(\.\d+){0,3}$'
