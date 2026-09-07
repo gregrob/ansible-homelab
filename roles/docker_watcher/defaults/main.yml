@@ -52,6 +52,15 @@ watchtower_tag_rules:
   - prefix: "qmcgaw/gluetun"
     regex: '^v\d+\.\d+\.\d+$'
 
+  # speedtest-tracker's linuxserver tags are v<version>-ls<build>,
+  # e.g. v1.14.5-ls162 — a THIRD linuxserver tag shape, distinct from
+  # both qbittorrent's and the generic no-"v" one below (confirmed via
+  # their GHCR package page; none of the arr-stack repos have this
+  # "v" prefix, but speedtest-tracker always does). Must come before
+  # the generic "linuxserver/" rule for the same reason as qbittorrent.
+  - prefix: "linuxserver/speedtest-tracker"
+    regex: '^v\d+(\.\d+)*-ls\d+$'
+
   # Linuxserver images generally: '<upstream_version>-ls<build>', e.g.
   # 4.0.10.2544-ls259. The "-ls<build>" suffix is now REQUIRED, not
   # optional — every real linuxserver tag we've actually confirmed
