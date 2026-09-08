@@ -7,14 +7,10 @@ module: ghcr_tags
 short_description: Fetch every tag for a ghcr.io repo (including lscr.io mirrors) in one task
 description:
   - Requests an anonymous GHCR pull token for the given repo, then fetches
-    every page of its tag list, following the registry's Link response
-    header, up to max_pages pages.
-  - Does the whole thing inside a single Python process, in one Ansible
-    task — no recursive include_tasks needed, which is both far faster
-    and avoids the run_once-doesn't-dedupe-dynamic-includes problem that
-    a recursive-include version runs into across multiple hosts.
-  - Uses only the Python standard library (urllib) — nothing extra to
-    install on the control node.
+    every page of its tag list in one task, following the registry's Link
+    response header until it's exhausted or max_pages is reached.
+  - Uses only the Python standard library (urllib) — no extra dependencies
+    needed on the control node.
 options:
   repo:
     description:

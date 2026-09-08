@@ -1,8 +1,7 @@
 ---
 # ------------------------------------------------------------------
-# Part 1 — runs on EVERY host in the play: gather that host's own
-# container list (running + stopped) and normalise it into a flat,
-# easy-to-report-on structure stored in the host's own facts.
+# Part 1 — runs on every host: gather that host's container list
+# (running + stopped) and normalise it into a flat per-host fact.
 # ------------------------------------------------------------------
 
 - name: Gather full container inventory (running + stopped) for this node
@@ -43,10 +42,9 @@
   when: docker_watcher_debug
 
 # ------------------------------------------------------------------
-# Part 2 — runs ONCE, delegated to localhost, after every host has
-# completed Part 1 above (Ansible executes task-by-task across the
-# whole play by default, so hostvars for every node are already
-# populated by the time we get here).
+# Part 2 — runs once (delegated to localhost) after every host has
+# finished Part 1: combines every host's container list and builds
+# the repo -> tag -> [nodes] summary used everywhere below.
 # ------------------------------------------------------------------
 
 - name: Flatten every node's container list into one combined list
@@ -79,22 +77,17 @@
   run_once: true
 
 # ------------------------------------------------------------------
-# Part 3 — for images hosted on Docker Hub (including docker.io/),
-# look up what's actually available upstream and flag repos where a 
-# newer *stable* version exists. Which tags count as "real" versions 
-# is decided per-repo by docker_watcher_tag_rules (ordered, 
-# first-match-wins — see defaults), falling back to 
-# docker_watcher_default_tag_regex. This naturally excludes "latest", 
-# "nightly", "edge", "beta", "rc", "dev", "test", "alpha", "canary", 
-# etc. without a maintained exclude-list, since all of those contain 
-# letters. Non-Docker-Hub registries (ghcr.io, lscr.io, quay.io, 
-# private registries) are skipped for now — see README.
+# Part 3 — Docker Hub (including docker.io/) version check. Which
+# tags count as real releases is decided by docker_watcher_tag_rules,
+# falling back to docker_watcher_default_tag_regex. Other registries
+# (ghcr.io, lscr.io, quay.io, private) are handled separately or not
+# at all — see README.
 # ------------------------------------------------------------------
 
 - name: Identify unique Docker Hub image repos in use (including docker.io)
   ansible.builtin.set_fact:
-    # Uses a clean Jinja loop and basic string matching to absolutely guarantee
-    # docker.io images are captured, avoiding complex regex pipeline failures.
+    # Matches the regex OR an explicit docker.io/ prefix, since
+    # docker.io always has a dot and the regex alone would exclude it.
     docker_watcher_hub_repos: >-
       {%- set results = [] -%}
       {%- for repo in (docker_watcher_all_containers | map(attribute='image_repo') | unique | list) -%}
@@ -124,12 +117,10 @@
   loop_control:
     label: "{{ item }}"
   vars:
-    # Calculate exactly what the Hub API wants to see:
-    # "docker.io/library/postgres" -> "library/postgres"
-    # "postgres" -> "library/postgres"
-    # "linuxserver/plex" -> "linuxserver/plex"
-    # Escaped dot ('\.') so this only strips a literal "docker.io/"
-    # prefix, not "dockerXio/" or any other single-char-for-dot match.
+    # Docker Hub's API wants "namespace/repo":
+    #   docker.io/library/postgres -> library/postgres
+    #   postgres                   -> library/postgres
+    #   linuxserver/plex           -> linuxserver/plex
     stripped: "{{ item | regex_replace('^docker\\.io/', '') }}"
     api_path: "{{ stripped if '/' in stripped else ('library/' ~ stripped) }}"
   register: docker_watcher_hub_tag_results
@@ -147,9 +138,8 @@
   loop_control:
     label: "{{ item.item }}"
   vars:
-    # Strip both domains and 'library/' prefixes so our python filter
-    # matches rules perfectly (e.g., matching "postgres" instead of "docker.io/library/postgres")
-    # Escaped dot here too, same reasoning as above.
+    # Rules match on the bare "namespace/repo" identity, so strip any
+    # docker.io/ and library/ wrapping first.
     step1: "{{ item.item | regex_replace('^docker\\.io/', '') }}"
     clean_repo: "{{ step1 | regex_replace('^library/', '') }}"
     active_regex: "{{ clean_repo | pick_tag_regex(docker_watcher_tag_rules, docker_watcher_default_tag_regex) }}"
@@ -157,33 +147,22 @@
     fetch_ok: "{{ item.status is defined and item.status == 200 }}"
     newest: "{{ (item.json.results | default([]) | get_latest_docker_tag(active_regex)) if fetch_ok else '' }}"
     status_label: "{{ 'resolved' if (fetch_ok and newest != '') else ('no_match' if fetch_ok else 'fetch_failed') }}"
+    # Only stored when resolved — an empty "latest" would make every
+    # downstream comparison register as "needs update".
     latest_update: "{{ {item.item: newest} if (fetch_ok and newest != '') else {} }}"
   run_once: true
   delegate_to: localhost
   become: false
 
 # ------------------------------------------------------------------
-# Part 4 — same idea as Part 3, but for ghcr.io and lscr.io.
-# lscr.io is linuxserver's own pull-through cache in front of
-# ghcr.io/linuxserver/*, so it's treated as the same backend here:
-# both get their registry host stripped down to "org/repo" before
-# doing anything else, which also means docker_watcher_tag_rules
-# prefixes (e.g. "linuxserver/qbittorrent") apply unchanged regardless
-# of which of the two actually served the image.
+# Part 4 — same as Part 3, for ghcr.io and lscr.io (linuxserver's
+# pull-through cache of ghcr.io/linuxserver/*, treated as the same
+# backend). Repos are matched against docker_watcher_tag_rules using
+# the registry-stripped "org/repo" path, so one rule covers a repo
+# regardless of which of the two served it.
 #
-# The token fetch + Link-header pagination both happen INSIDE the
-# ghcr_tags module (library/ghcr_tags.py) — one Ansible task per repo,
-# not one task per page. Two things this fixes versus the earlier
-# recursive-include_tasks version:
-#   - speed: pagination now runs as a tight Python loop in a single
-#     module invocation, instead of N full Ansible task executions
-#     (each with its own templating/connection overhead) per repo.
-#   - correctness of run_once: dynamic include_tasks doesn't reliably
-#     dedupe run_once across hosts (each host re-expands it
-#     independently), which was silently multiplying this whole
-#     fetch by however many docker hosts are in the play. A plain
-#     module task doesn't have that problem — run_once here behaves
-#     exactly like it does in Part 3's Docker Hub tasks.
+# Token fetch + pagination both happen inside the ghcr_tags module
+# (library/ghcr_tags.py) — one task per repo, not one per page.
 # ------------------------------------------------------------------
 
 - name: Identify unique ghcr.io / lscr.io image repos in use
@@ -215,10 +194,8 @@
     loop_var: result
     label: "{{ result.item }}"
   vars:
-    # Match against the host-stripped path ("linuxserver/sonarr"),
-    # not the full "lscr.io/linuxserver/sonarr" — same reasoning as
-    # the Docker Hub path: one rule covers a repo regardless of which
-    # registry actually served it.
+    # Same host-stripped matching as the Docker Hub path — one rule
+    # covers a repo regardless of which registry served it.
     match_key: "{{ result.item.split('/', 1)[1] }}"
     active_regex: "{{ match_key | pick_tag_regex(docker_watcher_tag_rules, docker_watcher_default_tag_regex) }}"
     fetch_ok: "{{ result.tags is defined and (result.tags | length) > 0 }}"
@@ -239,14 +216,11 @@
       {% endfor %}
       {{ '=' * 130 }}
   vars:
-    # One precomputed row per repo we actually attempted to check
-    # (Docker Hub + GHCR/lscr.io lists), rather than nested logic
-    # inside the msg template itself — easier to read/extend. Note
-    # this iterates the FULL attempted list, not just
-    # docker_watcher_latest_stable.items() — an unresolved repo still
-    # gets a row (see docker_watcher_check_status labels below), it
-    # just never gets a star, since a star implies a confirmed
-    # comparison.
+    # One precomputed row per repo actually attempted (Docker Hub +
+    # GHCR/lscr.io lists) — not just docker_watcher_latest_stable, so
+    # an unresolved repo still gets a row instead of disappearing.
+    # Status labels ('resolved' / 'no_match' / 'fetch_failed') decide
+    # what shows in the AVAILABLE column; only 'resolved' can star.
     display_rows: >-
       {%- set rows = [] -%}
       {%- set repo_list = ((docker_watcher_hub_repos | default([])) + (docker_watcher_ghcr_repos | default([]))) | unique | sort -%}
