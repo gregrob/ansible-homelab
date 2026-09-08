@@ -4,8 +4,8 @@
 # and outputs a formatted deployment matrix summary report.
 #
 # Usage:
-#   ansible-playbook playbooks/maintain-docker-watcher.yaml
-#   ansible-playbook playbooks/maintain-docker-watcher.yaml --limit dns-001.dns.gregrob.net
+#   ansible-playbook playbooks/check-docker-updates.yaml
+#   ansible-playbook playbooks/check-docker-updates.yaml --limit dns-001.dns.gregrob.net
 
 - name: Audit fleet Docker container versions
   hosts: debian_config_target
