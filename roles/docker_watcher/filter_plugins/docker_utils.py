@@ -53,7 +53,7 @@ def pick_tag_regex(repo, tag_rules, default_regex):
     for the first entry whose prefix the repo starts with. Order is the
     only thing that decides priority — put more specific prefixes
     (e.g. 'linuxserver/sonarr') before more general ones
-    (e.g. 'linuxserver/') in watchtower_tag_rules, since the first
+    (e.g. 'linuxserver/') in docker_watcher_tag_rules, since the first
     match wins and later entries are never consulted once one hits.
 
     Falls back to default_regex if nothing in the list matches.

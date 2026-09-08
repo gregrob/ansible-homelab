@@ -1,6 +1,6 @@
 ---
 galaxy_info:
-  role_name: container_watchtower
+  role_name: docker_watcher
   description: >
     Inventories running and stopped Docker containers across a set of hosts,
     records the image/tag each is running, and renders a single consolidated

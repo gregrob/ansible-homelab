@@ -1,38 +1,38 @@
 ---
-# Set true (e.g. -e watchtower_debug=true) to re-enable the two
+# Set true (e.g. -e docker_watcher_debug=true) to re-enable the two
 # diagnostic debug tasks: the per-node normalised container dump, and
 # the repo/tag/node allocation matrix. Off by default to keep normal
 # runs quiet, but kept in the role rather than deleted — genuinely
 # useful when something looks wrong further down the pipeline.
-watchtower_debug: false
+docker_watcher_debug: false
 
 # Set false if you only care about currently-running containers
-watchtower_include_stopped: true
+docker_watcher_include_stopped: true
 
 # Matches image repos with no registry host (i.e. Docker Hub), so
 # "portainer/agent" and "nginx" match but "ghcr.io/x/y" or
 # "lscr.io/x/y" don't — those are handled separately via GHCR's API
-# (see watchtower_ghcr_max_pages below).
-watchtower_docker_hub_repo_regex: '^[^./:]+(/[^./:]+)?$'
+# (see docker_watcher_ghcr_max_pages below).
+docker_watcher_docker_hub_repo_regex: '^[^./:]+(/[^./:]+)?$'
 
 # GHCR's tag list has no "most recently updated" ordering like Docker
 # Hub's API does, so library/ghcr_tags.py pages through it internally
 # (following the Link response header, in a single Python loop rather
 # than N recursive Ansible tasks) until either it runs out or hits
 # this many pages — a safety cap, not an expected normal value. At
-# 1000 tags/page this allows up to watchtower_ghcr_max_pages * 1000
+# 1000 tags/page this allows up to docker_watcher_ghcr_max_pages * 1000
 # tags per repo. Repos with an extreme tag count (frigate — years of
 # per-commit dev/cache tags plus several arch-variant tags per
 # release) may still not be fully covered; they fail safe to "not
 # checked" rather than risk a wrong answer. Raise this if a repo you
 # care about needs more pages.
-watchtower_ghcr_max_pages: 40
+docker_watcher_ghcr_max_pages: 40
 
 # ORDERED list — first prefix match wins, everything after it is
 # never consulted for that repo. Put more specific prefixes above
 # more general ones (e.g. a repo-specific rule above the family-wide
 # "linuxserver/" rule) so specificity is explicit, not accidental.
-watchtower_tag_rules:
+docker_watcher_tag_rules:
   # qbittorrent's linuxserver tags are compound:
   # <qbittorrent_version>_v<libtorrent_version>-ls<build>
   # e.g. 5.2.3_v2.0.14-ls475. Must come BEFORE the generic
@@ -91,14 +91,14 @@ watchtower_tag_rules:
   - prefix: "open-webui/open-webui"
     regex: '^v\d+\.\d+\.\d+$'
 
-# Used when no entry in watchtower_tag_rules matches the repo — plain
-# numeric (optionally v-prefixed), no letters, and REQUIRES at least
-# one dot. That last part matters: without it, a bare integer (a CI
-# build number, a date-stamp nightly tag like "2026090423") passes
+# Used when no entry in docker_watcher_tag_rules matches the repo —
+# plain numeric (optionally v-prefixed), no letters, and REQUIRES at
+# least one dot. That last part matters: without it, a bare integer (a
+# CI build number, a date-stamp nightly tag like "2026090423") passes
 # the filter and then wins the numeric-tuple sort purely by being a
 # big single number — e.g. 2026090423 > (10, 11, 11) since Python
 # compares tuples element-by-element and the first element alone
 # already "wins". Requiring >=1 dot means a repo we haven't written a
 # specific rule for yet fails safe to "not checked" instead of
 # silently reporting a wrong "latest" version.
-watchtower_default_tag_regex: '^v?\d+(\.\d+){1,3}$'
+docker_watcher_default_tag_regex: '^v?\d+(\.\d+){1,3}$'

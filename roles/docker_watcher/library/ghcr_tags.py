@@ -33,7 +33,7 @@ options:
     type: int
     default: 1000
 author:
-  - Written for the container_watchtower role
+  - Written for the docker_watcher role
 '''
 
 EXAMPLES = r'''
