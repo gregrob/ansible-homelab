@@ -2,15 +2,19 @@
 galaxy_info:
   role_name: docker_watcher
   description: >
-    Inventories running and stopped Docker containers across a set of hosts,
-    records the image/tag each is running, and renders a single consolidated
-    Markdown report grouped by container name so version drift between
-    nodes is obvious at a glance.
-  author: Greg
+    Inventories running and stopped Docker containers across a set of hosts
+    and checks each one's currently-running image tag against what's
+    actually available upstream (Docker Hub, ghcr.io, and lscr.io), using
+    per-repo tag-format rules to correctly identify real releases. Prints
+    a single consolidated console table, grouped by image repo (not
+    container name, since naming isn't consistent across hosts), flagging
+    which repos have a real update available and which hosts still need
+    it — a manual "watchtower"-style version check, without the
+    auto-updating.
+  author: Greg Robinson <gregrob@mac.com>
   min_ansible_version: "2.14"
 
 dependencies: []
 
 collections:
   - community.docker
-  - community.general
