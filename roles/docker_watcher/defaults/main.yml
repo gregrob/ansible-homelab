@@ -52,6 +52,12 @@ watchtower_tag_rules:
   - prefix: "qmcgaw/gluetun"
     regex: '^v\d+\.\d+\.\d+$'
 
+  # postgres alpine tags:
+  # <postgres_version>-alpine<alpine_version>
+  # e.g. 18.6-alpine3.24 or 16-alpine3.20
+  - prefix: "postgres"
+    regex: '^\d+\.\d+-alpine\d+\.\d+$'
+
   # speedtest-tracker's linuxserver tags are v<version>-ls<build>,
   # e.g. v1.14.5-ls162 — a THIRD linuxserver tag shape, distinct from
   # both qbittorrent's and the generic no-"v" one below (confirmed via
