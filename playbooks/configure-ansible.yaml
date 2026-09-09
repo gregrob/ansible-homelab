@@ -27,11 +27,11 @@
     # be configured before anything actually changes on the host.
     - name: Display playbook setup guide
       ansible.builtin.debug:
-        msg: 
-          - "=== Configuring Ansible Environment ==="
-          - "Target Host: {{ inventory_hostname }}"
-          - "Roles to apply: ansible_setup, github_clone"
-          
+        msg: |
+          === Configuring Ansible Environment ===
+          Target Host: {{ inventory_hostname }}
+          Roles to apply: ansible_setup, github_clone
+
     # Confirmation gate — skipped when skip_confirmation=true is passed
     # (e.g. -e skip_confirmation=true, or however your GUI runner sets
     # extra vars). Defaults to false, so running interactively from a
