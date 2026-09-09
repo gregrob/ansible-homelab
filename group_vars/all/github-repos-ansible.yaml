@@ -1,8 +1,7 @@
---- 
-# Variables for the github_clone role for ansible
+---
+# github_clone role variables for Ansible hosts
 
-# Repos to clone from github
+# Repositories deployed to the Ansible control node
 github_repos:
-  - name: "ansible-homelab"
-    dest: "/srv/ansible-homelab"
-  
+  - name: ansible-homelab
+    dest: /srv/ansible-homelab

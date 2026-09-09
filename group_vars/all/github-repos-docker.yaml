@@ -1,8 +1,10 @@
---- 
-# Variables for the github_clone role for docker
+---
+# github_clone role variables
 
-# Repos to clone from github
-github_repos:
-  - name: "docker-homelab"
-    dest: "/srv/docker-homelab"
-  
+# Baseline repositories deployed to all Docker hosts
+common_github_repos:
+  - name: docker-homelab
+    dest: /srv/docker-homelab
+
+# Merged list: Combines baseline with host-specific additions (defined in host_vars)
+github_repos: "{{ common_github_repos + (host_github_repos | default([])) }}"
