@@ -25,11 +25,12 @@
 # Show detected system info
 - name: show detected architecture and OS codename
   ansible.builtin.debug:
-    msg:
-      - "Ansible architecture: {{ ansible_facts['architecture'] }}"
-      - "Mapped Docker architecture: {{ docker_arch }}"
-      - "Docker OS repository: {{ docker_os }}"
-      - "OS codename: {{ ansible_facts['distribution_release'] }}"
+    msg: |
+      === Detected System Information ===
+      Ansible architecture:       {{ ansible_facts['architecture'] }}
+      Mapped Docker architecture: {{ docker_arch }}
+      Docker OS repository:       {{ docker_os }}
+      OS codename:                {{ ansible_facts['distribution_release'] }}
 
 # Install base packages needed for Docker setup
 - name: install required packages for Docker setup

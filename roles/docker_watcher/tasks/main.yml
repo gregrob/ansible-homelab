@@ -44,12 +44,13 @@
 
 - name: Debug normalised container list for this node
   ansible.builtin.debug:
-    msg:
-      - "Node: {{ inventory_hostname }}"
-      - "Total containers found: {{ docker_watcher_containers | length }}"
-      - "Container details:"
-      - "{{ docker_watcher_containers }}"
-  when: docker_watcher_debug
+    msg: |
+      === Docker Watcher Container Summary ===
+      Node:                   {{ inventory_hostname }}
+      Total containers found: {{ (docker_watcher_containers | default([])) | length }}
+      Container details:
+      {{ docker_watcher_containers | default([]) | to_nice_json }}
+  when: docker_watcher_debug | default(false) | bool
 
 # ------------------------------------------------------------------
 # Part 2 — runs once (delegated to localhost) after every host has
@@ -92,8 +93,10 @@
 
 - name: Debug the version allocation matrix
   ansible.builtin.debug:
-    var: fleet_version_summary
-  when: docker_watcher_debug
+    msg: |
+      === Fleet Version Allocation Matrix ===
+      {{ fleet_version_summary | default({}) | to_nice_json }}
+  when: docker_watcher_debug | default(false) | bool
   run_once: true
 
 # ------------------------------------------------------------------
