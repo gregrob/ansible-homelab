@@ -55,7 +55,8 @@
 
 - name: display cleanup result
   ansible.builtin.debug:
-    msg:
-      - "NetworkManager and dhcpcd have been purged."
-      - "This host now runs ifupdown exclusively, consistent with the rest of the fleet."
+    msg: |
+      === Raspberry Pi Network Cleanup Summary ===
+      NetworkManager and dhcpcd have been purged.
+      This host now runs ifupdown exclusively, consistent with the rest of the fleet.
   tags: [never, raspberrypi_cleanup]

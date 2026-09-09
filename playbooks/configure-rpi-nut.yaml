@@ -24,14 +24,14 @@
   pre_tasks:
     - name: Show manual pre-setup instructions
       ansible.builtin.debug:
-        msg:
-          - "Manual Pre-Setup Required for Raspberry Pi NUT Container:"
-          - "1. Ensure the network is configured and the device is reachable."
-          - "2. Connect the UPS via USB and verify it is detected (lsusb)."
-          - " "
-          - "3. Set a static IP address with 'sudo nmtui'. Address, Gateway, and DNS must be set."
-          - "   Alternatively use the configure-network-static.yaml playbook."
-          - "After completing these steps, you can proceed with this playbook."
+        msg: |
+          === Manual Pre-Setup Required: Raspberry Pi NUT Container ===
+          1. Ensure the network is configured and the device is reachable.
+          2. Connect the UPS via USB and verify it is detected (lsusb).
+          3. Set a static IP address with 'sudo nmtui' (Address, Gateway, and DNS must be set).
+             Alternatively, use the configure-network-static.yaml playbook.
+
+          After completing these steps, you can proceed with this playbook.
 
     - name: Wait for user confirmation before continuing
       ansible.builtin.pause:
@@ -105,12 +105,11 @@
   post_tasks:
     - name: Display NUT web interface URL
       ansible.builtin.debug:
-        msg:
-          - "=================================================="
-          - "NUT Setup Complete! Access the web interface at:"
-          - "http://{{ ansible_host }}/cgi-bin/nut/upsstats.cgi"
-          - ""
-          - "Default credentials may be required:"
-          - "Username: admin (or as configured in upsd.users)"
-          - "Password: As configured in your upsd.users file"
-          - "=================================================="
+        msg: |
+          === NUT Setup Complete ===
+          Access the web interface at:
+          http://{{ ansible_host | default(inventory_hostname) }}/cgi-bin/nut/upsstats.cgi
+
+          Default credentials:
+          Username: admin (or as configured in upsd.users)
+          Password: As configured in your upsd.users file
