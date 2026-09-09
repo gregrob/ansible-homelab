@@ -33,12 +33,13 @@
       └──────────────────────────────────────────────────────────────┘
       NAS Host  : {{ nfs_host }}
       Client IP : {{ ansible_host }}
+  when: (nfs_mounts | default([])) | length > 0
 
 # Display list of NFS shares that need to be exported with their access modes
 - name: display required NFS shares
   ansible.builtin.debug:
     msg: "  {{ item.share }} [{{ item.mode | upper }}]{{ ' (guest-mounted)' if (item.get('mount_in_guest', target_type == 'vm') | bool) else ' (reference only)' }}"
-  loop: "{{ nfs_mounts }}"
+  loop: "{{ nfs_mounts | default([]) }}"
   loop_control:
     label: "{{ item.mountpoint }}"
 
