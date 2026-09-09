@@ -20,8 +20,8 @@
   ansible.builtin.assert:
     that:
       - (target_type | default('none')) in ['vm', 'lxc', 'rpi']
-    fail_msg: >-
-      'target_type' is missing or invalid on {{ inventory_hostname }} (currently: '{{ target_type | default('undefined') }}').
-      Please set 'target_type' to 'vm', 'lxc', or 'rpi' in host_vars/{{ inventory_hostname }}.yaml.
+    fail_msg: |
+      'target_type' is missing or invalid on {{ inventory_hostname }} (currently: '{{ target_type | default("undefined") }}').
+      Please set 'target_type' to 'vm', 'lxc', or 'rpi' in host_vars/{{ inventory_hostname }}.yml.
   tags:
     - always

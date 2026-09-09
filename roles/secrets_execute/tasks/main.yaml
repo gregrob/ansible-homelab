@@ -6,13 +6,13 @@
 # Display the configuration being used
 - name: Display secrets execution configuration
   ansible.builtin.debug:
-    msg:
-      - "=== Secrets Server Command Execution ==="
-      - "Target server: {{ inventory_hostname }}"
-      - "Execution user: {{ ansible_user | default('current') }}"
-      - "Working directory: {{ secrets_working_dir }}"
-      - "Commands to execute: {{ (secrets_commands | default([])) | length }}"
-      - "Show output: {{ 'Enabled' if (secrets_show_output | default(true) | bool) else 'Disabled' }}"
+    msg: |
+      === Secrets Server Command Execution ===
+      Target server:       {{ inventory_hostname }}
+      Execution user:      {{ ansible_user | default('current') }}
+      Working directory:   {{ secrets_working_dir }}
+      Commands to execute: {{ (secrets_commands | default([])) | length }}
+      Show output:         {{ 'Enabled' if (secrets_show_output | default(true) | bool) else 'Disabled' }}
 
 # Fail if no commands provided
 - name: Validate commands list
@@ -33,28 +33,35 @@
   environment: "{{ item.environment | default({}) }}"
   no_log: "{{ item.no_log | default(false) | bool }}"
 
-# Display command outputs
+# Display command outputs cleanly in a single block without task-level looping
 - name: Display command outputs
   ansible.builtin.debug:
-    msg:
-      - "=== Command: {{ item.item.name }} ==="
-      - "Exit code: {{ item.rc }}"
-      - "Output:"
-      - "{{ item.stdout_lines }}"
-      - "{{ 'Errors:' if item.stderr else '' }}"
-      - "{{ item.stderr_lines if item.stderr else [] }}"
-  loop: "{{ command_results.results }}"
-  loop_control:
-    label: "{{ item.item.name }}"
-  when: secrets_show_output | default(true) | bool
+    msg: |
+      {% for item in command_results.results %}
+      === Command: {{ item.item.name }} ===
+      Exit code: {{ item.rc }}
+      Output:
+      {{ item.stdout if item.stdout | length > 0 else '(no stdout)' }}
+      {% if item.stderr | default('') | length > 0 %}
+      Errors:
+      {{ item.stderr }}
+      {% endif %}
+      {% if not loop.last %}
+
+      {% endif %}
+      {% endfor %}
+  when:
+    - secrets_show_output | default(true) | bool
+    - command_results.results is defined
+    - command_results.results | length > 0
 
 # Display execution summary
 - name: Display execution summary
   ansible.builtin.debug:
-    msg:
-      - "=== Execution Summary ==="
-      - "Server: {{ inventory_hostname }}"
-      - "Total commands: {{ (secrets_commands | default([])) | length }}"
-      - "Successful: {{ command_results.results | selectattr('rc', 'equalto', 0) | list | length }}"
-      - "Failed: {{ command_results.results | rejectattr('rc', 'equalto', 0) | list | length }}"
-      - "Timestamp: {{ ansible_facts['date_time']['iso8601'] }}"
+    msg: |
+      === Execution Summary ===
+      Server:         {{ inventory_hostname }}
+      Total commands: {{ (secrets_commands | default([])) | length }}
+      Successful:     {{ command_results.results | selectattr('rc', 'equalto', 0) | list | length }}
+      Failed:         {{ command_results.results | rejectattr('rc', 'equalto', 0) | list | length }}
+      Timestamp:      {{ ansible_facts['date_time']['iso8601'] | default('N/A') }}
