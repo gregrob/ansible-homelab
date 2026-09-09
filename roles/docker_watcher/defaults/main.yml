@@ -44,6 +44,12 @@ docker_watcher_tag_rules:
   - prefix: "linuxserver/"
     regex: '^\d+(\.\d+)*-ls\d+$'
 
+  # hotio: v<branch>-v<version> (e.g., v3-v3.4.0). Requires the app branch 
+  # prefix (e.g. "v3") followed by the full upstream release version ("v3.4.0") 
+  # to prevent matching plain branch aliases or untagged builds.
+  - prefix: "hotio/"
+    regex: '^v\d+(\.\d+)*-v\d+(\.\d+)+$'
+
   # open-webui: requires a "v" prefix (their real releases are
   # v-prefixed).
   - prefix: "open-webui/open-webui"
