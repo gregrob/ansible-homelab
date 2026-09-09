@@ -25,14 +25,14 @@
 # Display informational message about NFS share configuration requirements
 - name: display NFS configuration requirements
   ansible.builtin.debug:
-    msg:
-      - "┌──────────────────────────────────────────────────────────────┐"
-      - "│          NFS Share Configuration Required on NAS             │"
-      - "│ Ensure the following shares are exported and the target host │"
-      - "│ has been granted access in the NAS NFS permissions.          │"
-      - "└──────────────────────────────────────────────────────────────┘"
-      - "NAS Host  : {{ nfs_host }}"
-      - "Client IP : {{ ansible_host }}"
+    msg: |
+      ┌──────────────────────────────────────────────────────────────┐
+      │          NFS Share Configuration Required on NAS             │
+      │ Ensure the following shares are exported and the target host │
+      │ has been granted access in the NAS NFS permissions.          │
+      └──────────────────────────────────────────────────────────────┘
+      NAS Host  : {{ nfs_host }}
+      Client IP : {{ ansible_host }}
 
 # Display list of NFS shares that need to be exported with their access modes
 - name: display required NFS shares

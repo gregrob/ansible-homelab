@@ -28,15 +28,15 @@
     # Always displays so the public key is always logged/visible in playbook output
     - name: Display confirmation box and public key
       ansible.builtin.debug:
-        msg:
-          - "┌──────────────────────────────────────────────────────────────┐"
-          - "│ Please confirm that the SSH public key has been added to the │"
-          - "│ GitHub repository's deploy keys or your account SSH keys.    │"
-          - "│                                                              │"
-          - "│ Press Enter to continue or Ctrl+C to abort.                  │"
-          - "└──────────────────────────────────────────────────────────────┘"
-          - "SSH public key for {{ github_repo_name }}:"
-          - "{{ public_key_content.content | b64decode | trim }}"
+        msg: |
+          ┌──────────────────────────────────────────────────────────────┐
+          │ Please confirm that the SSH public key has been added to the │
+          │ GitHub repository's deploy keys or your account SSH keys.    │
+          │                                                              │
+          │ Press Enter to continue or Ctrl+C to abort.                  │
+          └──────────────────────────────────────────────────────────────┘
+          SSH public key for {{ github_repo_name }}:
+          {{ public_key_content.content | b64decode | trim }}
 
     # Pause for user confirmation before proceeding
     # Matches configure-network.yaml / keepalived playbook convention:

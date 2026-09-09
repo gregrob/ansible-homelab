@@ -45,99 +45,99 @@
     # 1. Display VM Setup Guide
     - name: display playbook setup guide (VM)
       ansible.builtin.debug:
-        msg:
-          - "┌───────────────────────────────────────────────────────────┐"
-          - "│        Configure Debian 13 VM - Setup Guide               │"
-          - "└───────────────────────────────────────────────────────────┘"
-          - ""
-          - "── Target ─────────────────────────────────────────────────────"
-          - "  Target Host : {{ inventory_hostname }} (SSH: {{ ansible_host }})"
-          - "  Hostname    : {{ domain_hostname }}"
-          - "  FQDN        : {{ domain_hostname }}.{{ domain_sub_prefix }}.{{ domain_root }}"
-          - "  Subdomain   : {{ domain_sub_prefix }}.{{ domain_root }}"
-          - "  Root Domain : {{ domain_root }}"
-          - "  Target Type : {{ target_type }}"
-          - ""
-          - "── Proxmox / KVM VM Settings ──────────────────────────────────"
-          - "  System:"
-          - "    - Graphics card: VirtIO-GPU (for better performance and compatibility)"
-          - "    - Machine: q35 (modern hardware support - pcie)"
-          - "    - BIOS: OVMF (UEFI) (for modern firmware features and better hardware compatibility)"
-          - "    - Qemu Agent: enabled (for improved VM management and integration with host)"
-          - "  Disk:"
-          - "    - Size: 16GB (sufficient for OS and Docker, adjust if needed)"
-          - "    - Cache: Write through (improves read performance)"
-          - "    - Discard: on (enable trim support for better performance and space management nvme)"
-          - "    - SSD emulation: on (improves performance for virtual disks with nvme)"
-          - "    - For the LVM leave 50% unallocated for snapshots and future expansion"
-          - "  CPU:"
-          - "    - Cores: 2 (adjust based on host capabilities and workload requirements)"
-          - "    - Memory: 4GB (adjust based on host capabilities and workload requirements)"
-          - "    - Type: x86-64-v2-AES (modern CPU features for better performance, adjust if needed - i.e. host)"
-          - "    - Ballooning Device: disabled (for consistent performance with docker workloads)"
-          - "    - Allow KSM: disabled (save scanning overhead for a VM with docker workloads that may not benefit from KSM)"
-          - "  Other:"
-          - "    - Make sure a VirtIO RNG device is added to the VM for better entropy and performance /dev/urandom"
-          - "    - Use local time for RTC: no (linux expects UTC on the hardware clock and handles timezone in the OS via timedatectl)"
-          - ""
-          - "── Pre-flight Checklist ────────────────────────────────────────"
-          - "  1. Vault password available"
-          - "  2. SSH key access to target host confirmed (installed under root)"
-          - "  3. Network configured with configure-network playbook"
-          - "  4. NFS shares exported on NAS with appropriate interface(s)"
-          - "  5. Secrets server accessible"
-          - "──────────────────────────────────────────────────────────────"
+        msg: |
+          ┌───────────────────────────────────────────────────────────┐
+          │        Configure Debian 13 VM - Setup Guide               │
+          └───────────────────────────────────────────────────────────┘
+          
+          ── Target ─────────────────────────────────────────────────────
+           Target Host : {{ inventory_hostname }} (SSH: {{ ansible_host }})
+           Hostname    : {{ domain_hostname }}
+           FQDN        : {{ domain_hostname }}.{{ domain_sub_prefix }}.{{ domain_root }}
+           Subdomain   : {{ domain_sub_prefix }}.{{ domain_root }}
+           Root Domain : {{ domain_root }}
+           Target Type : {{ target_type }}
+          
+          ── Proxmox / KVM VM Settings ──────────────────────────────────
+           System:
+             - Graphics card: VirtIO-GPU (for better performance and compatibility)
+             - Machine: q35 (modern hardware support - pcie)
+             - BIOS: OVMF (UEFI) (for modern firmware features and better hardware compatibility)
+             - Qemu Agent: enabled (for improved VM management and integration with host)
+           Disk:
+             - Size: 16GB (sufficient for OS and Docker, adjust if needed)
+             - Cache: Write through (improves read performance)
+             - Discard: on (enable trim support for better performance and space management nvme)
+             - SSD emulation: on (improves performance for virtual disks with nvme)
+             - For the LVM leave 50% unallocated for snapshots and future expansion
+           CPU:
+             - Cores: 2 (adjust based on host capabilities and workload requirements)
+             - Memory: 4GB (adjust based on host capabilities and workload requirements)
+             - Type: x86-64-v2-AES (modern CPU features for better performance, adjust if needed - i.e. host)
+             - Ballooning Device: disabled (for consistent performance with docker workloads)
+             - Allow KSM: disabled (save scanning overhead for a VM with docker workloads that may not benefit from KSM)
+           Other:
+             - Make sure a VirtIO RNG device is added to the VM for better entropy and performance /dev/urandom
+             - Use local time for RTC: no (linux expects UTC on the hardware clock and handles timezone in the OS via timedatectl)
+          
+          ── Pre-flight Checklist ────────────────────────────────────────
+           1. Vault password available
+           2. SSH key access to target host confirmed (installed under root)
+           3. Network configured with configure-network playbook
+           4. NFS shares exported on NAS with appropriate interface(s)
+           5. Secrets server accessible
+          ──────────────────────────────────────────────────────────────
       when: target_type == 'vm'
 
     # 2. Display LXC Setup Guide
     - name: display playbook setup guide (LXC)
       ansible.builtin.debug:
-        msg:
-          - "┌───────────────────────────────────────────────────────────┐"
-          - "│        Configure Debian 13 LXC - Setup Guide              │"
-          - "└───────────────────────────────────────────────────────────┘"
-          - ""
-          - "── Target ─────────────────────────────────────────────────────"
-          - "  Target Host : {{ inventory_hostname }} (SSH: {{ ansible_host }})"
-          - "  Hostname    : {{ domain_hostname }}"
-          - "  FQDN        : {{ domain_hostname }}.{{ domain_sub_prefix }}.{{ domain_root }}"
-          - "  Subdomain   : {{ domain_sub_prefix }}.{{ domain_root }}"
-          - "  Root Domain : {{ domain_root }}"
-          - "  Target Type : {{ target_type }}"          
-          - ""
-          - "── LXC Options Required ───────────────────────────────────────"
-          - "  - fuse = 1"
-          - "  - nesting = 1"
-          - ""
-          - "── Pre-flight Checklist ────────────────────────────────────────"
-          - "  1. Vault password available"
-          - "  2. SSH key access to target host confirmed"
-          - "  3. Secrets server accessible"
-          - "──────────────────────────────────────────────────────────────"
+        msg: |
+          ┌───────────────────────────────────────────────────────────┐
+          │        Configure Debian 13 LXC - Setup Guide              │
+          └───────────────────────────────────────────────────────────┘
+          
+          ── Target ─────────────────────────────────────────────────────
+           Target Host : {{ inventory_hostname }} (SSH: {{ ansible_host }})
+           Hostname    : {{ domain_hostname }}
+           FQDN        : {{ domain_hostname }}.{{ domain_sub_prefix }}.{{ domain_root }}
+           Subdomain   : {{ domain_sub_prefix }}.{{ domain_root }}
+           Root Domain : {{ domain_root }}
+           Target Type : {{ target_type }}          
+          
+          ── LXC Options Required ───────────────────────────────────────
+           - fuse = 1
+           - nesting = 1
+          
+          ── Pre-flight Checklist ────────────────────────────────────────
+           1. Vault password available
+           2. SSH key access to target host confirmed
+           3. Secrets server accessible
+          ──────────────────────────────────────────────────────────────
       when: target_type == 'lxc'
 
     # 3. Display Raspberry Pi Setup Guide
     - name: display playbook setup guide (Raspberry Pi)
       ansible.builtin.debug:
-        msg:
-          - "┌───────────────────────────────────────────────────────────┐"
-          - "│    Configure Debian 13 Raspberry Pi - Setup Guide         │"
-          - "└───────────────────────────────────────────────────────────┘"
-          - ""
-          - "── Target ─────────────────────────────────────────────────────"
-          - "  Target Host : {{ inventory_hostname }} (SSH: {{ ansible_host }})"
-          - "  Hostname    : {{ domain_hostname }}"
-          - "  FQDN        : {{ domain_hostname }}.{{ domain_sub_prefix }}.{{ domain_root }}"
-          - "  Subdomain   : {{ domain_sub_prefix }}.{{ domain_root }}"
-          - "  Root Domain : {{ domain_root }}"
-          - "  Target Type : {{ target_type }}"
-          - "  Arch        : {{ ansible_facts['architecture'] }}"
-          - ""
-          - "── Raspberry Pi Checklist ─────────────────────────────────────"
-          - "  1. Debian 13 / Raspbian OS freshly flashed & booted"
-          - "  2. Storage filesystem expanded if needed"
-          - "  3. Network configured with configure-network playbook"
-          - "──────────────────────────────────────────────────────────────"
+        msg: |
+          ┌───────────────────────────────────────────────────────────┐
+          │    Configure Debian 13 Raspberry Pi - Setup Guide         │
+          └───────────────────────────────────────────────────────────┘
+          
+          ── Target ─────────────────────────────────────────────────────
+           Target Host : {{ inventory_hostname }} (SSH: {{ ansible_host }})
+           Hostname    : {{ domain_hostname }}
+           FQDN        : {{ domain_hostname }}.{{ domain_sub_prefix }}.{{ domain_root }}
+           Subdomain   : {{ domain_sub_prefix }}.{{ domain_root }}
+           Root Domain : {{ domain_root }}
+           Target Type : {{ target_type }}
+           Arch        : {{ ansible_facts['architecture'] }}
+          
+          ── Raspberry Pi Checklist ─────────────────────────────────────
+           1. Debian 13 / Raspbian OS freshly flashed & booted
+           2. Storage filesystem expanded if needed
+           3. Network configured with configure-network playbook
+          ──────────────────────────────────────────────────────────────
       when: target_type == 'rpi'
 
     - name: display network interfaces configured for this host
@@ -156,13 +156,13 @@
 
     - name: Display expected warning advisory
       ansible.builtin.debug:
-        msg:
-          - "------------------------------------------------------------------"
-          - " NOTICE: Upstream Python deprecation warnings (to_native, to_bytes,"
-          - " exit_json) from mount & authorized_key modules are HARMLESS."
-          - " They stem from ansible-core 2.20+ runtime internal collection code."
-          - " Playbook execution and state enforcement are unaffected."
-          - "------------------------------------------------------------------"
+        msg: |
+          ------------------------------------------------------------------
+           NOTICE: Upstream Python deprecation warnings (to_native, to_bytes,
+           exit_json) from mount & authorized_key modules are HARMLESS.
+           They stem from ansible-core 2.20+ runtime internal collection code.
+           Playbook execution and state enforcement are unaffected.
+          ------------------------------------------------------------------
       run_once: true
       
     - name: wait for confirmation to proceed
