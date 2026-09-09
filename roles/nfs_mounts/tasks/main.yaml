@@ -31,8 +31,8 @@
       │ Ensure the following shares are exported and the target host │
       │ has been granted access in the NAS NFS permissions.          │
       └──────────────────────────────────────────────────────────────┘
-      NAS Host  : {{ nfs_host }}
-      Client IP : {{ ansible_host }}
+      NAS Host     : {{ nfs_host }}
+      Client IP(s) : {{ (network_interfaces | default([]) | selectattr('address', 'defined') | map(attribute='address') | list) | join(', ') | default(ansible_host, true) }}
   when: (nfs_mounts | default([])) | length > 0
 
 # Display list of NFS shares that need to be exported with their access modes
