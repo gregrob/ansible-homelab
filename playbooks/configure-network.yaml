@@ -58,18 +58,18 @@
       block:
         - name: Explain LXC network management policy
           ansible.builtin.debug:
-            msg:
-              - "┌──────────────────────────────────────────────────────────────┐"
-              - "│                  LXC Host Skipped                            │"
-              - "├──────────────────────────────────────────────────────────────┤"
-              - "│ {{ inventory_hostname }} is flagged as an LXC container.       │"
-              - "│                                                              │"
-              - "│ Network interfaces, static IPs, hostnames, and DNS search    │"
-              - "│ paths for LXC containers are managed directly within the    │"
-              - "│ Proxmox VE GUI/API (Container -> Network / DNS).             │"
-              - "│                                                              │"
-              - "│ Skipping in-guest network configuration.                     │"
-              - "└──────────────────────────────────────────────────────────────┘"
+            msg: |
+              ┌──────────────────────────────────────────────────────────────┐
+              │                   LXC Host Skipped                           │
+              ├──────────────────────────────────────────────────────────────┤
+              │ {{ inventory_hostname }} is flagged as an LXC container.       │
+              │                                                              │
+              │ Network interfaces, static IPs, hostnames, and DNS search    │
+              │ paths for LXC containers are managed directly within the     │
+              │ Proxmox VE GUI/API (Container -> Network / DNS).             │
+              │                                                              │
+              │ Skipping in-guest network configuration.                     │
+              └──────────────────────────────────────────────────────────────┘
 
         # network_interfaces on an LXC host is a documentation mirror only
         # (see the host's own host_vars comment) - it's not applied here,
@@ -92,47 +92,32 @@
 
         - name: Show the Proxmox container-level DNS settings this host's documentation expects
           ansible.builtin.debug:
-            msg:
-              - "[{{ inventory_hostname }}] Proxmox container-level DNS (not per-interface - set once via"
-              - "Container -> DNS, or 'pct set <vmid> --nameserver ... --searchdomain ...'):"
-              - "  nameserver  : {{ (network_interfaces | selectattr('dns_nameservers', 'defined') | map(attribute='dns_nameservers') | list | first) | default('not set on any interface in host_vars') }}"
-              - "  searchdomain: {{ (network_interfaces | selectattr('dns_search', 'defined') | map(attribute='dns_search') | list | first) | default('not set on any interface in host_vars') }}"
+            msg: |
+              [{{ inventory_hostname }}] Proxmox container-level DNS (not per-interface - set once via
+              Container -> DNS, or 'pct set <vmid> --nameserver ... --searchdomain ...'):
+                nameserver  : {{ (network_interfaces | selectattr('dns_nameservers', 'defined') | map(attribute='dns_nameservers') | list | first) | default('not set on any interface in host_vars') }}
+                searchdomain: {{ (network_interfaces | selectattr('dns_search', 'defined') | map(attribute='dns_search') | list | first) | default('not set on any interface in host_vars') }}
 
         - name: End host execution gracefully for LXC
           ansible.builtin.meta: end_host
 
     - name: display network configuration warning
       ansible.builtin.debug:
-        msg:
-          - "┌──────────────────────────────────────────────────────────────┐"
-          - "│              Network Configuration Warning                   │"
-          - "│                                                              │"
-          - "│ This playbook will restart networking on the target host.    │"
-          - "│ SSH connectivity may be lost if IP settings are incorrect.   │"
-          - "│                                                              │"
-          - "│ Ensure you have console access before continuing.            │"
-          - "└──────────────────────────────────────────────────────────────┘"
-          - "Target Host : {{ inventory_hostname }} (SSH: {{ ansible_host }})"
-          - "Hostname    : {{ domain_hostname }}"
-          - "FQDN        : {{ domain_hostname }}.{{ domain_sub_prefix }}.{{ domain_root }}"
-          - "Subdomain   : {{ domain_sub_prefix }}.{{ domain_root }}"
-          - "Root Domain : {{ domain_root }}"
-          - "Target Type : {{ target_type }}"
-
-    - name: display network interfaces configured for this host
-      ansible.builtin.debug:
-        msg: "{{ '%-16s -> %-15s  (%s)%s' | format(item.name, item.address | default('no IP (manual)'), item.purpose | default('no purpose set'), item.vlan_id is defined and (' vlan ' ~ item.vlan_id) or '') }}"
-      loop: "{{ network_interfaces }}"
-      loop_control:
-        label: "{{ item.name }}"
-
-    - name: display firewalled interface allow-lists
-      ansible.builtin.debug:
-        msg: "{{ item.0.name }} allows: {{ item.1 }}"
-      loop: "{{ network_interfaces | subelements('allowed_ips', skip_missing=True) }}"
-      loop_control:
-        label: "{{ item.0.name }} <- {{ item.1 }}"
-      when: item.0.firewalled | default(false)
+        msg: |
+          ┌──────────────────────────────────────────────────────────────┐
+          │               Network Configuration Warning                  │
+          │                                                              │
+          │ This playbook will restart networking on the target host.    │
+          │ SSH connectivity may be lost if IP settings are incorrect.   │
+          │                                                              │
+          │ Ensure you have console access before continuing.            │
+          └──────────────────────────────────────────────────────────────┘
+          Target Host : {{ inventory_hostname }} (SSH: {{ ansible_host }})
+          Hostname    : {{ domain_hostname }}
+          FQDN        : {{ domain_hostname }}.{{ domain_sub_prefix }}.{{ domain_root }}
+          Subdomain   : {{ domain_sub_prefix }}.{{ domain_root }}
+          Root Domain : {{ domain_root }}
+          Target Type : {{ target_type }}
 
     - name: wait for confirmation to proceed
       ansible.builtin.pause:
