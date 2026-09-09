@@ -157,10 +157,10 @@
 # 3. DEBUG: Verify the dictionary is populated correctly
 # ==============================================================================
 - name: DEBUG - Verify per-real-server check extra args dictionary
-  debug:
-    msg: 
-      - "Real Server Extra Args Mapping for {{ inventory_hostname }}:"
-      - "{{ keepalived_real_server_extra_args | to_nice_json }}"
+  ansible.builtin.debug:
+    msg: |
+      Real Server Extra Args Mapping for {{ inventory_hostname }}:
+      {{ keepalived_real_server_extra_args | to_nice_json }}
   when: keepalived_load_balancer_enabled | bool
 
 # Deploy the mangle-rule script itself (idempotent, safe to re-run) - see
