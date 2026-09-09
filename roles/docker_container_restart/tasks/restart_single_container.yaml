@@ -1,0 +1,64 @@
+---
+# =============================================================================
+# restart_single_container.yaml
+#
+# Stop/wait/start sequence for one matched repo, included in a loop from
+# docker_container_restart.yaml. Expects 'matched_repo' (with .name, .dest,
+# .container_dir) to be set by the calling loop.
+#
+# Runs as admin_user (not the default root from play-level become) since
+# that's the identity with working SSH access to the secrets host that
+# docker-stop.sh/docker-start.sh call out to.
+#
+# Under --check, the stop/start command tasks are skipped automatically
+# (the command module has no check-mode support), so a debug line is
+# printed up front to make it clear what would have happened.
+# =============================================================================
+
+- name: "restart container in {{ matched_repo.name }}"
+  become_user: "{{ admin_user }}"
+  block:
+    # command tasks below are skipped by Ansible under --check, so surface
+    # intent explicitly rather than leaving a silent gap in the output
+    - name: report check mode - would restart container
+      ansible.builtin.debug:
+        msg: "[check mode] would run stop/start scripts for '{{ target_container }}' in {{ matched_repo.container_dir }} ({{ matched_repo.name }})"
+      when: ansible_check_mode
+
+    - name: execute docker stop script
+      ansible.builtin.command: "{{ docker_stop_script }}"
+      args:
+        chdir: "{{ matched_repo.container_dir }}"
+      register: stop_script_output
+      changed_when: true
+
+    - name: display stop script output
+      ansible.builtin.debug:
+        msg: "[{{ matched_repo.name }}] stop script output:\n{{ stop_script_output.stdout }}"
+      when:
+        - stop_script_output.stdout is defined
+        - stop_script_output.stdout | length > 0
+
+    # wait the configured amount of time before starting using wait_for so
+    # it evaluates correctly per-host instead of globally. check_mode:
+    # false forces this to actually run even under --check - wait_for
+    # refuses to run in check mode by default and would otherwise silently
+    # skip, which would be misread as the container not being found.
+    - name: wait before starting container
+      ansible.builtin.wait_for:
+        timeout: "{{ docker_restart_wait_time }}"
+      check_mode: false
+
+    - name: execute docker start script
+      ansible.builtin.command: "{{ docker_start_script }}"
+      args:
+        chdir: "{{ matched_repo.container_dir }}"
+      register: start_script_output
+      changed_when: true
+
+    - name: display start script output
+      ansible.builtin.debug:
+        msg: "[{{ matched_repo.name }}] start script output:\n{{ start_script_output.stdout }}"
+      when:
+        - start_script_output.stdout is defined
+        - start_script_output.stdout | length > 0
