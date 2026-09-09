@@ -56,4 +56,8 @@ nfs_mounts:
   - share: /volume1/arr-prv
     mountpoint: arr-prv
     mode: rw # rw required for hardlinking and automated imports
-    
+
+# Host specific github repos
+host_github_repos:
+  - name: docker-homelab-prv
+    dest: /srv/docker-homelab-prv
