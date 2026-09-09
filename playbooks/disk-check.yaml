@@ -18,7 +18,6 @@
 #   ansible-playbook -i inventories/local/hosts.yaml playbooks/disk-check.yaml --ask-vault-pass -e disk_show_details=false
 
 - name: Check Disk Usage on Target Hosts
-  #hosts: all:!localhost
   hosts: disk_check_targets
   gather_facts: yes
   become: false
@@ -47,7 +46,7 @@
               ❌ DISK CHECK FAILURE ALERT! ❌
 
               Host: {{ inventory_hostname }}
-              Timestamp: {{ ansible_date_time.iso8601 }}
+              Timestamp: {{ ansible_date_time.iso8601 | default('N/A') }}
 
               The disk check operation failed on this host.
 
@@ -57,13 +56,14 @@
               - Ansible misconfiguration
 
               This is an automated message from Ansible Homelab monitoring.
-          when: disk_notify_enabled
+          when: disk_notify_enabled | default(false) | bool
 
         - name: Display failure message
           ansible.builtin.debug:
-            msg:
-              - "❌ Disk check operation failed!"
-              - "{{ 'Email notification sent!' if disk_notify_enabled else 'Email notifications disabled' }}"
+            msg: |
+              === Disk Check Failure: {{ inventory_hostname }} ===
+              ❌ Disk check operation failed!
+              Notification Status: {{ 'Email notification sent!' if (disk_notify_enabled | default(false) | bool) else 'Email notifications disabled' }}
 
         - name: Re-raise the error
           ansible.builtin.fail:

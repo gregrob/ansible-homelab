@@ -12,11 +12,11 @@
 # Display the configuration being used
 - name: Display disk check configuration
   ansible.builtin.debug:
-    msg:
-      - "=== Disk Check Configuration ==="
-      - "Threshold: {{ disk_usage_high_threshold }}%"
-      - "Target host: {{ inventory_hostname }}"
-      - "Notifications: {{ 'Enabled' if (disk_notify_enabled | default(true) | bool) else 'Disabled' }}"
+    msg: |
+      === Disk Check Configuration ===
+      Target host:   {{ inventory_hostname }}
+      Threshold:     {{ disk_usage_high_threshold }}%
+      Notifications: {{ 'Enabled' if (disk_notify_enabled | default(true) | bool) else 'Disabled' }}
 
 # Get root partition disk usage
 - name: Get root partition disk usage
@@ -36,9 +36,10 @@
 # Display current disk usage
 - name: Display root disk usage
   ansible.builtin.debug:
-    msg: 
-      - "Root partition (/) usage: {{ root_disk_usage.stdout }}%"
-      - "Status: {{ 'WARNING - Above threshold!' if ((root_disk_usage.stdout | int) > (disk_usage_high_threshold | int)) else 'OK' }}"
+    msg: |
+      === Root Disk Usage ===
+      Root partition (/) usage: {{ root_disk_usage.stdout }}%
+      Status:                   {{ 'WARNING - Above threshold!' if ((root_disk_usage.stdout | default('0') | int) > (disk_usage_high_threshold | default(80) | int)) else 'OK' }}
 
 # Send notification when over threshold
 - name: Send disk usage alert notification
@@ -48,55 +49,58 @@
     notify_subject: "{{ notify_subject_prefix | default('') }} CRITICAL: Disk Usage Alert - {{ inventory_hostname }}"
     notify_body: |
       🚨 CRITICAL DISK USAGE WARNING! 🚨
-      
+
       Host: {{ inventory_hostname }}
       Root partition (/) usage: {{ root_disk_usage.stdout }}%
       Threshold: {{ disk_usage_high_threshold }}%
       Status: CRITICAL
-      Timestamp: {{ ansible_facts['date_time']['iso8601'] }}
-      
+      Timestamp: {{ ansible_facts['date_time']['iso8601'] | default('N/A') }}
+
       Please free up disk space immediately!
-      
-      {% if (disk_show_details | default(false) | bool) and detailed_disk_info is defined %}
+
+      {% if (disk_show_details | default(false) | bool) and detailed_disk_info is defined and detailed_disk_info.stdout is defined %}
       === Detailed Disk Usage ===
       {{ detailed_disk_info.stdout }}
       {% endif %}
-      
+
       This is an automated message from Ansible Homelab monitoring.
-  when: 
-    - (root_disk_usage.stdout | int) > (disk_usage_high_threshold | int)
+  when:
+    - (root_disk_usage.stdout | default('0') | int) > (disk_usage_high_threshold | default(80) | int)
     - disk_notify_enabled | default(true) | bool
 
 # Display detailed disk information
 - name: Display detailed disk usage
   ansible.builtin.debug:
-    msg: 
-      - "=== Detailed Disk Usage ==="
-      - "{{ detailed_disk_info.stdout_lines }}"
-  when: 
+    msg: |
+      === Detailed Disk Usage ===
+      {{ detailed_disk_info.stdout }}
+  when:
     - disk_show_details | default(false) | bool
     - detailed_disk_info is defined
+    - detailed_disk_info.stdout is defined
+    - detailed_disk_info.stdout | length > 0
 
 # Display warning when over threshold
 - name: Display critical disk usage warning
   ansible.builtin.debug:
-    msg:
-      - "🚨 CRITICAL DISK USAGE WARNING! 🚨"
-      - "Root partition usage: {{ root_disk_usage.stdout }}%"
-      - "Threshold: {{ disk_usage_high_threshold }}%"
-      - "Host: {{ inventory_hostname }}"
-      - "Please free up disk space immediately!"
-      - "{{ 'Email notification sent!' if (disk_notify_enabled | default(true) | bool) else 'Email notifications disabled' }}"
-  when: (root_disk_usage.stdout | int) > (disk_usage_high_threshold | int)
+    msg: |
+      🚨 CRITICAL DISK USAGE WARNING! 🚨
+      Host:                 {{ inventory_hostname }}
+      Root partition usage: {{ root_disk_usage.stdout }}%
+      Threshold:            {{ disk_usage_high_threshold }}%
+      Notification Status:  {{ 'Email notification sent!' if (disk_notify_enabled | default(true) | bool) else 'Email notifications disabled' }}
+
+      Please free up disk space immediately!
+  when: (root_disk_usage.stdout | default('0') | int) > (disk_usage_high_threshold | default(80) | int)
 
 # Display final summary
 - name: Display disk check summary
   ansible.builtin.debug:
-    msg:
-      - "=== Disk Check Summary ==="
-      - "Host: {{ inventory_hostname }}"
-      - "Root usage: {{ root_disk_usage.stdout }}%"
-      - "Threshold: {{ disk_usage_high_threshold }}%"
-      - "Status: {{ 'CRITICAL' if ((root_disk_usage.stdout | int) > (disk_usage_high_threshold | int)) else 'OK' }}"
-      - "Notifications: {{ 'Enabled' if (disk_notify_enabled | default(true) | bool) else 'Disabled' }}"
-      - "Timestamp: {{ ansible_facts['date_time']['iso8601'] }}"
+    msg: |
+      === Disk Check Summary ===
+      Host:          {{ inventory_hostname }}
+      Root usage:    {{ root_disk_usage.stdout }}%
+      Threshold:     {{ disk_usage_high_threshold }}%
+      Status:        {{ 'CRITICAL' if ((root_disk_usage.stdout | default('0') | int) > (disk_usage_high_threshold | default(80) | int)) else 'OK' }}
+      Notifications: {{ 'Enabled' if (disk_notify_enabled | default(true) | bool) else 'Disabled' }}
+      Timestamp:     {{ ansible_facts['date_time']['iso8601'] | default('N/A') }}
