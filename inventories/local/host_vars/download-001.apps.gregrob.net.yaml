@@ -47,7 +47,13 @@ nfs_mounts:
     mountpoint: media/movies
     mode: rw # so files can be automatically moved into place
 
-  # New media library - linked to arr stack
+  # Standard *arr stack mount
   - share: /volume1/arr
     mountpoint: arr
-    mode: rw # so files can be automatically moved into place
+    mode: rw # rw required for hardlinking and automated imports
+
+  # Private *arr stack mount
+  - share: /volume1/arr-prv
+    mountpoint: arr-prv
+    mode: rw # rw required for hardlinking and automated imports
+    
