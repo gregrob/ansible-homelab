@@ -9,6 +9,11 @@
     containers: true
     containers_all: "{{ docker_watcher_include_stopped }}"
   register: docker_watcher_docker_info
+  ignore_errors: true
+
+- name: Note whether this node's Docker inventory could be gathered
+  ansible.builtin.set_fact:
+    docker_watcher_gather_failed: "{{ docker_watcher_docker_info is failed }}"
 
 - name: Initialise this node's normalised container list
   ansible.builtin.set_fact:
@@ -21,13 +26,18 @@
   loop_control:
     loop_var: c
     label: "{{ (c.Names[0] | default('unknown')) | regex_replace('^/', '') }}"
+  when: not docker_watcher_gather_failed
   vars:
+    # split_image_ref handles the registry-port-vs-tag-colon ambiguity
+    # (e.g. "myregistry:5000/app:1.0") that a plain c.Image.split(':')
+    # would get wrong — see filter_plugins/docker_utils.py.
+    parsed_image: "{{ c.Image | split_image_ref }}"
     entry:
       node: "{{ inventory_hostname }}"
       name: "{{ (c.Names[0] | default('')) | regex_replace('^/', '') }}"
       image: "{{ c.Image }}"
-      image_repo: "{{ c.Image.split(':')[0] }}"
-      image_tag: "{{ c.Image.split(':')[1] if ':' in c.Image else 'latest' }}"
+      image_repo: "{{ parsed_image.repo }}"
+      image_tag: "{{ parsed_image.tag }}"
       image_id: "{{ c.ImageID | default('') }}"
       state: "{{ c.State | default('unknown') }}"
       status: "{{ c.Status | default('') }}"
@@ -53,6 +63,15 @@
   loop: "{{ ansible_play_hosts }}"
   run_once: true
   delegate_to: localhost
+  become: false
+
+- name: Collect hosts where Docker inventory could not be gathered
+  ansible.builtin.set_fact:
+    docker_watcher_failed_hosts: "{{ docker_watcher_failed_hosts | default([]) + ([item] if (hostvars[item].docker_watcher_gather_failed | default(false)) else []) }}"
+  loop: "{{ ansible_play_hosts }}"
+  run_once: true
+  delegate_to: localhost
+  become: false
 
 - name: Group containers by repo and tag to map version allocation across nodes
   ansible.builtin.set_fact:
@@ -69,6 +88,7 @@
       {{ output }}
   run_once: true
   delegate_to: localhost
+  become: false
 
 - name: Debug the version allocation matrix
   ansible.builtin.debug:
@@ -113,6 +133,7 @@
     url: "https://hub.docker.com/v2/repositories/{{ api_path }}/tags?page_size=100&ordering=last_updated"
     method: GET
     return_content: true
+    timeout: 15
   loop: "{{ docker_watcher_hub_repos }}"
   loop_control:
     label: "{{ item }}"
@@ -170,6 +191,7 @@
     docker_watcher_ghcr_repos: "{{ docker_watcher_all_containers | map(attribute='image_repo') | unique | select('match', '^(ghcr\\.io|lscr\\.io)/.+/.+$') | list }}"
   run_once: true
   delegate_to: localhost
+  become: false
 
 - name: Fetch every GHCR / lscr.io repo's full tag list (one task per repo)
   ghcr_tags:
@@ -204,10 +226,16 @@
     latest_update: "{{ {result.item: newest} if (fetch_ok and newest != '') else {} }}"
   run_once: true
   delegate_to: localhost
+  become: false
 
 - name: Display container update summary
   ansible.builtin.debug:
     msg: |
+      {% if docker_watcher_failed_hosts | default([]) | length > 0 %}
+      ⚠ Could not gather Docker inventory from: {{ docker_watcher_failed_hosts | map('regex_replace', '\..*$', '') | join(', ') }}
+      (containers on these hosts are NOT included below — check Docker/SDK access on them)
+
+      {% endif %}
       {{ '=' * 130 }}
       {{ '%-45s | %-20s | %-22s | %-10s | %s' | format('REPOSITORY', 'CURRENT VERSION(S)', 'AVAILABLE VERSION', 'UPDATE?', 'HOSTS NEEDING UPDATE') }}
       {{ '-' * 130 }}
@@ -267,3 +295,4 @@
       {{ rows }}
   run_once: true
   delegate_to: localhost
+  become: false
