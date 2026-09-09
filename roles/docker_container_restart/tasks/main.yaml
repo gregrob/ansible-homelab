@@ -69,7 +69,7 @@
 - name: report missing container directory
   ansible.builtin.debug:
     msg: "container '{{ target_container }}' does not exist on host {{ ansible_facts['hostname'] }}. skipping."
-  when: not container_found
+  when: not (container_found | bool)
 
 # block to execute the restart logic only if the directory exists.
 # runs as admin_user (not the default root from play-level become) since
@@ -92,7 +92,12 @@
     # display the output of the stop script for debugging
     - name: display stop script output
       ansible.builtin.debug:
-        var: stop_script_output.stdout_lines
+        msg: |
+          === Stop Script Output ===
+          {{ stop_script_output.stdout }}
+      when:
+        - stop_script_output.stdout is defined
+        - stop_script_output.stdout | length > 0
 
     # wait the configured amount of time before starting using wait_for
     # so it evaluates correctly per-host instead of globally.
@@ -116,4 +121,9 @@
     # display the output of the start script for debugging
     - name: display start script output
       ansible.builtin.debug:
-        var: start_script_output.stdout_lines
+        msg: |
+          === Start Script Output ===
+          {{ start_script_output.stdout }}
+      when:
+        - start_script_output.stdout is defined
+        - start_script_output.stdout | length > 0
