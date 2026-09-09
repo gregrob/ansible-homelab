@@ -12,12 +12,12 @@
 # Display the configuration being used
 - name: Display git pull configuration
   ansible.builtin.debug:
-    msg:
-      - "=== Git Pull Configuration ==="
-      - "Base folder: {{ git_base_folder }}"
-      - "Default branch: {{ git_default_branch }}"
-      - "Git user: {{ git_user }}"
-      - "Target host: {{ inventory_hostname }}"
+    msg: |
+      === Git Pull Configuration ===
+      Base folder:    {{ git_base_folder }}
+      Default branch: {{ git_default_branch | default('main') }}
+      Git user:       {{ git_user | default('admin') }}
+      Target host:    {{ inventory_hostname }}
 
 # Ensure the base folder exists
 - name: Check if base folder exists
@@ -42,14 +42,14 @@
 # Display found subdirectories
 - name: Display found subdirectories
   ansible.builtin.debug:
-    msg: "Found {{ subdirectories.files | length }} subdirectories in {{ git_base_folder }}"
+    msg: "Found {{ subdirectories.files | default([]) | length }} subdirectories in {{ git_base_folder }}"
 
 # Check which subdirectories are Git repositories
 - name: Check for Git repositories
   ansible.builtin.stat:
     path: "{{ item.path }}/.git"
   register: git_repos_check
-  loop: "{{ subdirectories.files }}"
+  loop: "{{ subdirectories.files | default([]) }}"
   loop_control:
     label: "{{ item.path | basename }}"
 
@@ -57,17 +57,22 @@
 - name: Create list of Git repositories
   ansible.builtin.set_fact:
     git_repositories: "{{ git_repositories | default([]) + [item.item.path] }}"
-  when: item.stat.exists
-  loop: "{{ git_repos_check.results }}"
+  when: item.stat.exists | default(false) | bool
+  loop: "{{ git_repos_check.results | default([]) }}"
   loop_control:
     label: "{{ item.item.path | basename }}"
 
 # Display Git repositories found
 - name: Display Git repositories found
   ansible.builtin.debug:
-    msg: 
-      - "Found {{ git_repositories | default([]) | length }} Git repositories:"
-      - "{{ git_repositories | default([]) | map('basename') | list }}"
+    msg: |
+      === Git Repositories Discovered ===
+      Found {{ git_repositories | default([]) | length }} Git repositories in {{ git_base_folder }}:
+      {% for repo in git_repositories | default([]) %}
+        - {{ repo | basename }}
+      {% else %}
+        (none found)
+      {% endfor %}
 
 # Perform git pull on each repository as the repository owner
 - name: Perform git pull on repositories
@@ -78,31 +83,39 @@
   loop: "{{ git_repositories | default([]) }}"
   loop_control:
     label: "{{ item | basename }}"
-  when: git_repositories is defined and git_repositories | length > 0
+  when:
+    - git_repositories is defined
+    - git_repositories | length > 0
   become: yes
   become_user: "{{ git_user }}"
   changed_when: "'Already up to date' not in git_pull_results.stdout"
   failed_when: git_pull_results.rc != 0
 
-# Display results summary
+# Display results summary cleanly in a single block without task-level looping
 - name: Display git pull results
   ansible.builtin.debug:
-    msg:
-      - "Repository: {{ item.item | basename }}"
-      - "Status: {{ 'Changed' if item.changed else 'Up to date' }}"
-      - "Output: {{ item.stdout if item.stdout is defined else 'N/A' }}"
-  loop: "{{ git_pull_results.results | default([]) }}"
-  loop_control:
-    label: "{{ item.item | basename }}"
-  when: git_pull_results is defined and git_pull_results.results is defined
+    msg: |
+      === Git Pull Execution Results ===
+      {% for item in git_pull_results.results %}
+      Repository: {{ item.item | basename }}
+      Status:     {{ 'Changed' if item.changed else 'Up to date' }}
+      Output:     {{ item.stdout if (item.stdout is defined and item.stdout | length > 0) else 'N/A' }}
+      {% if not loop.last %}
+
+      {% endif %}
+      {% endfor %}
+  when:
+    - git_pull_results is defined
+    - git_pull_results.results is defined
+    - git_pull_results.results | length > 0
 
 # Display final summary
 - name: Display final summary
   ansible.builtin.debug:
-    msg:
-      - "=== Git Pull Summary ==="
-      - "Base folder: {{ git_base_folder }}"
-      - "Total subdirectories: {{ subdirectories.files | length }}"
-      - "Git repositories found: {{ git_repositories | default([]) | length }}"
-      - "Repositories updated: {{ git_pull_results.results | default([]) | selectattr('changed') | list | length }}"
-      - "Repositories up to date: {{ git_pull_results.results | default([]) | rejectattr('changed') | list | length }}"
+    msg: |
+      === Git Pull Summary ===
+      Base folder:            {{ git_base_folder }}
+      Total subdirectories:   {{ subdirectories.files | default([]) | length }}
+      Git repositories found: {{ git_repositories | default([]) | length }}
+      Repositories updated:   {{ (git_pull_results.results | default([])) | selectattr('changed', 'equalto', true) | list | length }}
+      Repositories up to date: {{ (git_pull_results.results | default([])) | rejectattr('changed', 'equalto', true) | list | length }}

@@ -33,14 +33,14 @@
           ansible.builtin.include_role:
             name: notify_gmail
           vars:
-            notify_subject: "{{ notify_subject_prefix }} FAILED: Git Pull Repositories - {{ inventory_hostname }}"
+            notify_subject: "{{ notify_subject_prefix | default('') }} FAILED: Git Pull Repositories - {{ inventory_hostname }}"
             notify_body: |
               ❌ GIT PULL FAILURE ALERT! ❌
 
               Host: {{ inventory_hostname }}
               Base folder: {{ git_base_folder | default('/srv') }}
               Git user: {{ git_user | default('admin') }}
-              Timestamp: {{ ansible_date_time.iso8601 }}
+              Timestamp: {{ ansible_date_time.iso8601 | default('N/A') }}
 
               The git pull operation failed on this host.
 
@@ -67,13 +67,14 @@
               - Uncommitted local changes
 
               This is an automated message from Ansible Homelab monitoring.
-          when: git_notify_enabled
+          when: git_notify_enabled | default(false) | bool
 
         - name: Display failure message
           ansible.builtin.debug:
-            msg:
-              - "❌ Git pull operation failed!"
-              - "{{ 'Email notification sent!' if git_notify_enabled else 'Email notifications disabled' }}"
+            msg: |
+              === Git Pull Failure: {{ inventory_hostname }} ===
+              ❌ Git pull operation failed!
+              Notification Status: {{ 'Email notification sent!' if (git_notify_enabled | default(false) | bool) else 'Email notifications disabled' }}
 
         - name: Re-raise the error
           ansible.builtin.fail:
