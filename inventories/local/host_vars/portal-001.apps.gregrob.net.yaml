@@ -25,3 +25,8 @@ network_interfaces:
 
 # List of NFS shares to mount with their corresponding local mount points
 nfs_mounts: []
+
+# Host specific github repos
+host_github_repos:
+  - name: docker-homelab-prv
+    dest: /srv/docker-homelab-prv
