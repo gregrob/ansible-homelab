@@ -3,8 +3,8 @@
 # restart_single_container.yaml
 #
 # Stop/wait/start sequence for one matched repo, included in a loop from
-# docker_container_restart.yaml. Expects 'matched_repo' (with .name, .dest,
-# .container_dir) to be set by the calling loop.
+# restart_container_across_repos.yaml. Expects 'matched_repo' (with .name,
+# .dest, .container_name, .container_dir) to be set by the calling loop.
 #
 # Runs as admin_user (not the default root from play-level become) since
 # that's the identity with working SSH access to the secrets host that
@@ -22,7 +22,7 @@
     # intent explicitly rather than leaving a silent gap in the output
     - name: report check mode - would restart container
       ansible.builtin.debug:
-        msg: "[check mode] would run stop/start scripts for '{{ target_container }}' in {{ matched_repo.container_dir }} ({{ matched_repo.name }})"
+        msg: "[check mode] would run stop/start scripts for '{{ matched_repo.container_name }}' in {{ matched_repo.container_dir }} ({{ matched_repo.name }})"
       when: ansible_check_mode
 
     - name: execute docker stop script

@@ -2,16 +2,21 @@
 # =============================================================================
 # docker_container_restart.yaml
 #
-# Restarts a single docker container on the current host by running its
-# stop/start scripts, searching for the container across ALL repos defined
-# in github_repos (not just docker-homelab) since the same container name
-# could exist in more than one repo.
+# Restarts one or more docker containers on the current host by running
+# their stop/start scripts, searching for each container across ALL repos
+# defined in github_repos (not just docker-homelab) since the same
+# container name could exist in more than one repo.
 #
 # See the wiki for full details. Summary:
 #
 # Variables:
 #   target_container          (required) name of the container directory to
-#                              target, e.g. -e target_container=frigate
+#                              target. Accepts:
+#                              - A single string: -e target_container=frigate
+#                              - A native list: -e '{"target_container": ["arr", "arr-prv"]}'
+#                              - A stringified list (e.g., from Semaphore UI)
+#                              (useful for containers that depend on each
+#                              other and need restarting as a group)
 #   docker_restart_wait_time  seconds to wait between stop and start (default 5)
 #   docker_script_version     version/interface tag passed to the stop/start
 #                              scripts (default v2)
@@ -21,19 +26,15 @@
 #                              directory (default ../docker-start.sh {{ docker_script_version }})
 #
 # How it works:
-#   1. Iterates every repo in github_repos and stats the candidate container
-#      directory for each:
-#      {{ repo.dest }}/servers/{{ ansible_facts['hostname'] }}/{{ target_container }}
-#   2. Builds a list of repos where that directory actually exists on this
-#      host. It's possible for the same container name to exist in more
-#      than one repo (e.g. mid-migration between repos), so ALL matches are
-#      restarted, not just the first.
-#   3. Displays a summary of repos checked vs repos matched, for visibility.
-#   4. If no repo has a matching directory, skips this host cleanly rather
-#      than failing the playbook.
-#   5. For each matching repo, executes the stop script, waits
-#      docker_restart_wait_time, then executes the start script - via the
-#      included restart_single_container.yaml tasks file.
+#   1. Normalizes target_container into a list, safely parsing plain strings,
+#      native lists, and JSON string arrays, so single and multiple
+#      containers work identically from here on.
+#   2. For each name in that list, includes restart_container_across_repos.yaml
+#      which scans every repo in github_repos for that container and
+#      restarts it in every repo where it's actually found.
+#   3. Containers are processed one at a time, in the order given - list a
+#      dependency before its dependents if order matters (e.g.
+#      ["arr", "arr-prv"] restarts arr first, then arr-prv).
 #
 # Note on the "../" paths: containers live in a shared folder under
 # /docker/ in each repo, and are symlinked under each host's directory.
@@ -45,61 +46,28 @@
 - name: ensure target_container variable is defined
   ansible.builtin.assert:
     that: target_container is defined
-    msg: "target_container variable must be provided (e.g., -e target_container=frigate)"
+    msg: "target_container variable must be provided (e.g., -e target_container=frigate, or a list for multiple)"
 
-# reset accumulator fact in case this file runs more than once in the same
-# play (e.g. looped over multiple target_containers) - facts persist for
-# the life of the host, not just one task run, so without this a second
-# run would start from the previous run's matches instead of an empty list
-- name: reset matching_containers accumulator
+# accept either a single string or a list, so existing single-container
+# usage keeps working unchanged
+#- name: normalize target_container into a list
+#  ansible.builtin.set_fact:
+#    target_containers: "{{ [target_container] if target_container is string else target_container }}"
+
+# Step 1: Parse the string. If it's a JSON string '["a", "b"]', this converts it to a real list. 
+# If it's a plain string 'frigate', it remains a string.
+- name: parse target_container payload
   ansible.builtin.set_fact:
-    matching_containers: []
+    _parsed_container: "{{ target_container | from_yaml if target_container is string else target_container }}"
 
-# stat the candidate container directory in every configured repo. stat
-# never fails on a missing path, so this is safe to run unconditionally
-# across the whole list.
-- name: check container directory in each configured repo
-  ansible.builtin.stat:
-    path: "{{ item.dest }}/servers/{{ ansible_facts['hostname'] }}/{{ target_container }}"
-  register: container_dir_stats
-  loop: "{{ github_repos | default([]) }}"
-  loop_control:
-    label: "{{ item.name }}"
-
-# reduce the per-repo stat results down to just the repos where the
-# container directory actually exists. each entry keeps 'name' and 'dest'
-# (from the original github_repos item) plus the resolved 'container_dir'.
-- name: build list of repos containing this container
+# Step 2: Wrap it in a list only if it is still a string (e.g., single container)
+- name: normalize target_container into a list
   ansible.builtin.set_fact:
-    matching_containers: >-
-      {{ matching_containers +
-         [ {
-             'name': item.item.name,
-             'dest': item.item.dest,
-             'container_dir': item.item.dest ~ '/servers/' ~ ansible_facts['hostname'] ~ '/' ~ target_container
-           } ]
-      }}
-  loop: "{{ container_dir_stats.results }}"
+    target_containers: "{{ [_parsed_container] if _parsed_container is string else _parsed_container }}"
+
+# process each container name in turn, in the order given
+- name: process each target container
+  ansible.builtin.include_tasks: restart_container_across_repos.yaml
+  loop: "{{ target_containers }}"
   loop_control:
-    label: "{{ item.item.name }}"
-  when: item.stat.exists | default(false)
-
-# single joined line - checked vs matched, no repr/bracket noise
-- name: display repo search summary
-  ansible.builtin.debug:
-    msg: "'{{ target_container }}' on host {{ ansible_facts['hostname'] }} - checked: {{ github_repos | default([]) | map(attribute='name') | join(', ') }} | matched: {{ matching_containers | map(attribute='name') | join(', ') }}"
-
-# if nothing matched in any repo, say so but don't fail the playbook
-- name: report missing container directory
-  ansible.builtin.debug:
-    msg: "container '{{ target_container }}' does not exist in any configured repo on host {{ ansible_facts['hostname'] }}. skipping."
-  when: matching_containers | length == 0
-
-# restart the container in every repo where it was found
-- name: process container restart in each matching repo
-  ansible.builtin.include_tasks: restart_single_container.yaml
-  loop: "{{ matching_containers }}"
-  loop_control:
-    loop_var: matched_repo
-    label: "{{ matched_repo.name }}"
-  when: matching_containers | length > 0
+    loop_var: container_name

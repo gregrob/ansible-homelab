@@ -1,0 +1,66 @@
+---
+# =============================================================================
+# restart_container_across_repos.yaml
+#
+# For a single container name (container_name, set by the calling loop in
+# docker_container_restart.yaml), scans every repo in github_repos and
+# restarts the container in every repo where it's found.
+# =============================================================================
+
+# reset accumulator fact each time this file runs - it's included once per
+# container_name, so without this a later container would start from an
+# earlier container's matches instead of an empty list
+- name: reset matching_containers accumulator
+  ansible.builtin.set_fact:
+    matching_containers: []
+
+# stat the candidate container directory in every configured repo. stat
+# never fails on a missing path, so this is safe to run unconditionally
+# across the whole list.
+- name: check container directory in each configured repo
+  ansible.builtin.stat:
+    path: "{{ item.dest }}/servers/{{ ansible_facts['hostname'] }}/{{ container_name }}"
+  register: container_dir_stats
+  loop: "{{ github_repos | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+# reduce the per-repo stat results down to just the repos where the
+# container directory actually exists. each entry carries container_name
+# forward too, so restart_single_container.yaml is self-contained and
+# doesn't need to reach back to an outer variable.
+- name: build list of repos containing this container
+  ansible.builtin.set_fact:
+    matching_containers: >-
+      {{ matching_containers +
+         [ {
+             'name': item.item.name,
+             'dest': item.item.dest,
+             'container_name': container_name,
+             'container_dir': item.item.dest ~ '/servers/' ~ ansible_facts['hostname'] ~ '/' ~ container_name
+           } ]
+      }}
+  loop: "{{ container_dir_stats.results }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: item.stat.exists | default(false)
+
+# single joined line - checked vs matched, no repr/bracket noise
+- name: display repo search summary
+  ansible.builtin.debug:
+    msg: "'{{ container_name }}' on host {{ ansible_facts['hostname'] }} - checked: {{ github_repos | default([]) | map(attribute='name') | join(', ') }} | matched: {{ matching_containers | map(attribute='name') | join(', ') }}"
+
+# if nothing matched in any repo, say so but don't fail the playbook
+- name: report missing container directory
+  ansible.builtin.debug:
+    msg: "container '{{ container_name }}' does not exist in any configured repo on host {{ ansible_facts['hostname'] }}. skipping."
+  when: matching_containers | length == 0
+
+# restart the container in every repo where it was found
+- name: process container restart in each matching repo
+  ansible.builtin.include_tasks: restart_single_container.yaml
+  loop: "{{ matching_containers }}"
+  loop_control:
+    loop_var: matched_repo
+    label: "{{ matched_repo.name }}"
+  when: matching_containers | length > 0
