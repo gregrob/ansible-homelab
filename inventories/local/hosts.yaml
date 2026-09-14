@@ -18,6 +18,16 @@ all:
       hosts:
         infisical-001.trusted.max.lan: {}
 
+    # Unmanaged hosts
+    unmanaged:
+      hosts:
+        atlantis.mgmt.gregrob.net:
+          ansible_host: atlantis.mgmt.gregrob.net
+        eldorado.mgmt.gregrob.net:
+          ansible_host: eldorado.mgmt.gregrob.net
+        petra.mgmt.gregrob.net:
+          ansible_host: petra.mgmt.gregrob.net
+
     # All LXC's
     lxcs:
       hosts:
