@@ -21,8 +21,10 @@
     - ../group_vars/all/github-user.yaml
     - ../group_vars/all/github-repos-docker.yaml
     - ../group_vars/all/nas.yaml
-    - ../group_vars/all/admin-user.yaml # Consistent admin user for all these machines
-    - ../group_vars/all/topology.yaml   # gateway_ip_dns and friends - needed to resolve network_interfaces-derived vars below
+    - ../group_vars/all/secrets-homelab-paths.yaml # Paths used in the secret server
+    - ../group_vars/all/admin-user.yaml            # Consistent admin user for all these machines
+    - ../group_vars/all/topology.yaml              # gateway_ip_dns and friends - needed to resolve network_interfaces-derived vars below
+    
     
   vars:
     admin_supplementary_groups:
