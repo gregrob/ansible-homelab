@@ -14,9 +14,8 @@
 #  9. Add secrets server to known_hosts to avoid SSH host key verification prompts
 #  10. Add secrets server host dynamically to inventory
 #  11. Run secrets server operations (add SSH key to authorized_keys, encrypt secrets) - done under included tasks
-#  12. Register secrets file path for decryption
-#  13. Construct SSH command for decrypting secrets via age
-#  14. Execute decryption command and display output
+#  12. Decrypt a known test secret via secrets-helper.sh, to confirm the newly-added
+#      key can fetch and decrypt through the real production path
 
 - block:
 
@@ -132,26 +131,27 @@
       ansible_ssh_pass: "{{ secret_server.admin_password }}"
       ansible_become_password: "{{ secret_server.admin_password }}"
 
-  # Register the secrets file path for decryption
-  - name: Register secrets file path for decryption
-    ansible.builtin.set_fact:
-      secrets_file_path: "/srv/secrets/encrypted/test/test-code-string.secret.age"
-
-  # Construct command using DNS hostname alias with BatchMode enabled
-  - name: Construct command for decrypting secrets
-    ansible.builtin.set_fact:
-      decrypt_command: >-
-        ssh -o BatchMode=yes {{ secret_server.secrets_user }}@{{ secret_server.hostname }}
-        'cat {{ secrets_file_path }}' | age -d -i {{ secrets_key_filename_base }}
-
-  # Decrypt the secrets using the constructed command
-  - name: Decrypt the secrets using the constructed command
-    ansible.builtin.shell: "{{ decrypt_command }}"
+  # Decrypt a known test secret via the same client helper used fleet-wide,
+  # to confirm this host's newly-generated key can actually fetch and
+  # decrypt through the real production path (serve-secret.sh's validated,
+  # injection-safe path) rather than a separate ad-hoc ssh|age pipeline.
+  # SECRET_SSH_SERVER is set explicitly from secret_server rather than
+  # relying on secrets-helper.sh's own hardcoded default, so this task
+  # keeps working unchanged once the secrets server itself migrates off
+  # its current hostname. SECRET_AGE_KEY is not overridden since
+  # secrets-helper.sh's default already matches secrets_key_filename_base.
+  - name: Decrypt the test secret using secrets-helper.sh
+    ansible.builtin.shell: >-
+      export SECRET_SSH_SERVER={{ secret_server.secrets_user }}@{{ secret_server.hostname }} &&
+      source {{ secrets_homelab_client_scripts_dir }}/secrets-helper.sh &&
+      get_secret "test/test-code-string.secret.age"
+    args:
+      executable: /bin/bash
     register: decrypted_output
     changed_when: false # Don't flag a change because read only operation
 
   # Display the output of the decryption command
-  - name: Display output of encryption command
+  - name: Display output of decryption command
     ansible.builtin.debug:
       var: decrypted_output.stdout
 
