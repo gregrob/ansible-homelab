@@ -5,6 +5,8 @@
 common_github_repos:
   - name: docker-homelab
     dest: /srv/docker-homelab
+  - name: secrets-homelab
+    dest: /srv/secrets-homelab
 
 # Merged list: Combines baseline with host-specific additions (defined in host_vars)
 github_repos: "{{ common_github_repos + (host_github_repos | default([])) }}"
