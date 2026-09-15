@@ -67,10 +67,25 @@
       Failed:         {{ command_results.results | rejectattr('rc', 'equalto', 0) | list | length }}
       Timestamp:      {{ ansible_facts['date_time']['iso8601'] | default('N/A') }}
 
-# Fail the play at the end if any command failed, now that all commands have run
+# Fail the play at the end if any command reported a non-zero exit code —
+# including rc=24 (lock contention). Still surfaces as a failure (visible,
+# red) since something unexpected did happen and is worth a look, but the
+# message below explains explicitly when it's just the file lock doing its
+# job, rather than requiring a dig through the command outputs to find out.
 - name: Fail if any command reported a non-zero exit code
   ansible.builtin.fail:
-    msg: "One or more commands failed. See the execution summary above for details."
+    msg: |
+      One or more commands failed. See the execution summary above for details.
+      {% set lock_conflicts = command_results.results | selectattr('rc', 'equalto', 24) | list %}
+      {% if lock_conflicts | length > 0 %}
+
+      NOTE: {{ lock_conflicts | length }} command(s) exited with code 24 — this
+      means encrypt-secrets.sh or backup-secrets.sh found another run already
+      holding /tmp/secrets-homelab.lock and deferred instead of running
+      concurrently. This usually isn't a real problem — check whether two
+      triggers overlapped (e.g. a manual run during a scheduled one), then
+      re-run if the work still needs to happen.
+      {% endif %}
   when:
     - command_results.results is defined
     - command_results.results | rejectattr('rc', 'equalto', 0) | list | length > 0
