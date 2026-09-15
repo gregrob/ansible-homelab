@@ -21,7 +21,7 @@
   when: (secrets_commands | default([])) | length == 0
 
 # Execute each command on the secrets server
-- name: Execute commands on secrets server (CHANGED because execution task)
+- name: Execute commands on secrets server
   ansible.builtin.shell:
     cmd: "{{ item.cmd }}"
     chdir: "{{ secrets_working_dir }}"
@@ -30,6 +30,7 @@
   loop_control:
     label: "{{ item.name }}"
   changed_when: false
+  failed_when: false
   environment: "{{ item.environment | default({}) }}"
   no_log: "{{ item.no_log | default(false) | bool }}"
 
@@ -65,3 +66,11 @@
       Successful:     {{ command_results.results | selectattr('rc', 'equalto', 0) | list | length }}
       Failed:         {{ command_results.results | rejectattr('rc', 'equalto', 0) | list | length }}
       Timestamp:      {{ ansible_facts['date_time']['iso8601'] | default('N/A') }}
+
+# Fail the play at the end if any command failed, now that all commands have run
+- name: Fail if any command reported a non-zero exit code
+  ansible.builtin.fail:
+    msg: "One or more commands failed. See the execution summary above for details."
+  when:
+    - command_results.results is defined
+    - command_results.results | rejectattr('rc', 'equalto', 0) | list | length > 0

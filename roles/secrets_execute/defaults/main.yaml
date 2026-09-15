@@ -14,4 +14,4 @@ secrets_commands: []
 secrets_show_output: true
 
 # Working directory for command execution
-secrets_working_dir: "/srv/secrets"
+secrets_working_dir: "{{ secrets_homelab_server_scripts_dir }}"
