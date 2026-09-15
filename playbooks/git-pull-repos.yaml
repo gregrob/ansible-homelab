@@ -40,7 +40,7 @@
               Host: {{ inventory_hostname }}
               Base folder: {{ git_base_folder | default('/srv') }}
               Git user: {{ git_user | default('admin') }}
-              Timestamp: {{ ansible_date_time.iso8601 | default('N/A') }}
+              Timestamp: {{ ansible_facts['date_time']['iso8601'] | default('N/A') }}
 
               The git pull operation failed on this host.
 
