@@ -1,5 +1,13 @@
 ---
-# 1. Apply a blanket lock to the directory and EVERYTHING inside it (700)
+# ==============================================================================
+# SCRIPT DIRECTORY SETUP
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Target: Server Scripts (Admin blanket lock, with specific holes punched)
+# ------------------------------------------------------------------------------
+
+# 1. Apply blanket lock to the directory and all contents (700)
 - name: Lock down all files in the server scripts directory
   ansible.builtin.file:
     path: "{{ secrets_homelab_server_scripts_dir }}"
@@ -9,7 +17,7 @@
     mode: '0700'
     recurse: yes
 
-# 2. Open the DIRECTORY gate for the secrets group (710)
+# 2. Open the directory gate for secrets group traversal (710)
 - name: Allow secrets group to traverse the server scripts directory
   ansible.builtin.file:
     path: "{{ secrets_homelab_server_scripts_dir }}"
@@ -18,7 +26,7 @@
     group: "{{ secrets_group }}"
     mode: '0710'
 
-# 3. Open the specific SCRIPT for the secrets group (750)
+# 3. Set specific execute permissions for serve-secret.sh (750, admin:secrets)
 - name: Set execute permissions for serve-secret.sh
   ansible.builtin.file:
     path: "{{ secrets_homelab_server_scripts_dir }}/serve-secret.sh"
@@ -26,3 +34,135 @@
     owner: "{{ admin_user }}"
     group: "{{ secrets_group }}"
     mode: '0750'
+
+# ==============================================================================
+# SECRETS FOLDERS SETUP
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Target: Parent Secrets Folder (Traversal only)
+# ------------------------------------------------------------------------------
+
+# 1. Open the directory gate for secrets group traversal (710)
+- name: Allow secrets group to traverse the server/secrets directory
+  ansible.builtin.file:
+    path: "{{ secrets_homelab_server_secrets_dir }}"
+    state: directory
+    owner: "{{ admin_user }}"
+    group: "{{ secrets_group }}"
+    mode: '0710'
+
+# ------------------------------------------------------------------------------
+# Target: Backups and Decrypted (Admin only - Folders: 700, Files: 600)
+# ------------------------------------------------------------------------------
+
+# 2. Ensure backups and decrypted base directories exist (700)
+- name: Ensure backups and decrypted base directories exist (700)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ admin_user }}"
+    group: "{{ admin_group }}"
+    mode: '0700'
+  loop:
+    - "{{ secrets_homelab_server_secrets_dir }}/backups"
+    - "{{ secrets_homelab_server_secrets_dir }}/decrypted"
+
+# 3. Find all files in backups and decrypted
+- name: Find all FILES in backups and decrypted
+  ansible.builtin.find:
+    paths:
+      - "{{ secrets_homelab_server_secrets_dir }}/backups"
+      - "{{ secrets_homelab_server_secrets_dir }}/decrypted"
+    file_type: file
+    recurse: yes
+  register: found_secure_files
+
+# 4. Enforce file permissions in backups and decrypted (600)
+- name: Enforce 600 permissions on all files in backups and decrypted
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: file
+    owner: "{{ admin_user }}"
+    group: "{{ admin_group }}"
+    mode: '0600'
+  loop: "{{ found_secure_files.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+# 5. Find all subdirectories in backups and decrypted
+- name: Find all SUBDIRECTORIES in backups and decrypted
+  ansible.builtin.find:
+    paths:
+      - "{{ secrets_homelab_server_secrets_dir }}/backups"
+      - "{{ secrets_homelab_server_secrets_dir }}/decrypted"
+    file_type: directory
+    recurse: yes
+  register: found_secure_dirs
+
+# 6. Enforce subdirectory permissions in backups and decrypted (700)
+- name: Enforce 700 permissions on all subdirectories in backups and decrypted
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ admin_user }}"
+    group: "{{ admin_group }}"
+    mode: '0700'
+  loop: "{{ found_secure_dirs.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+# ------------------------------------------------------------------------------
+# Target: Encrypted (Admin & Secrets Group - Folders: 750, Files: 640)
+# ------------------------------------------------------------------------------
+
+# 7. Ensure encrypted base directory exists (750, admin:secrets)
+- name: Ensure encrypted base directory exists (750, admin:secrets)
+  ansible.builtin.file:
+    path: "{{ secrets_homelab_server_secrets_dir }}/encrypted"
+    state: directory
+    owner: "{{ admin_user }}"
+    group: "{{ secrets_group }}"
+    mode: '0750'
+
+# 8. Find all files in encrypted
+- name: Find all FILES in encrypted
+  ansible.builtin.find:
+    paths:
+      - "{{ secrets_homelab_server_secrets_dir }}/encrypted"
+    file_type: file
+    recurse: yes
+  register: found_encrypted_files
+
+# 9. Enforce file permissions in encrypted (640, admin:secrets)
+- name: Enforce 640 permissions on all files in encrypted
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: file
+    owner: "{{ admin_user }}"
+    group: "{{ secrets_group }}"
+    mode: '0640'
+  loop: "{{ found_encrypted_files.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+# 10. Find all subdirectories in encrypted
+- name: Find all SUBDIRECTORIES in encrypted
+  ansible.builtin.find:
+    paths:
+      - "{{ secrets_homelab_server_secrets_dir }}/encrypted"
+    file_type: directory
+    recurse: yes
+  register: found_encrypted_dirs
+
+# 11. Enforce subdirectory permissions in encrypted (750, admin:secrets)
+- name: Enforce 750 permissions on all subdirectories in encrypted
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ admin_user }}"
+    group: "{{ secrets_group }}"
+    mode: '0750'
+  loop: "{{ found_encrypted_dirs.files }}"
+  loop_control:
+    label: "{{ item.path }}"
