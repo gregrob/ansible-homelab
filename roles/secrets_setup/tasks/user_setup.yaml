@@ -1,0 +1,27 @@
+---
+- name: Ensure secrets group exists
+  ansible.builtin.group:
+    name: "{{ secrets_group }}"
+    gid: "{{ secrets_gid }}"
+    state: present
+    system: yes
+
+# Create the secrets user using the admin template structure
+- name: Create secrets user and add to appropriate groups
+  ansible.builtin.user:
+    name: "{{ secrets_user }}"
+    uid: "{{ secrets_uid }}"
+    comment: "{{ secrets_comment }}"
+    group: "{{ secrets_group }}"
+    groups: "{{ secrets_supplementary_groups if (secrets_supplementary_groups | length > 0) else omit }}"
+    append: "{{ 'yes' if (secrets_supplementary_groups | length > 0) else omit }}"
+    shell: "{{ secrets_shell }}"
+    create_home: yes
+    system: yes
+    state: present
+
+- name: Add admin user to the secrets group
+  ansible.builtin.user:
+    name: "{{ admin_user }}"
+    groups: "{{ secrets_group }}"
+    append: yes

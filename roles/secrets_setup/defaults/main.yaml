@@ -1,0 +1,9 @@
+---
+secrets_group: "secrets"
+secrets_gid: 1002
+
+secrets_user: "secrets"
+secrets_uid: 1002
+secrets_comment: "Secrets Management Account"
+secrets_shell: "/bin/bash"
+secrets_supplementary_groups: []
