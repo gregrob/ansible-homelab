@@ -120,10 +120,6 @@ all:
         dns-001.dns.gregrob.net: {}
         dns-002.dns.gregrob.net: {}
         failsafe-002.dns.gregrob.net: {}
-
-    secrets_targets:
-      hosts:
-        secrets.max.lan: {}
           
     git_targets:
       children:
