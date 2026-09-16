@@ -1,6 +1,7 @@
 --- 
 # Default variables for the secrets_connect role
 
-secret_server_hostname: secrets.com              # DNS hostname or IP address of the secrets server
-secret_server_host_ip: 1.2.3.4                   # IP address of the secrets server for clients without local resolution
-secret_server_secrets_user: secrets              # The non-admin user account used to run secrets-related services
+secret_server_hostname: secrets.com  # DNS hostname or IP address of the secrets server
+secret_server_host_ip: 1.2.3.4       # IP address of the secrets server for clients without local resolution
+
+secrets_user: secrets                # The non-admin user account used to run secrets-related services

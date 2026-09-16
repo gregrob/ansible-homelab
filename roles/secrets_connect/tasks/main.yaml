@@ -84,7 +84,7 @@
         {% if secrets_server_use_ip | default(false) %}
           HostName {{ secret_server_host_ip }}
         {% endif %}
-          User {{ secret_server_secrets_user }}
+          User {{ secrets_user }}
           IdentityFile {{ secrets_key_filename_base }}
           IdentitiesOnly yes
  
@@ -142,7 +142,7 @@
   # secrets-helper.sh's default already matches secrets_key_filename_base.
   - name: Decrypt the test secret using secrets-helper.sh
     ansible.builtin.shell: >-
-      export SECRET_SSH_SERVER={{ secret_server_secrets_user }}@{{ secret_server_hostname }} &&
+      export SECRET_SSH_SERVER={{ secrets_user }}@{{ secret_server_hostname }} &&
       source {{ secrets_homelab_client_scripts_dir }}/secrets-helper.sh &&
       get_secret "test/test-code-string.secret.age"
     args:
