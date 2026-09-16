@@ -1,0 +1,48 @@
+---
+# Clean-up Old SSH Configs
+# Removes deprecated host entries from known_hosts and old SSH config blocks 
+# (such as legacy domains) for the admin user across target machines.
+#
+# Usage:
+#   ansible-playbook -i inventories/local/hosts.yaml cleanup-old-ssh-configs.yaml
+
+- name: Clean-up Old SSH Configs
+  hosts: debian_config_target
+  gather_facts: yes
+  become: true
+    
+  vars_files:
+    - ../group_vars/all/vault.yaml
+    - ../group_vars/all/admin-user.yaml  # Provides {{ admin_user }}
+
+  tasks:
+    - name: Remove old hosts from known_hosts
+      ansible.builtin.known_hosts:
+        path: "/home/{{ admin_user }}/.ssh/known_hosts"
+        name: "{{ item }}"
+        state: absent
+      loop:
+        - "secrets.max.lan"
+        # Add future old hosts here as you migrate them
+        # - "another-old-host.max.lan"
+
+    - name: Remove old SSH config blocks
+      ansible.builtin.blockinfile:
+        path: "/home/{{ admin_user }}/.ssh/config"
+        marker: "# {mark} ANSIBLE MANAGED SSH CONFIG for {{ item }}"
+        state: absent
+      loop:
+        - "secrets.max.lan"
+        # Add future old hosts here as you migrate them
+        # - "another-old-host.max.lan"
+
+    - name: Ensure correct ownership and permissions for .ssh directory and files
+      ansible.builtin.file:
+        path: "/home/{{ admin_user }}/.ssh/{{ item.path }}"
+        owner: "{{ admin_user }}"
+        group: "{{ admin_group }}"
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: "", mode: "0700" }              # Sets /home/user/.ssh to drwx------
+        - { path: "known_hosts", mode: "0600" }   # Sets known_hosts to -rw-------
+        - { path: "config", mode: "0600" }        # Sets config to -rw-------
