@@ -111,14 +111,18 @@
         | list
       }}
 
-  # Add the secrets server host to the inventory dynamically
+  # Add the secrets server host to the inventory dynamically.
+  # ansible_user / ansible_ssh_pass / ansible_become_password all reference
+  # the fleet-wide admin_user / admin_password directly (see
+  # group_vars/all/ansible-user.yaml) — the secrets server uses the same
+  # connection identity as every other host, no override needed.
   - name: Add secret server host dynamically
     ansible.builtin.add_host:
       name: secrets_server
       ansible_host: "{{ secrets_target_address }}"
-      ansible_user: "{{ secret_server.admin_user }}"
-      ansible_ssh_pass: "{{ secret_server.admin_password }}"
-      ansible_become_password: "{{ secret_server.admin_password }}"
+      ansible_user: "{{ admin_user }}"
+      ansible_ssh_pass: "{{ admin_password }}"
+      ansible_become_password: "{{ admin_password }}"
       groups:
         - secrets_access
     changed_when: false # Don't flag a change for this task, only adding a host
@@ -126,10 +130,6 @@
   # Run additional secrets server operations on the dynamically added secrets_server host
   - name: Run secrets server operations on secrets_server
     ansible.builtin.include_tasks: secrets_server_tasks.yaml
-    vars:
-      ansible_user: "{{ secret_server.admin_user }}"
-      ansible_ssh_pass: "{{ secret_server.admin_password }}"
-      ansible_become_password: "{{ secret_server.admin_password }}"
 
   # Decrypt a known test secret via the same client helper used fleet-wide,
   # to confirm this host's newly-generated key can actually fetch and
