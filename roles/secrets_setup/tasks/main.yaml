@@ -2,3 +2,4 @@
 - ansible.builtin.import_tasks: user_setup.yaml
 - ansible.builtin.import_tasks: permissions_setup.yaml
 - ansible.builtin.import_tasks: authorized_keys_setup.yaml
+- ansible.builtin.import_tasks: nas_host_key_setup.yaml

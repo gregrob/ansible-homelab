@@ -1,0 +1,24 @@
+---
+# ==============================================================================
+# NAS SSH HOST KEY SETUP
+# ==============================================================================
+# Add NAS SSH host key to known_hosts of admin user
+#
+# ssh-keyscan is heavily rate limited on the NAS, so keys are stored 
+# statically in vault variables.
+
+- name: Add NAS host keys to known_hosts
+  ansible.builtin.known_hosts:
+    path: "/home/{{ admin_user }}/.ssh/known_hosts"
+    name: "{{ nas_host }}"
+    key: "{{ item }}"
+    state: present
+  loop: "{{ flashstor_ssh_public_keys }}"
+
+- name: Ensure correct ownership and permissions on known_hosts
+  ansible.builtin.file:
+    path: "/home/{{ admin_user }}/.ssh/known_hosts"
+    owner: "{{ admin_user }}"
+    group: "{{ admin_group }}"
+    mode: "0600"
+    state: file
