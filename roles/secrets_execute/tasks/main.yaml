@@ -10,7 +10,7 @@
       === Secrets Server Command Execution ===
       Target server:       {{ inventory_hostname }}
       Execution user:      {{ ansible_user | default('current') }}
-      Working directory:   {{ secrets_working_dir }}
+      Working directory:   {{ secrets_homelab_server_scripts_dir }}
       Commands to execute: {{ (secrets_commands | default([])) | length }}
       Show output:         {{ 'Enabled' if (secrets_show_output | default(true) | bool) else 'Disabled' }}
 
@@ -24,7 +24,7 @@
 - name: Execute commands on secrets server
   ansible.builtin.shell:
     cmd: "{{ item.cmd }}"
-    chdir: "{{ secrets_working_dir }}"
+    chdir: "{{ secrets_homelab_server_scripts_dir }}"
   register: command_results
   loop: "{{ secrets_commands }}"
   loop_control:
