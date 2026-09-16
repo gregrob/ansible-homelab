@@ -22,8 +22,8 @@
   # Determine target address (IP vs Hostname) and known_hosts entry format based on host var override
   - name: Set secrets server target facts
     ansible.builtin.set_fact:
-      secrets_target_address: "{{ secret_server.host_ip if (secrets_server_use_ip | default(false)) else secret_server.hostname }}"
-      secrets_known_hosts_prefix: "{{ secret_server.hostname + ',' + secret_server.host_ip if (secrets_server_use_ip | default(false)) else secret_server.hostname }}"
+      secrets_target_address: "{{ secret_server_host_ip if (secrets_server_use_ip | default(false)) else secret_server_hostname }}"
+      secrets_known_hosts_prefix: "{{ secret_server_hostname + ',' + secret_server_host_ip if (secrets_server_use_ip | default(false)) else secret_server_hostname }}"
 
   # Create a variable for the filename base for the secrets server SSH key    
   - name: Set SSH key base path for secrets key
@@ -71,20 +71,20 @@
     register: secrets_pubkey_content
 
   # Add SSH config entry (injects HostName IP override ONLY if secrets_server_use_ip is true)
-  - name: Add SSH config entry for {{ secret_server.hostname }}
+  - name: Add SSH config entry for {{ secret_server_hostname }}
     ansible.builtin.blockinfile:
       path: "/home/{{ admin_user }}/.ssh/config"
       owner: "{{ admin_user }}"
       group: "{{ admin_group }}"
       mode: '0600'
       create: yes
-      marker: "# {mark} ANSIBLE MANAGED SSH CONFIG for {{ secret_server.hostname }}"
+      marker: "# {mark} ANSIBLE MANAGED SSH CONFIG for {{ secret_server_hostname }}"
       block: |
-        Host {{ secret_server.hostname }}
+        Host {{ secret_server_hostname }}
         {% if secrets_server_use_ip | default(false) %}
-          HostName {{ secret_server.host_ip }}
+          HostName {{ secret_server_host_ip }}
         {% endif %}
-          User {{ secret_server.secrets_user }}
+          User {{ secret_server_secrets_user }}
           IdentityFile {{ secrets_key_filename_base }}
           IdentitiesOnly yes
  
@@ -100,7 +100,7 @@
   # 2. Add keys to known_hosts on all targets
   - name: Add secrets server to known_hosts
     ansible.builtin.known_hosts:
-      name: "{{ secret_server.hostname }}"
+      name: "{{ secret_server_hostname }}"
       key: "{{ item }}"
       path: "/home/{{ admin_user }}/.ssh/known_hosts"
     loop: >-
@@ -142,7 +142,7 @@
   # secrets-helper.sh's default already matches secrets_key_filename_base.
   - name: Decrypt the test secret using secrets-helper.sh
     ansible.builtin.shell: >-
-      export SECRET_SSH_SERVER={{ secret_server.secrets_user }}@{{ secret_server.hostname }} &&
+      export SECRET_SSH_SERVER={{ secret_server_secrets_user }}@{{ secret_server_hostname }} &&
       source {{ secrets_homelab_client_scripts_dir }}/secrets-helper.sh &&
       get_secret "test/test-code-string.secret.age"
     args:
