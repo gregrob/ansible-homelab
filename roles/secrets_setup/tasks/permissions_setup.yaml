@@ -7,18 +7,8 @@
 # Target: Server Scripts (Admin blanket lock, with specific holes punched)
 # ------------------------------------------------------------------------------
 
-# 1. Apply blanket lock to the directory and all contents (700)
-- name: Lock down all files in the server scripts directory
-  ansible.builtin.file:
-    path: "{{ secrets_homelab_server_scripts_dir }}"
-    state: directory
-    owner: "{{ admin_user }}"
-    group: "{{ admin_group }}"
-    mode: '0700'
-    recurse: yes
-
-# 2. Open the directory gate for secrets group traversal (710)
-- name: Allow secrets group to traverse the server scripts directory
+# 1. Ensure the parent directory exists with traversal access for the secrets group (710)
+- name: Ensure server scripts parent directory exists with traversal permissions
   ansible.builtin.file:
     path: "{{ secrets_homelab_server_scripts_dir }}"
     state: directory
@@ -26,7 +16,29 @@
     group: "{{ secrets_group }}"
     mode: '0710'
 
-# 3. Set specific execute permissions for serve-secret.sh (750, admin:secrets)
+# 2. Find only .sh files inside the server scripts directory
+- name: Find all .sh script files in the server scripts directory
+  ansible.builtin.find:
+    paths: "{{ secrets_homelab_server_scripts_dir }}"
+    patterns: "*.sh"
+    file_type: file
+    recurse: yes
+  register: found_script_files
+
+# 3. Lock down all standard .sh scripts to admin only (700)
+- name: Lock down standard script files to admin (700)
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: file
+    owner: "{{ admin_user }}"
+    group: "{{ admin_group }}"
+    mode: '0700'
+  loop: "{{ found_script_files.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+  when: item.path != secrets_homelab_server_scripts_dir + '/serve-secret.sh'
+
+# 4. Set specific execute permissions for serve-secret.sh (750, admin:secrets)
 - name: Set execute permissions for serve-secret.sh
   ansible.builtin.file:
     path: "{{ secrets_homelab_server_scripts_dir }}/serve-secret.sh"
