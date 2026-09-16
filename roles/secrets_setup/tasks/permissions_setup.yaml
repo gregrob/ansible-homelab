@@ -1,0 +1,28 @@
+---
+# 1. Apply a blanket lock to the directory and EVERYTHING inside it (700)
+- name: Lock down all files in the server scripts directory
+  ansible.builtin.file:
+    path: "{{ secrets_homelab_server_scripts_dir }}"
+    state: directory
+    owner: "{{ admin_user }}"
+    group: "{{ admin_group }}"
+    mode: '0700'
+    recurse: yes
+
+# 2. Open the DIRECTORY gate for the secrets group (710)
+- name: Allow secrets group to traverse the server scripts directory
+  ansible.builtin.file:
+    path: "{{ secrets_homelab_server_scripts_dir }}"
+    state: directory
+    owner: "{{ admin_user }}"
+    group: "{{ secrets_group }}"
+    mode: '0710'
+
+# 3. Open the specific SCRIPT for the secrets group (750)
+- name: Set execute permissions for serve-secret.sh
+  ansible.builtin.file:
+    path: "{{ secrets_homelab_server_scripts_dir }}/serve-secret.sh"
+    state: file
+    owner: "{{ admin_user }}"
+    group: "{{ secrets_group }}"
+    mode: '0750'
