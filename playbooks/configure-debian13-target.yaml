@@ -199,4 +199,5 @@
     #   homelab_nav: deploys 'cdh' shell shortcut + tab completion for
     #   jumping to homelab container dirs (depends on docker-homelab repo path)
     - { role: homelab_nav,              tags: [helpers] }
-    - { role: secrets_connect,          tags: [secrets] }
+    # Skip fetching secrets on the secrets server itself to prevent a chicken-and-egg bootstrap failure
+    - { role: secrets_connect,          tags: [secrets], when: not (is_secrets_server | default(false) | bool) }
