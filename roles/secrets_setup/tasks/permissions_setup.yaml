@@ -7,14 +7,17 @@
 # Target: Server Scripts (Admin blanket lock, with specific holes punched)
 # ------------------------------------------------------------------------------
 
-# 1. Ensure the parent directory exists with traversal access for the secrets group (710)
-- name: Ensure server scripts parent directory exists with traversal permissions
+# 1. Ensure the parent directories exist with traversal access for the secrets group (710)
+- name: Ensure server parent directories exist with traversal permissions
   ansible.builtin.file:
-    path: "{{ secrets_homelab_server_scripts_dir }}"
+    path: "{{ item }}"
     state: directory
     owner: "{{ admin_user }}"
     group: "{{ secrets_group }}"
     mode: '0710'
+  loop:
+    - "{{ secrets_homelab_server_dir }}"
+    - "{{ secrets_homelab_server_scripts_dir }}"
 
 # 2. Find only .sh files inside the server scripts directory
 - name: Find all .sh script files in the server scripts directory
