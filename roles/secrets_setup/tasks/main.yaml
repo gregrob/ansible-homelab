@@ -1,7 +1,4 @@
 ---
 - ansible.builtin.import_tasks: user_setup.yaml
 - ansible.builtin.import_tasks: permissions_setup.yaml
-
-
-# - ansible.builtin.import_tasks: 3_manage_keys.yaml
-# - ansible.builtin.import_tasks: 4_connect_secrets.yaml
+- ansible.builtin.import_tasks: authorized_keys_setup.yaml

@@ -1,0 +1,25 @@
+# ==============================================================================
+# SECRETS USER SSH DIRECTORY & KEYS SETUP
+# ==============================================================================
+
+# 1. Ensure home and .ssh directories exist with correct ownership and permissions (750)
+- name: Ensure secrets user home and .ssh directories exist with secure permissions
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ secrets_user }}"
+    group: "{{ secrets_group }}"
+    mode: '0750'
+  loop:
+    - "/home/{{ secrets_user }}"
+    - "/home/{{ secrets_user }}/.ssh"
+
+# 3. Ensure the authorized_keys file exists without changing timestamps on runs
+- name: Ensure authorized_keys file exists
+  ansible.builtin.copy:
+    content: ""
+    dest: "/home/{{ secrets_user }}/.ssh/authorized_keys"
+    force: no
+    owner: "{{ secrets_user }}"
+    group: "{{ secrets_group }}"
+    mode: '0640'
