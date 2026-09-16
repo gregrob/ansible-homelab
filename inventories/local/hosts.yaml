@@ -111,6 +111,10 @@ all:
       hosts:
         ansible-002.mgmt.gregrob.net: {}
 
+    secrets_target:
+      hosts:
+        secrets-002.mgmt.gregrob.net: {}
+
     keepalived_dns_target:
       hosts:
         dns-001.dns.gregrob.net: {}
