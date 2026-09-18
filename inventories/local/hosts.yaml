@@ -30,6 +30,9 @@ all:
         pbs.mgmt.gregrob.net:
           ansible_host: pbs.mgmt.gregrob.net
 
+        ha-test.home.gregrob.net:
+          ansible_host: ha-test.home.gregrob.net
+
     # All LXC's
     lxcs:
       hosts:
