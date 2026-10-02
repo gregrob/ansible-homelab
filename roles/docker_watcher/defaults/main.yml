@@ -69,6 +69,13 @@ docker_watcher_tag_rules:
   - prefix: "alpine"
     regex: '^\d+\.\d+\.\d+$'
 
+  # nginx (alpine variant): <version>-alpine only. Excludes the
+  # -alpine-slim / -alpine-perl / -alpine-otel variants and the
+  # -alpine<alpine_version> pinned tags, which would otherwise
+  # compete with (and sometimes outsort) the plain release tag.
+  - prefix: "nginx"
+    regex: '^\d+\.\d+\.\d+-alpine$'
+
 # Fallback when no rule above matches: plain numeric, optional "v",
 # at least one dot required. The dot requirement matters — without
 # it, a bare integer (a CI build number, a date-stamp tag) can
