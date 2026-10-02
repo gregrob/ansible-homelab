@@ -1,0 +1,80 @@
+---
+# Removes every image not referenced by any container (running or stopped).
+# The listing tasks are read-only and run even under --check, so the preview
+# shows exactly what a real run would delete. The prune itself is skipped in
+# check mode.
+
+- name: List all image IDs
+  ansible.builtin.command: "{{ docker_image_prune_docker_bin }} image ls -a -q --no-trunc"
+  register: docker_image_prune_all_ids
+  changed_when: false
+  check_mode: false
+
+- name: List image IDs referenced by containers (running or stopped)
+  ansible.builtin.shell: |
+    set -o pipefail
+    ids=$({{ docker_image_prune_docker_bin }} ps -aq)
+    [ -z "$ids" ] || {{ docker_image_prune_docker_bin }} inspect --format '{% raw %}{{.Image}}{% endraw %}' $ids
+  args:
+    executable: /bin/bash
+  register: docker_image_prune_used_ids
+  changed_when: false
+  check_mode: false
+
+- name: Describe all images (id | name:tag | size)
+  ansible.builtin.command: >-
+    {{ docker_image_prune_docker_bin }} image ls -a --no-trunc
+    --format '{% raw %}{{.ID}}|{{.Repository}}:{{.Tag}}|{{.Size}}{% endraw %}'
+  register: docker_image_prune_described
+  changed_when: false
+  check_mode: false
+
+- name: Work out which images are unused
+  ansible.builtin.set_fact:
+    docker_image_prune_unused_ids: >-
+      {{ docker_image_prune_all_ids.stdout_lines
+         | unique
+         | difference(docker_image_prune_used_ids.stdout_lines) }}
+
+- name: Record unused images for this host (rows of [id, name:tag, size])
+  ansible.builtin.set_fact:
+    docker_image_prune_rows: >-
+      {{ docker_image_prune_described.stdout_lines
+         | map('split', '|')
+         | selectattr('0', 'in', docker_image_prune_unused_ids)
+         | list }}
+
+# One consolidated report for the whole play instead of one message per host.
+- name: Report unused images across all hosts
+  ansible.builtin.debug:
+    msg: |-
+      {{ 'PREVIEW (check mode) - nothing will be deleted' if ansible_check_mode else 'Unused images being removed' }}
+
+      {% set ns = namespace(total=0, hosts=0, clean=[]) %}
+      {% for h in ansible_play_hosts %}
+      {% set rows = hostvars[h].docker_image_prune_rows | default([]) %}
+      {% if rows | length > 0 %}
+      {% set ns.total = ns.total + rows | length %}
+      {% set ns.hosts = ns.hosts + 1 %}
+      {{ h }}
+      {% for r in rows %}
+        {{ '%-52s %8s' | format(r[1], r[2]) }}
+      {% endfor %}
+
+      {% else %}
+      {% set ns.clean = ns.clean + [h] %}
+      {% endif %}
+      {% endfor %}
+      Total: {{ ns.total }} image(s) on {{ ns.hosts }} of {{ ansible_play_hosts | length }} host(s)
+      {% if ns.clean | length > 0 %}
+      Nothing to prune on: {{ ns.clean | join(', ') }}
+      {% endif %}
+  run_once: true
+  when: docker_image_prune_show_preview | bool
+
+- name: Prune unused images
+  ansible.builtin.command: "{{ docker_image_prune_docker_bin }} image prune -af"
+  when:
+    - not ansible_check_mode
+    - docker_image_prune_unused_ids | length > 0
+  changed_when: true

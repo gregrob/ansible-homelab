@@ -1,0 +1,12 @@
+---
+galaxy_info:
+  role_name: docker_image_prune
+  description: Manually prune Docker images not referenced by any container, with a --check preview.
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Debian
+      versions: [all]
+    - name: Ubuntu
+      versions: [all]
+dependencies: []

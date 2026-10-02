@@ -1,0 +1,6 @@
+---
+# Docker binary to call on the target host.
+docker_image_prune_docker_bin: docker
+
+# Print the list of images that are (or would be) removed.
+docker_image_prune_show_preview: true

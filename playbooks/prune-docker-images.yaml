@@ -1,0 +1,18 @@
+# Docker Image Prune Playbook
+# Removes Docker images not referenced by any container (running or stopped)
+# across the Debian homelab fleet. Manual run only.
+#
+# Usage:
+#   ansible-playbook playbooks/docker-prune.yaml --check    # preview, deletes nothing
+#   ansible-playbook playbooks/docker-prune.yaml            # actually prune
+#   ansible-playbook playbooks/docker-prune.yaml --check --limit dns-001.dns.gregrob.net
+
+- name: Prune unused Docker images
+  hosts: debian_config_target
+  gather_facts: false
+
+  vars_files:
+    - ../group_vars/all/vault.yaml
+
+  roles:
+    - { role: docker_image_prune, tags: [docker] }
