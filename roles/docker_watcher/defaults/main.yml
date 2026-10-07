@@ -65,6 +65,11 @@ docker_watcher_tag_rules:
   - prefix: "postgres"
     regex: '^\d+\.\d+-alpine\d+\.\d+$'
 
+  # redis (alpine variant): <redis_version>-alpine<alpine_version>,
+  # full major.minor.patch on the redis side, minor required on the alpine side.
+  - prefix: "redis"
+    regex: '^\d+\.\d+\.\d+-alpine\d+\.\d+$'
+
   # Alpine: plain three-part versions only.
   - prefix: "alpine"
     regex: '^\d+\.\d+\.\d+$'
