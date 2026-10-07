@@ -14,10 +14,6 @@ all:
         #nut-001.trusted.max.lan: {}
         {}
 
-    docker_unprivileged:
-      hosts:
-        infisical-001.trusted.max.lan: {}
-
     # Unmanaged hosts
     unmanaged:
       hosts:
@@ -126,21 +122,18 @@ all:
           
     git_targets:
       children:
-        docker_unprivileged:
         lxcs:
         vms:
         pms:
     
     update_targets:
       children:
-        docker_unprivileged:
         lxcs:
         vms:
         pms:
 
     disk_check_targets:
       children:
-        docker_unprivileged:
         lxcs:
         vms:
         pms:
