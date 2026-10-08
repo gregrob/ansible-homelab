@@ -42,6 +42,21 @@
     autoremove: yes
     purge: yes
 
+# 5.1 Clear the downloaded .deb cache. Only run when debs exist (the apt module
+# always reports 'changed' for clean) and never in check mode (it ignores --check).
+- name: Check for cached .deb files
+  ansible.builtin.find:
+    paths: /var/cache/apt/archives
+    patterns: "*.deb"
+  register: apt_cache_debs
+
+- name: Clear downloaded package cache (only when not --check)
+  ansible.builtin.apt:
+    clean: yes
+  when:
+    - apt_cache_debs.matched > 0
+    - not ansible_check_mode
+
 # ==============================================================================
 # PHASE 2: RASPBERRY PI QUIRK HANDLING
 # ==============================================================================
