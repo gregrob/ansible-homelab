@@ -50,6 +50,8 @@
     patterns: "*.deb"
   register: apt_cache_debs
 
+# NOTE: 'apt: clean' ignores check_mode and executes apt-get clean during dry runs.
+# 'not ansible_check_mode' ensures dry runs are guaranteed non-modifying.
 - name: Clear downloaded package cache (only when not --check)
   ansible.builtin.apt:
     clean: yes
