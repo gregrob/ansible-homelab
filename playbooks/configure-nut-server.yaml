@@ -2,7 +2,8 @@
 # Configure NUT Server
 #
 # Sets up the NUT (Network UPS Tools) server: the host that talks to the UPS
-# and serves its status to NUT clients over TCP 3493.
+# and serves its status to NUT clients over TCP 3493, plus the NUT web interface
+# (apache2 + nut-cgi, installed by the packages role).
 #
 # UPS devices are defined per host in host_vars via nut_server_ups. For testing
 # without hardware, use the dummy driver:
@@ -61,4 +62,4 @@
       when: not (skip_confirmation | default(false) | bool)
 
   roles:
-    - { role: nut_server, tags: [nut, nut_server] }
+    - { role: nut_server, tags: [nut] }
