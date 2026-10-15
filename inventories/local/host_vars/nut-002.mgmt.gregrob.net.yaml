@@ -63,24 +63,39 @@ network_interfaces:
     purpose: "primary interface for all traffic"
     firewalled: false
 
-# This is a nut server
-is_nut_server: true
-
 # No NFS shares needed on this node
 nfs_mounts: []
 
+# Packages installed by the packages role. 'nut' is Debian's metapackage that
+# pulls in nut-server and nut-client, which the nut_server role expects.
 specific_packages:
   - nut
 
+# =========================================================
+# NUT server (nut_server role, configure-nut-server.yaml)
+# =========================================================
+# Secrets come from the vault: nut_server_admin_password,
+# nut_server_observer_password, nut_server_webadmin_password and
+# nut_server_hauser_password.
+
+# Interlock flag: configure-nut-server.yaml refuses to run on any host without it
+is_nut_server: true
+
+# UPS devices served by this host (rendered into ups.conf).
+# Currently a dummy device for testing (edit /etc/nut/dummy.dev on the server
+# to simulate events). Replace it with the real UPS at cutover, e.g.:
+#   - name: cyberpower-cluster
+#     driver: usbhid-ups      # assumed: copy driver/port from nut-001's /etc/nut/ups.conf
+#     port: auto
+#     desc: "CyberPower UPS"
 nut_server_ups:
   - name: dummy
     driver: dummy-ups
     port: /etc/nut/dummy.dev
     desc: "Dummy test UPS"
 
-nut_server_hauser_password: ""
-
-# Extra users: integrations and anything host-specific, same fields as above.
+# Extra upsd users beyond the core admin / observer / webadmin set.
+# Fields: name, password, desc, actions, instcmds, upsmon (see role defaults).
 nut_server_extra_users:
   - name: hauser
     password: "{{ nut_server_hauser_password }}"
