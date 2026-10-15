@@ -118,6 +118,10 @@ all:
       hosts:
         secrets-002.mgmt.gregrob.net: {}
 
+    nut_server_target:
+      hosts:
+        nut-002.mgmt.gregrob.net: {}
+
     keepalived_dns_target:
       hosts:
         dns-001.dns.gregrob.net: {}
