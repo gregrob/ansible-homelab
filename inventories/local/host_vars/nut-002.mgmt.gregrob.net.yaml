@@ -68,8 +68,11 @@ nfs_mounts: []
 
 # Packages installed by the packages role. 'nut' is Debian's metapackage that
 # pulls in nut-server and nut-client, which the nut_server role expects.
+# 'apache2' and 'nut-cgi' are for the nut web interface.
 specific_packages:
   - nut
+  - apache2
+  - nut-cgi
 
 # =========================================================
 # NUT server (nut_server role, configure-nut-server.yaml)
