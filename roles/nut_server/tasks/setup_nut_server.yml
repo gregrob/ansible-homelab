@@ -124,6 +124,18 @@
 - name: Apply pending handlers before enabling services
   ansible.builtin.meta: flush_handlers
 
+# The enumerator is a one-shot unit: it runs, regenerates the per-UPS driver
+# units and exits, so it never stays "started" and the module would report a
+# change on every run. Running it each time is harmless and guarantees the
+# driver units exist even if an earlier run failed before its handler fired,
+# so the change is suppressed rather than the start skipped.
+- name: Enable and run the NUT driver enumerator
+  ansible.builtin.systemd:
+    name: nut-driver-enumerator.service
+    enabled: true
+    state: started
+  changed_when: false
+
 # Make sure the services start at boot and are running now. A no-op if the
 # handler has just restarted them.
 - name: Enable and start NUT services
@@ -132,7 +144,6 @@
     enabled: true
     state: started
   loop:
-    - nut-driver-enumerator.service
     - nut-server.service
     - nut-monitor.service
 
