@@ -1,6 +1,18 @@
 ---
-# ups.conf changes are picked up by the enumerator, which (re)creates the
-# per-device nut-driver@<name> units. Then restart upsd and upsmon.
+# NUT server handlers
+#
+# Triggered by the config-file tasks in tasks/main.yml. Handlers run once, at the
+# end of the play (or at the flush_handlers task, which this role uses so the
+# services are restarted before they are verified).
+
+# Restart nut
+# - nut-driver-enumerator: re-reads ups.conf and (re)creates the per-UPS
+#   nut-driver@<name> units, so added, removed or changed UPS definitions take
+#   effect.
+# - nut-server: restarts upsd to pick up upsd.conf and upsd.users.
+# - nut-monitor: restarts upsmon to pick up upsmon.conf.
+# One handler restarts all three, in this order, because the later services
+# depend on the earlier ones. daemon_reload picks up any regenerated units.
 - name: Restart nut
   ansible.builtin.systemd:
     name: "{{ item }}"

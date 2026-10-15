@@ -14,6 +14,9 @@
 #  - Prefer a specific address (e.g. the mgmt VLAN IP) to avoid exposing the
 #    server on every interface.
 #  - The list comes from nut_server_listen.
+#  - 127.0.0.1 is always listened on (added below if the list does not already
+#    cover it - e.g. 127.0.0.1 or 0.0.0.0), because this host's own upsmon and 
+#    upsc connect via localhost.
 #
 # NUT has no transport encryption or per-client IP filtering by default, so
 # restrict access with the host/network firewall rather than relying on
@@ -22,6 +25,10 @@
 # =======================================================================
 # Listen addresses
 # =======================================================================
+{% set listen_addresses = nut_server_listen | map(attribute='address') | list %}
+{% if '0.0.0.0' not in listen_addresses and '127.0.0.1' not in listen_addresses %}
+LISTEN 127.0.0.1 3493
+{% endif %}
 {% for l in nut_server_listen %}
 LISTEN {{ l.address }} {{ l.port | default(3493) }}
 {% endfor %}
