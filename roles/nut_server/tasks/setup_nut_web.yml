@@ -1,0 +1,121 @@
+---
+# NUT web interface tasks (imported by main.yml)
+#
+# Serves the NUT CGI pages (upsstats.cgi, and optionally upsset.cgi) through
+# Apache so the UPS status can be viewed in a browser at:
+#   http://<host>/                          (redirects to the status page)
+#   http://<host>/cgi-bin/nut/upsstats.cgi
+#
+# Order of operation:
+#   1. Validate inputs
+#   2. Deploy the NUT CGI configuration (hosts.conf, upsset.conf)
+#   3. Configure Apache (cgid module, CGI alias and access rules)
+#   4. Apply changes: flush handlers, then enable and start Apache
+#   5. Verify the status page responds
+#
+# NOTE: This role does not install packages. The packages role must already
+# have installed apache2 and nut-cgi (the latter provides the CGI scripts in
+# /usr/lib/cgi-bin/nut and the upsstats.html templates in /etc/nut).
+
+# =======================================================================
+# 1. Validation
+# =======================================================================
+# upsset.cgi can change UPS settings and sends NUT credentials over plain HTTP,
+# so NUT's documentation requires the CGI directory to be secured before it is
+# enabled. Refuse to enable it while access is still open to everyone.
+- name: Assert the CGI directory is secured before enabling upsset.cgi
+  ansible.builtin.assert:
+    that:
+      - not (nut_server_web_upsset_enabled | bool) or nut_server_web_require != ['all granted']
+    fail_msg: >-
+      nut_server_web_upsset_enabled is true but nut_server_web_require still
+      allows everyone ('all granted'). Restrict access first, e.g.
+      nut_server_web_require: ["ip 10.24.0.0/16"].
+    quiet: true
+
+# =======================================================================
+# 2. NUT CGI configuration
+# =======================================================================
+# Both files are read by the CGI scripts, which run as Apache's user
+# (www-data), so they are root:www-data 0640. Neither holds a password:
+# upsset.cgi asks for the NUT user and password in the browser.
+
+# The UPS devices shown by upsstats.cgi (the ones in nut_server_ups).
+- name: Deploy hosts.conf (UPS devices shown on the web page)
+  ansible.builtin.template:
+    src: hosts.conf.j2
+    dest: /etc/nut/hosts.conf
+    owner: root
+    group: www-data
+    mode: "0640"
+
+# Switches upsset.cgi (the admin page) on or off.
+- name: Deploy upsset.conf (upsset.cgi enable switch)
+  ansible.builtin.template:
+    src: upsset.conf.j2
+    dest: /etc/nut/upsset.conf
+    owner: root
+    group: www-data
+    mode: "0640"
+
+# =======================================================================
+# 3. Apache
+# =======================================================================
+# CGI scripts need mod_cgid (the Debian default Apache uses the event MPM,
+# which pairs with cgid rather than cgi). a2enmod is not idempotent by itself,
+# so 'creates' skips it once the module is enabled.
+- name: Enable the Apache cgid module
+  ansible.builtin.command: a2enmod cgid
+  args:
+    creates: /etc/apache2/mods-enabled/cgid.load
+  notify: Restart apache2
+
+# Maps /cgi-bin/nut/ to the nut-cgi scripts, applies the access rules from
+# nut_server_web_require, and optionally redirects / to the status page. It is
+# defined explicitly here so it does not depend on Debian's own cgi-bin config.
+- name: Deploy the Apache NUT CGI config
+  ansible.builtin.template:
+    src: nut-cgi.conf.j2
+    dest: /etc/apache2/conf-available/nut-cgi.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart apache2
+
+# Switches the config on (a2enconf is a symlink into conf-enabled).
+- name: Enable the Apache NUT CGI config
+  ansible.builtin.command: a2enconf nut-cgi
+  args:
+    creates: /etc/apache2/conf-enabled/nut-cgi.conf
+  notify: Restart apache2
+
+# =======================================================================
+# 4. Services
+# =======================================================================
+# Restart Apache now rather than at the end of the play, so the verification
+# in step 5 tests the new configuration.
+- name: Apply pending handlers before enabling Apache
+  ansible.builtin.meta: flush_handlers
+
+# Make sure Apache starts at boot and is running now.
+- name: Enable and start Apache
+  ansible.builtin.systemd:
+    name: apache2.service
+    enabled: true
+    state: started
+
+# =======================================================================
+# 5. Verification
+# =======================================================================
+# Fetch the status page as a browser would. Retries because Apache can take a
+# moment after a restart. Skipped when nut_server_verify is false. A 200 only
+# shows the CGI ran; check the page in a browser to see the UPS data itself.
+- name: Verify the NUT status page responds
+  ansible.builtin.uri:
+    url: http://127.0.0.1/cgi-bin/nut/upsstats.cgi
+    status_code: 200
+  register: nut_server_web_check
+  retries: 5
+  delay: 3
+  until: nut_server_web_check.status == 200
+  when: nut_server_verify | bool

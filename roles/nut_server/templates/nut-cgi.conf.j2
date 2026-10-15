@@ -1,0 +1,38 @@
+# Managed by Ansible - do not edit by hand
+#
+# Apache configuration for the NUT web interface (nut-cgi).
+# Enabled with a2enconf as nut-cgi.
+
+# =======================================================================
+# CGI scripts
+# =======================================================================
+# The nut-cgi package installs its scripts (upsstats.cgi, upsimage.cgi,
+# upsset.cgi) in /usr/lib/cgi-bin/nut. They run through mod_cgid.
+ScriptAlias /cgi-bin/nut/ /usr/lib/cgi-bin/nut/
+
+# =======================================================================
+# Access control
+# =======================================================================
+# Who may use the NUT pages (nut_server_web_require). Each entry is one
+# 'Require' rule; any matching rule grants access. Examples:
+#   all granted         everyone who can reach this host
+#   ip 10.24.0.0/16     only that network
+# 'Require local' is always added: it lets this host itself in (127.0.0.1 and
+# its own addresses), which the role's verification step needs, whatever
+# networks nut_server_web_require is narrowed to.
+<Directory "/usr/lib/cgi-bin/nut">
+    Options ExecCGI
+    AllowOverride None
+    Require local
+{% for rule in nut_server_web_require %}
+    Require {{ rule }}
+{% endfor %}
+</Directory>
+{% if nut_server_web_redirect_root | bool %}
+
+# =======================================================================
+# Root redirect
+# =======================================================================
+# Send http://<host>/ straight to the status page.
+RedirectMatch ^/$ /cgi-bin/nut/upsstats.cgi
+{% endif %}

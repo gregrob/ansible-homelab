@@ -156,6 +156,28 @@ nut_server_notifyflags:
   - { event: NOPARENT, flags: SYSLOG+WALL, comment: "Parent died - log only (system unstable)" }
 
 # =======================================================================
+# Web Interface (apache2 + nut-cgi)
+# =======================================================================
+# Needs the apache2 and nut-cgi packages, installed by the packages role.
+# The pages are then at http://<host>/ and http://<host>/cgi-bin/nut/upsstats.cgi
+# (plain HTTP; put a reverse proxy in front if you want TLS).
+nut_server_web_enabled: true
+
+# Redirect http://<host>/ to the status page instead of Apache's default page
+nut_server_web_redirect_root: true
+
+# Who may use the NUT pages. Each entry is an Apache 'Require' rule and any
+# match grants access, e.g. ["ip 10.24.0.0/16"]. 'all granted' lets in everyone
+# who can reach the host.
+nut_server_web_require:
+  - all granted
+
+# upsset.cgi is the web admin page (uses the webadmin user). It stays off until
+# you restrict nut_server_web_require above; the role refuses to enable it while
+# access is still open to everyone.
+nut_server_web_upsset_enabled: false
+
+# =======================================================================
 # Verification
 # =======================================================================
 # After applying, query each UPS via upsc. Set false while the device isn't

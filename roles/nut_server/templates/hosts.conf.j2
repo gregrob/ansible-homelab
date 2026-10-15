@@ -1,0 +1,20 @@
+# Managed by Ansible - do not edit by hand
+#
+# NUT CGI: hosts.conf
+# The UPS devices listed by upsstats.cgi (the web status page).
+#
+# Format: MONITOR <ups>@<host> "<description>"
+# - <ups>@<host>: UPS name from ups.conf, and the host running upsd
+#   (localhost: this server)
+# - <description>: text shown for the UPS on the page (the desc from
+#   nut_server_ups, or the UPS name if none is set)
+#
+# upsstats.cgi connects to upsd as a normal client and needs no login, so no
+# password is stored here.
+
+# =======================================================================
+# UPS devices
+# =======================================================================
+{% for ups in nut_server_ups %}
+MONITOR {{ ups.name }}@localhost "{{ ups.desc | default(ups.name) }}"
+{% endfor %}

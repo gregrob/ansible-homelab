@@ -22,3 +22,12 @@
     - nut-driver-enumerator.service
     - nut-server.service
     - nut-monitor.service
+
+# Restart apache2
+# Used by the web interface tasks (setup_nut_web.yml). A restart rather than a
+# reload because enabling the cgid module needs one, and Apache restarts in a
+# second on a host this size.
+- name: Restart apache2
+  ansible.builtin.systemd:
+    name: apache2.service
+    state: restarted

@@ -106,3 +106,19 @@ nut_server_extra_users:
       - Home Assistant integration user
       - Lets Home Assistant monitor UPS status AND trigger battery tests
     instcmds: [all]
+
+# =========================================================
+# NUT web interface (setup_nut_web.yml, needs apache2 + nut-cgi above)
+# =========================================================
+# Who may use the NUT web pages: internal networks only. Each entry is an
+# Apache 'Require' rule and any match grants access. The role default is
+# "all granted", so this host must narrow it; the role refuses to enable the
+# admin page (below) while access is still open to everyone.
+nut_server_web_require:
+  - ip 192.168.0.0/16
+  - ip 10.24.0.0/16
+ 
+# Enable upsset.cgi, the web admin page (logs in with the webadmin user).
+# The role default is false. Safe to turn on here because access is restricted
+# to the networks above.
+nut_server_web_upsset_enabled: true

@@ -1,0 +1,20 @@
+# Managed by Ansible - do not edit by hand
+#
+# NUT CGI: upsset.conf
+# Controls whether upsset.cgi (the web admin page) is allowed to run.
+#
+# upsset.cgi can change UPS settings and sends the NUT username and password
+# over the web connection, so it stays disabled until the CGI directory has been
+# secured. The role only enables it when nut_server_web_upsset_enabled is true,
+# and refuses to do so while nut_server_web_require still allows everyone.
+
+# =======================================================================
+# upsset.cgi switch
+# =======================================================================
+{% if nut_server_web_upsset_enabled | bool %}
+# Enabled: access is restricted by the Apache rules in nut-cgi.conf
+I_HAVE_SECURED_MY_CGI_DIRECTORY
+{% else %}
+# Disabled: upsset.cgi will refuse to run. To enable it, restrict
+# nut_server_web_require and set nut_server_web_upsset_enabled: true
+{% endif %}

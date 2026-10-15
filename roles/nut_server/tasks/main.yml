@@ -24,7 +24,7 @@
 # =======================================================================
 # NUT web interface (apache2 + nut-cgi)
 # =======================================================================
-#- name: Set up the NUT web interface
-#  ansible.builtin.import_tasks: setup_nut_web.yml
-#  when: nut_server_web_enabled | bool
-#  tags: [nut_web]
+- name: Set up the NUT web interface
+  ansible.builtin.import_tasks: setup_nut_web.yml
+  when: nut_server_web_enabled | bool
+  tags: [nut_web]
