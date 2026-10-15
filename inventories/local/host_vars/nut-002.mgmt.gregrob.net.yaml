@@ -63,5 +63,28 @@ network_interfaces:
     purpose: "primary interface for all traffic"
     firewalled: false
 
+# This is a nut server
+is_nut_server: true
+
 # No NFS shares needed on this node
 nfs_mounts: []
+
+specific_packages:
+  - nut
+
+nut_server_ups:
+  - name: dummy
+    driver: dummy-ups
+    port: /etc/nut/dummy.dev
+    desc: "Dummy test UPS"
+
+nut_server_hauser_password: ""
+
+# Extra users: integrations and anything host-specific, same fields as above.
+nut_server_extra_users:
+  - name: hauser
+    password: "{{ nut_server_hauser_password }}"
+    desc:
+      - Home Assistant integration user
+      - Lets Home Assistant monitor UPS status AND trigger battery tests
+    instcmds: [all]
