@@ -1,0 +1,27 @@
+# Managed by Ansible - do not edit by hand
+#
+# NUT data server (upsd) configuration. upsd reads the UPS data published by
+# the drivers (see ups.conf) and serves it to clients over TCP, by default on
+# port 3493.
+#
+# Authentication and access control are NOT set here; see upsd.users for the
+# accounts clients log in with.
+#
+# LISTEN <address> [port]
+#  - One line per address upsd should bind to. With no LISTEN lines at all,
+#    upsd binds to localhost only, so remote clients cannot connect.
+#  - 0.0.0.0 binds all IPv4 interfaces; '::' binds all IPv6 interfaces.
+#  - Prefer a specific address (e.g. the mgmt VLAN IP) to avoid exposing the
+#    server on every interface.
+#  - The list comes from nut_server_listen.
+#
+# NUT has no transport encryption or per-client IP filtering by default, so
+# restrict access with the host/network firewall rather than relying on
+# upsd.users alone.
+
+# =======================================================================
+# Listen addresses
+# =======================================================================
+{% for l in nut_server_listen %}
+LISTEN {{ l.address }} {{ l.port | default(3493) }}
+{% endfor %}

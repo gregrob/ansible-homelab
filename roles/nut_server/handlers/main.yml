@@ -1,0 +1,12 @@
+---
+# ups.conf changes are picked up by the enumerator, which (re)creates the
+# per-device nut-driver@<name> units. Then restart upsd and upsmon.
+- name: Restart nut
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: restarted
+    daemon_reload: true
+  loop:
+    - nut-driver-enumerator.service
+    - nut-server.service
+    - nut-monitor.service

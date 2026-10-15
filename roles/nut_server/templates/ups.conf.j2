@@ -1,0 +1,42 @@
+# Managed by Ansible - do not edit by hand
+#
+# NUT driver configuration. Defines the global driver settings, then one
+# section per UPS. Each section starts a driver instance (nut-driver@<name>)
+# that talks to the device and hands its data to upsd.
+#
+# The UPS name in [brackets] is what clients use to address it, e.g.
+# <name>@<server> in upsc and in the MONITOR line of client upsmon.conf.
+#
+# UPS devices come from nut_server_ups (set per host in host_vars). For each:
+#  - driver:  usbhid-ups, snmp-ups, dummy-ups, etc.
+#  - port:    'auto' for USB, an IP/hostname for SNMP, or the path of a .dev
+#             state file for dummy-ups.
+#  - desc:    free-text description (optional).
+#  - options: extra driver settings (optional). A value of true renders as a
+#             bare flag; anything else as 'key = value'. A per-UPS setting
+#             overrides the global one of the same name.
+
+# =======================================================================
+# Global driver settings
+# =======================================================================
+pollinterval = {{ nut_server_pollinterval }}        # Poll UPS every {{ nut_server_pollinterval }} second(s) (fast response, good for servers)
+maxretry = {{ nut_server_maxretry }}            # Retry communication {{ nut_server_maxretry }} times before marking UPS as stale
+{% for ups in nut_server_ups %}
+
+# =======================================================================
+# UPS: {{ ups.name }}
+# =======================================================================
+[{{ ups.name }}]
+    driver = {{ ups.driver }}
+    port = {{ ups.port }}
+{% if ups.desc is defined %}
+    desc = "{{ ups.desc }}"
+{% endif %}
+{% for key, value in (ups.options | default({})).items() %}
+{% if value is sameas true %}
+    {{ key }}
+{% else %}
+    {{ key }} = {{ value }}
+{% endif %}
+{% endfor %}
+{% endfor %}

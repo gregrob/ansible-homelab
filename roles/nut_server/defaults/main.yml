@@ -1,0 +1,140 @@
+---
+# nut_server role defaults
+# Everything overridable lives here (not group_vars) so role defaults sit at the
+# right precedence level. Override per host/group in inventory or host_vars.
+
+# netserver = this host talks to the UPS and serves data to remote clients
+nut_server_mode: netserver
+
+# --- UPS definitions (rendered into ups.conf) -------------------------------
+# name:    UPS identifier used by clients as <name>@<server>
+# driver:  e.g. usbhid-ups, snmp-ups, dummy-ups
+# port:    device path / "auto" for USB / SNMP host / .dev file path for dummy-ups
+# desc:    free-text description
+# options: extra driver settings; a value of `true` renders as a bare flag
+#
+# Example (real USB UPS):
+#   - name: ups
+#     driver: usbhid-ups
+#     port: auto
+#     desc: "Rack UPS"
+#     options:
+#       pollinterval: 2
+#
+# Example (testing with the dummy driver):
+#   - name: dummy
+#     driver: dummy-ups
+#     port: /etc/nut/dummy.dev
+#     desc: "Dummy test UPS"
+nut_server_ups: []
+
+# Global driver settings (ups.conf). A per-UPS option of the same name overrides these.
+nut_server_pollinterval: 1   # seconds between UPS polls
+nut_server_maxretry: 3       # comms retries before the UPS is marked stale
+
+# --- Network ----------------------------------------------------------------
+nut_server_listen:
+  - address: 0.0.0.0
+    port: 3493
+
+# --- Users ------------------------------------------------------------------
+# Passwords are REQUIRED and must come from your secrets mechanism, never
+# committed in plaintext. The role asserts every user has a password.
+#
+# The first two names are also used by upsmon.conf (admin = local primary
+# monitoring user) and by client hosts (observer = secondary, read-only).
+nut_server_admin_user: admin
+nut_server_admin_password: ""
+nut_server_observer_user: observer
+nut_server_observer_password: ""
+nut_server_webadmin_password: ""
+nut_server_hauser_password: ""
+ 
+# Core users: present on every NUT server. Fields per user:
+#   name, password
+#   desc:     comment block rendered above the user (list of lines)
+#   actions:  list of upsd actions (set, fsd)
+#   instcmds: list of instant commands (all, or specific ones)
+#   upsmon:   master | secondary (omit for non-upsmon users)
+# Not intended to be overridden; add integrations via nut_server_extra_users.
+nut_server_core_users:
+  - name: "{{ nut_server_admin_user }}"
+    password: "{{ nut_server_admin_password }}"
+    desc:
+      - UPS administrative and monitoring master user
+      - This single user handles both administrative tasks and primary monitoring
+    actions: [set, fsd]
+    instcmds: [all]
+    upsmon: master
+  - name: "{{ nut_server_observer_user }}"
+    password: "{{ nut_server_observer_password }}"
+    desc:
+      - Secondary monitoring user for other systems on the network
+      - These systems monitor the UPS but have no control over it (no shutdown authority)
+    upsmon: secondary
+  - name: webadmin
+    password: "{{ nut_server_webadmin_password }}"
+    desc:
+      - Web interface administrative user
+      - For the NUT CGI web interface (upsstats.cgi, upsset.cgi, etc.)
+    actions: [set]
+    instcmds: [all]
+
+# Extra users defined in host vars
+nut_server_extra_users: []
+
+# Everything written to upsd.users (core first, then extras).
+nut_server_users: "{{ nut_server_core_users + nut_server_extra_users }}"
+
+# --- upsmon (local monitoring + shutdown behaviour of this server) ----------
+# Account upsmon runs as. The privileged parent process stays root regardless
+# (it is what runs SHUTDOWNCMD); this only sets the unprivileged monitor child.
+nut_server_run_as_user: nut
+ 
+nut_server_minsupplies: 1
+nut_server_shutdowncmd: /sbin/shutdown -h +0
+nut_server_powerdownflag: /etc/killpower
+ 
+# Timing (seconds)
+nut_server_finaldelay: 175      # wait after the final shutdown notice before this host shuts down
+nut_server_hostsync: 15         # how long the primary waits for secondaries to disconnect
+nut_server_deadtime: 15         # mark UPS dead after this long with no communication
+nut_server_pollfreq: 2          # poll UPS every N seconds
+nut_server_pollfreqalert: 1     # poll every N seconds while on battery / in alert
+ 
+# Warnings (seconds)
+nut_server_rbwarntime: 43200    # nag about battery replacement every 12 hours
+nut_server_nocommwarntime: 300  # warn about lost communication every 5 minutes
+ 
+# Notifications. Set nut_server_notifycmd to "" to disable the EXEC action.
+# upssched needs /etc/nut/upssched.conf, which this role does not yet deploy.
+nut_server_notifycmd: /usr/sbin/upssched
+ 
+nut_server_notifymsg:
+  ONLINE: "UPS %s on line power"
+  ONBATT: "UPS %s on battery"
+  LOWBATT: "UPS %s battery is low"
+  FSD: "UPS %s: forced shutdown in progress"
+  COMMOK: "Communications with UPS %s established"
+  COMMBAD: "Communications with UPS %s lost"
+  SHUTDOWN: "Auto logout and shutdown proceeding"
+  REPLBATT: "UPS %s battery needs to be replaced"
+  NOCOMM: "UPS %s is unavailable"
+  NOPARENT: "upsmon parent process died - shutdown impossible"
+ 
+nut_server_notifyflags:
+  - { event: ONLINE,   flags: SYSLOG+WALL+EXEC, comment: "Power restored" }
+  - { event: ONBATT,   flags: SYSLOG+WALL+EXEC, comment: "On battery" }
+  - { event: LOWBATT,  flags: SYSLOG+WALL,      comment: "Low battery - log and display only" }
+  - { event: FSD,      flags: SYSLOG+WALL+EXEC, comment: "Forced shutdown" }
+  - { event: COMMOK,   flags: SYSLOG+WALL+EXEC, comment: "Communication restored" }
+  - { event: COMMBAD,  flags: SYSLOG+WALL+EXEC, comment: "Communication lost" }
+  - { event: SHUTDOWN, flags: SYSLOG+WALL+EXEC, comment: "System shutdown" }
+  - { event: REPLBATT, flags: SYSLOG+WALL+EXEC, comment: "Replace battery" }
+  - { event: NOCOMM,   flags: SYSLOG+WALL+EXEC, comment: "No communication" }
+  - { event: NOPARENT, flags: SYSLOG+WALL,      comment: "Parent died - log only (system unstable)" }
+ 
+# --- Verification -----------------------------------------------------------
+# After applying, query each UPS via upsc. Set false while the device isn't
+# attached yet.
+nut_server_verify: true

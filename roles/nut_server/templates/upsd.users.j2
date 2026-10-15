@@ -1,0 +1,43 @@
+# Managed by Ansible - do not edit by hand
+#
+# Network UPS Tools: upsd.users configuration
+# This file defines users and their permissions for the UPS daemon (upsd).
+# Keep this file secure - it contains passwords!
+#
+# The users come from nut_server_users. Passwords must be supplied from the
+# vault, never committed in plaintext.
+{% set action_notes = {
+  'set': 'Allow changing UPS variables (battery test, calibration, etc.)',
+  'fsd': 'Allow Forced Shutdown (FSD) - required for primary system',
+} %}
+{% set upsmon_notes = {
+  'master': 'Designates this as the primary/master upsmon user',
+  'primary': 'Designates this as the primary/master upsmon user',
+  'secondary': 'Read-only monitoring, cannot initiate UPS shutdown',
+} %}
+{% for user in nut_server_users %}
+
+{% for line in user.desc | default([]) %}
+# {{ line }}
+{% endfor %}
+[{{ user.name }}]
+  password = {{ user.password }}
+{% for action in user.actions | default([]) %}
+{% if action in action_notes %}
+  {{ '%-22s' | format('actions = ' ~ action) }}# {{ action_notes[action] }}
+{% else %}
+  actions = {{ action }}
+{% endif %}
+{% endfor %}
+{% for cmd in user.instcmds | default([]) %}
+{% if cmd == 'all' %}
+  {{ '%-22s' | format('instcmds = all') }}# Allow ALL instant commands (battery tests, panel tests, etc.)
+{% else %}
+  instcmds = {{ cmd }}
+{% endif %}
+{% endfor %}
+{% if user.upsmon is defined %}
+  {{ '%-22s' | format('upsmon ' ~ user.upsmon) }}{% if user.upsmon in upsmon_notes %}# {{ upsmon_notes[user.upsmon] }}{% endif %}
+
+{% endif %}
+{% endfor %}

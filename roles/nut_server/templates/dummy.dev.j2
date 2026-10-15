@@ -1,0 +1,42 @@
+# Seeded by Ansible - safe to edit by hand, Ansible will NOT overwrite it
+#
+# Test data for the {{ item.name }} dummy-ups device (see ups.conf).
+# dummy-ups re-reads this file automatically, so edit it on the server to
+# simulate UPS events without any hardware.
+#
+# Format: <variable>: <value> (one per line). Comments must be on their own
+# lines, not after a value, as dummy-ups would treat them as part of it.
+
+# =======================================================================
+# Device Identity
+# =======================================================================
+ups.mfr: Dummy
+ups.model: Test UPS
+device.type: ups
+
+# =======================================================================
+# UPS Status
+# =======================================================================
+# Status flags (space separated):
+# - OL: On line power (normal)
+# - OB: On battery (simulates a power cut)
+# - OB LB: On battery, low battery (triggers FSD and client shutdown)
+ups.status: OL
+ups.load: 25
+ups.realpower: 150
+
+# =======================================================================
+# Battery
+# =======================================================================
+# Charge is a percentage and runtime is in seconds.
+# battery.charge.low is the level at which the UPS reports low battery.
+battery.charge: 100
+battery.charge.low: 20
+battery.runtime: 1800
+battery.voltage: 13.6
+
+# =======================================================================
+# Input / Output
+# =======================================================================
+input.voltage: 240
+output.voltage: 240

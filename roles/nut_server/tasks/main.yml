@@ -1,0 +1,110 @@
+---
+- name: Assert required variables are set
+  ansible.builtin.assert:
+    that:
+      - nut_server_ups | length > 0
+      - nut_server_users | map(attribute='password') | map('length') | min > 0
+      - nut_server_mode in ['standalone', 'netserver']
+    fail_msg: >-
+      nut_server needs at least one entry in nut_server_ups and a non-empty
+      password for every user in nut_server_users (supply them from your
+      secrets mechanism, not plaintext in the repo).
+      Users with an empty password:
+      {{ nut_server_users | selectattr('password', 'equalto', '') | map(attribute='name') | list }}
+    quiet: true
+
+- name: Deploy nut.conf (mode)
+  ansible.builtin.template:
+    src: nut.conf.j2
+    dest: /etc/nut/nut.conf
+    owner: root
+    group: nut
+    mode: "0640"
+  notify: Restart nut
+
+- name: Deploy ups.conf (UPS drivers)
+  ansible.builtin.template:
+    src: ups.conf.j2
+    dest: /etc/nut/ups.conf
+    owner: root
+    group: nut
+    mode: "0640"
+  notify: Restart nut
+
+- name: Deploy upsd.conf (listen addresses)
+  ansible.builtin.template:
+    src: upsd.conf.j2
+    dest: /etc/nut/upsd.conf
+    owner: root
+    group: nut
+    mode: "0640"
+  notify: Restart nut
+
+- name: Deploy upsd.users (credentials)
+  ansible.builtin.template:
+    src: upsd.users.j2
+    dest: /etc/nut/upsd.users
+    owner: root
+    group: nut
+    mode: "0640"
+  no_log: true
+  notify: Restart nut
+
+- name: Deploy upsmon.conf (local monitoring)
+  ansible.builtin.template:
+    src: upsmon.conf.j2
+    dest: /etc/nut/upsmon.conf
+    owner: root
+    group: nut
+    mode: "0640"
+  no_log: true
+  notify: Restart nut
+
+# Seed a starting state file for dummy-ups devices. force: false so that edits
+# made while testing (e.g. flipping ups.status to OB) are NOT overwritten on
+# the next playbook run.
+- name: Seed dummy-ups state files
+  ansible.builtin.template:
+    src: dummy.dev.j2
+    dest: "{{ item.port }}"
+    owner: root
+    group: nut
+    mode: "0664"
+    force: false
+  loop: "{{ nut_server_ups | selectattr('driver', 'equalto', 'dummy-ups') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: Restart nut
+
+- name: Apply pending handlers before enabling services
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start NUT services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - nut-driver-enumerator.service
+    - nut-server.service
+    - nut-monitor.service
+
+- name: Verify each UPS is reachable via upsd
+  ansible.builtin.command: "upsc {{ item.name }}@localhost ups.status"
+  register: nut_server_upsc
+  changed_when: false
+  retries: 5
+  delay: 3
+  until: nut_server_upsc.rc == 0
+  loop: "{{ nut_server_ups }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: nut_server_verify | bool
+
+- name: Report UPS status
+  ansible.builtin.debug:
+    msg: "{{ item.item.name }}: {{ item.stdout }}"
+  loop: "{{ nut_server_upsc.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name }}"
+  when: nut_server_verify | bool
