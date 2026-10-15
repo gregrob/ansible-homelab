@@ -1,164 +1,30 @@
 ---
-# NUT server role tasks
+# nut_server role entry point
 #
-# Sets up a NUT (Network UPS Tools) server: the host that talks to the UPS and
-# serves its status to NUT clients over TCP 3493.
+# This file only decides what runs; the work is in the imported task files:
+#   setup_nut_server.yml  upsd, upsmon and the UPS drivers (always runs)
+#   setup_nut_web.yml     the NUT web interface: apache2 + nut-cgi
+#                         (skipped when nut_server_web_enabled is false)
 #
-# Order of operation:
-#   1. Validate inputs (fail early, before touching the host)
-#   2. Deploy the configuration files
-#   3. Seed the state file for any dummy-ups test devices
-#   4. Apply changes: flush handlers, then enable and start the services
-#   5. Verify each UPS answers on upsd
-#
-# NOTE: This role does not install the NUT packages. nut-server and nut-client
-# (which provides upsc and upsmon) must already be present: they supply
-# /etc/nut and the 'nut' group used below.
+# import_tasks (static) is used rather than include_tasks so that the tags and
+# --check behaviour apply to the imported tasks, and the playbook can run just
+# one part:
+#   --tags nut_server    server only
+#   --tags nut_web       web interface only
+#   --tags nut           both
+# The playbook tags the role itself 'nut' only, so these two tags stay separate.
 
 # =======================================================================
-# 1. Validation
+# NUT server (upsd, upsmon, drivers)
 # =======================================================================
-# Stops the play before any change is made if the inputs are unusable.
-# Every user in nut_server_users needs a password (from the vault), because an
-# empty password in upsd.users would leave an account that anyone could use.
-- name: Assert required variables are set
-  ansible.builtin.assert:
-    that:
-      - nut_server_ups | length > 0
-      - nut_server_users | map(attribute='password') | map('length') | min > 0
-      - nut_server_mode in ['standalone', 'netserver']
-    fail_msg: >-
-      nut_server needs at least one entry in nut_server_ups and a non-empty
-      password for every user in nut_server_users (supply them from your
-      secrets mechanism, not plaintext in the repo).
-      Users with an empty password:
-      {{ nut_server_users | selectattr('password', 'equalto', '') | map(attribute='name') | list }}
-    quiet: true
+- name: Set up the NUT server
+  ansible.builtin.import_tasks: setup_nut_server.yml
+  tags: [nut_server]
 
 # =======================================================================
-# 2. Configuration files
+# NUT web interface (apache2 + nut-cgi)
 # =======================================================================
-# All files are root:nut 0640 so the NUT daemons (which run as 'nut') can read
-# them but other users cannot: upsd.users and upsmon.conf contain passwords.
-# Every change notifies the 'Restart nut' handler.
-
-# Operating mode (netserver / standalone), read by the systemd units.
-- name: Deploy nut.conf (mode)
-  ansible.builtin.template:
-    src: nut.conf.j2
-    dest: /etc/nut/nut.conf
-    owner: root
-    group: nut
-    mode: "0640"
-  notify: Restart nut
-
-# UPS devices and the driver used for each (global driver settings too).
-- name: Deploy ups.conf (UPS drivers)
-  ansible.builtin.template:
-    src: ups.conf.j2
-    dest: /etc/nut/ups.conf
-    owner: root
-    group: nut
-    mode: "0640"
-  notify: Restart nut
-
-# Addresses and port upsd listens on for client connections.
-- name: Deploy upsd.conf (listen addresses)
-  ansible.builtin.template:
-    src: upsd.conf.j2
-    dest: /etc/nut/upsd.conf
-    owner: root
-    group: nut
-    mode: "0640"
-  notify: Restart nut
-
-# Accounts and permissions for upsd. no_log keeps the passwords out of the
-# task output and diffs.
-- name: Deploy upsd.users (credentials)
-  ansible.builtin.template:
-    src: upsd.users.j2
-    dest: /etc/nut/upsd.users
-    owner: root
-    group: nut
-    mode: "0640"
-  no_log: true
-  notify: Restart nut
-
-# Local monitoring and shutdown behaviour of this server (contains the admin
-# password, hence no_log).
-- name: Deploy upsmon.conf (local monitoring)
-  ansible.builtin.template:
-    src: upsmon.conf.j2
-    dest: /etc/nut/upsmon.conf
-    owner: root
-    group: nut
-    mode: "0640"
-  no_log: true
-  notify: Restart nut
-
-# =======================================================================
-# 3. Dummy device state (testing only)
-# =======================================================================
-# Only runs for UPS entries that use the dummy-ups driver, where 'port' is the
-# path of the state file. The file is seeded once (force: false) so edits made
-# while testing, e.g. flipping ups.status to OB to simulate a power cut, are NOT
-# overwritten on the next playbook run.
-- name: Seed dummy-ups state files
-  ansible.builtin.template:
-    src: dummy.dev.j2
-    dest: "{{ item.port }}"
-    owner: root
-    group: nut
-    mode: "0664"
-    force: false
-  loop: "{{ nut_server_ups | selectattr('driver', 'equalto', 'dummy-ups') | list }}"
-  loop_control:
-    label: "{{ item.name }}"
-  notify: Restart nut
-
-# =======================================================================
-# 4. Services
-# =======================================================================
-# Run any pending restarts now rather than at the end of the play, so the
-# verification in step 5 tests the new configuration.
-- name: Apply pending handlers before enabling services
-  ansible.builtin.meta: flush_handlers
-
-# Make sure the services start at boot and are running now. A no-op if the
-# handler has just restarted them.
-- name: Enable and start NUT services
-  ansible.builtin.systemd:
-    name: "{{ item }}"
-    enabled: true
-    state: started
-  loop:
-    - nut-driver-enumerator.service
-    - nut-server.service
-    - nut-monitor.service
-
-# =======================================================================
-# 5. Verification
-# =======================================================================
-# Ask upsd for each UPS's status, as a client would. Retries because the driver
-# can take a few seconds to connect after a restart. Skipped when
-# nut_server_verify is false (e.g. the UPS is not attached yet).
-- name: Verify each UPS is reachable via upsd
-  ansible.builtin.command: "upsc {{ item.name }}@localhost ups.status"
-  register: nut_server_upsc
-  changed_when: false
-  retries: 5
-  delay: 3
-  until: nut_server_upsc.rc == 0
-  loop: "{{ nut_server_ups }}"
-  loop_control:
-    label: "{{ item.name }}"
-  when: nut_server_verify | bool
-
-# Show the status (OL, OB, ...) of each UPS in the play output.
-- name: Report UPS status
-  ansible.builtin.debug:
-    msg: "{{ item.item.name }}: {{ item.stdout }}"
-  loop: "{{ nut_server_upsc.results | default([]) }}"
-  loop_control:
-    label: "{{ item.item.name }}"
-  when: nut_server_verify | bool
+#- name: Set up the NUT web interface
+#  ansible.builtin.import_tasks: setup_nut_web.yml
+#  when: nut_server_web_enabled | bool
+#  tags: [nut_web]
