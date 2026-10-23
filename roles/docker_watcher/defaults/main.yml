@@ -19,7 +19,9 @@ docker_watcher_docker_hub_repo_regex: '^[^./:]+(/[^./:]+)?$'
 # tags/page this allows up to this many thousand tags per repo. A
 # repo that exceeds it fails safe to "not checked" rather than risk a
 # wrong answer — raise this if a specific repo needs more.
-docker_watcher_ghcr_max_pages: 40
+# 23-October-2026 - this had to be increased from 40 to 50 so that
+#                   open-webui fetched the latest version.
+docker_watcher_ghcr_max_pages: 50
 
 # ORDERED list of {prefix, regex} — first prefix match wins, so put
 # more specific prefixes above more general ones (e.g. a
