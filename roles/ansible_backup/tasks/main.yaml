@@ -1,6 +1,6 @@
 ---
 # Tasks: ansible_backup
-# Archives local SSH keys and Vault files per host, then transfers tarballs to the NAS via SCP.
+# Archives local SSH keys and Vault files per host, encrypts them with gpg (AES256), then transfers the encrypted tarballs to the NAS via SCP.
 
 - name: Generate timestamp for backup filename
   ansible.builtin.set_fact:
@@ -12,10 +12,19 @@
     state: directory
     mode: '0700'
 
-- name: Create compressed tarball of Ansible backup targets
-  ansible.builtin.command:
-    cmd: "tar -czf {{ ansible_backup_staging_dir }}/{{ inventory_hostname }}-ansible-backup-{{ backup_timestamp }}.tar.gz {{ ansible_backup_targets | join(' ') }}"
+- name: Create encrypted compressed tarball of Ansible backup targets
+  ansible.builtin.shell:
+    cmd: >
+      set -o pipefail;
+      tar -czf - {{ ansible_backup_targets | join(' ') }} |
+      gpg --batch --yes --pinentry-mode loopback --passphrase-fd 3
+      --symmetric --cipher-algo AES256
+      --output {{ ansible_backup_staging_dir }}/{{ inventory_hostname }}-ansible-backup-{{ backup_timestamp }}.tar.gz.gpg 3<<<"$BACKUP_PASS"
+    executable: /bin/bash
+  environment:
+    BACKUP_PASS: "{{ backup_encryption_passphrase }}"
   changed_when: true
+  no_log: true
 
 - name: Ensure destination directory exists on NAS
   ansible.builtin.command:
@@ -29,7 +38,7 @@
   ansible.builtin.command:
     cmd: >
       sshpass -e scp -o StrictHostKeyChecking=accept-new
-      {{ ansible_backup_staging_dir }}/{{ inventory_hostname }}-ansible-backup-{{ backup_timestamp }}.tar.gz
+      {{ ansible_backup_staging_dir }}/{{ inventory_hostname }}-ansible-backup-{{ backup_timestamp }}.tar.gz.gpg
       {{ ansible_backup_nas_user }}@{{ ansible_backup_nas_host }}:{{ ansible_backup_nas_dest_dir }}/
   environment:
     SSHPASS: "{{ ansible_backup_nas_password }}"
