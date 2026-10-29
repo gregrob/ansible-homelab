@@ -11,75 +11,70 @@
 #  6. Read the generated public key content
 #  7. Display the public key for manual addition to GitHub repository settings
 
-- block:
+# Create a variable for the filename base for the GitHub repo SSH key    
+- name: Set SSH key base path for GitHub repo
+  ansible.builtin.set_fact:
+    github_key_filename_base: "/home/{{ admin_user }}/.ssh/id_ed25519_github-repo_{{ github_repo_name }}"
 
-  # Create a variable for the filename base for the GitHub repo SSH key    
-  - name: Set SSH key base path for GitHub repo
-    ansible.builtin.set_fact:
-      github_key_filename_base: "/home/{{ admin_user }}/.ssh/id_ed25519_github-repo_{{ github_repo_name }}"
+# Ensure the .ssh directory exists with correct permissions and ownership
+- name: ensure ~/.ssh directory exists
+  ansible.builtin.file:
+    path: "/home/{{ admin_user }}/.ssh"
+    state: directory
+    mode: '0700'
+    owner: "{{ admin_user }}"
+    group: "{{ admin_group }}"
 
-  # Ensure the .ssh directory exists with correct permissions and ownership
-  - name: ensure ~/.ssh directory exists
-    ansible.builtin.file:
-      path: "/home/{{ admin_user }}/.ssh"
-      state: directory
-      mode: '0700'
-      owner: "{{ admin_user }}"
-      group: "{{ admin_group }}"
+# Generate a new SSH key for the GitHub repo if one doesn't already exist
+# (omitting 'mode' prevents openssh_keypair from resetting public key permissions on reruns)
+- name: generate SSH key for GitHub repo
+  ansible.builtin.openssh_keypair:
+    path: "{{ github_key_filename_base }}"
+    type: ed25519
+    force: false   # do not overwrite if key already exists
+    comment: "{{ github_key_comment | default(admin_user ~ '@' ~ inventory_hostname ~ ' (repo: ' ~ github_repo_name ~ ')') }}"
 
-  # Generate a new SSH key for the GitHub repo if one doesn't already exist
-  # (omitting 'mode' prevents openssh_keypair from resetting public key permissions on reruns)
-  - name: generate SSH key for GitHub repo
-    ansible.builtin.openssh_keypair:
-      path: "{{ github_key_filename_base }}"
-      type: ed25519
-      force: false   # do not overwrite if key already exists
-      comment: "{{ github_key_comment | default(admin_user ~ '@' ~ inventory_hostname ~ ' (repo: ' ~ github_repo_name ~ ')') }}"
+# Explicitly set 0600 permissions on the private key
+- name: Set correct permissions on private key
+  ansible.builtin.file:
+    path: "{{ github_key_filename_base }}"
+    mode: '0600'
+    owner: "{{ admin_user }}"
+    group: "{{ admin_group }}"
 
-  # Explicitly set 0600 permissions on the private key
-  - name: Set correct permissions on private key
-    ansible.builtin.file:
-      path: "{{ github_key_filename_base }}"
-      mode: '0600'
-      owner: "{{ admin_user }}"
-      group: "{{ admin_group }}"
+# Explicitly set 0644 permissions on the public key
+- name: Set correct permissions on public key
+  ansible.builtin.file:
+    path: "{{ github_key_filename_base }}.pub"
+    mode: '0644'
+    owner: "{{ admin_user }}"
+    group: "{{ admin_group }}"
 
-  # Explicitly set 0644 permissions on the public key
-  - name: Set correct permissions on public key
-    ansible.builtin.file:
-      path: "{{ github_key_filename_base }}.pub"
-      mode: '0644'
-      owner: "{{ admin_user }}"
-      group: "{{ admin_group }}"
+# Add github.com specific SSH config entry for the repository
+- name: Add GitHub SSH config entry for repo {{ github_repo_name }}
+  ansible.builtin.blockinfile:
+    path: "/home/{{ admin_user }}/.ssh/config"
+    owner: "{{ admin_user }}"
+    group: "{{ admin_group }}"
+    mode: '0600'
+    create: yes
+    marker: "# {mark} ANSIBLE MANAGED GITHUB KEY {{ github_repo_name }}"
+    block: |
+      Host github.com-{{ github_repo_name }}
+        HostName github.com
+        User git
+        IdentityFile {{ github_key_filename_base }}
+        IdentitiesOnly yes
 
-  # Add github.com specific SSH config entry for the repository
-  - name: Add GitHub SSH config entry for repo {{ github_repo_name }}
-    ansible.builtin.blockinfile:
-      path: "/home/{{ admin_user }}/.ssh/config"
-      owner: "{{ admin_user }}"
-      group: "{{ admin_group }}"
-      mode: '0600'
-      create: yes
-      marker: "# {mark} ANSIBLE MANAGED GITHUB KEY {{ github_repo_name }}"
-      block: |
-        Host github.com-{{ github_repo_name }}
-          HostName github.com
-          User git
-          IdentityFile {{ github_key_filename_base }}
-          IdentitiesOnly yes
+# Read the public key content from remote to display it
+- name: Read public key from remote
+  ansible.builtin.slurp:
+    src: "{{ github_key_filename_base }}.pub"
+  register: public_key_content
 
-  # Read the public key content from remote to display it
-  - name: Read public key from remote
-    ansible.builtin.slurp:
-      src: "{{ github_key_filename_base }}.pub"
-    register: public_key_content
-
-  # Show the public key for GitHub (decoded and trimmed)
-  - name: Show public key for GitHub
-    ansible.builtin.debug:
-      msg: |
-        === SSH Public Key: {{ github_repo_name }} ===
-        {{ public_key_content.content | b64decode | trim }}
-
-  become: yes
-  become_user: "{{ admin_user }}"
+# Show the public key for GitHub (decoded and trimmed)
+- name: Show public key for GitHub
+  ansible.builtin.debug:
+    msg: |
+      === SSH Public Key: {{ github_repo_name }} ===
+      {{ public_key_content.content | b64decode | trim }}
