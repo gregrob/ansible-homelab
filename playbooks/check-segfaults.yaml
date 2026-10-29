@@ -1,0 +1,46 @@
+---
+# Playbook to check Proxmox node kernel logs for segfaults and other crash
+# indicators, emailing when any are found.
+#
+# Normal run (schedule in Semaphore, e.g. every 4 hours: 0 */4 * * *):
+#   ansible-playbook check-segfaults.yaml
+#
+# Test the alert path without a real segfault (injects one synthetic line):
+#   ansible-playbook check-segfaults.yaml -e segfault_check_test_mode=true --limit petra
+#
+# Connection test only (no log check):
+#   ansible-playbook check-segfaults.yaml --limit petra --tags connection_test
+#
+# Skip the connection test once it has been proven:
+#   ansible-playbook check-segfaults.yaml --skip-tags connection_test
+#
+# Limit to one host or change the window:
+#   ansible-playbook check-segfaults.yaml --limit petra -e '{"segfault_check_window": "24 hours ago"}'
+#
+# NOTE: this is the first playbook to address the Proxmox nodes directly, so
+# it proves the root/password login first (pre_tasks). Remove the
+# connection_test tasks once the login has been proven in Semaphore.
+
+- name: Check kernel logs for segfaults
+
+  hosts: proxmox_hosts
+  gather_facts: true
+
+  vars_files:
+    - ../group_vars/all/vault.yaml
+    
+  pre_tasks:
+
+    - name: Display resolved connection settings
+      ansible.builtin.debug:
+        msg: |
+          Target Host:           {{ inventory_hostname }}
+          Ansible User:          {{ ansible_user }}
+          Ansible Become:        {{ ansible_become | default(false) }}
+          Authentication Method: {{ 'SSH Private Key' if (ansible_ssh_private_key_file is defined) else ('Password' if (ansible_password is defined) else 'Unknown') }}
+          SSH Key Path:          {{ ansible_ssh_private_key_file | default('N/A (using password)') }}
+          Sudo Password Set:     {{ ansible_become_password is defined }}
+      tags: [connection_test]
+
+  roles:
+    - { role: segfault_check, tags: [segfault, audit] }

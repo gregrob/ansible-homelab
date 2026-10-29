@@ -1,0 +1,122 @@
+---
+# Role to check the kernel log for segfaults and other crash indicators and
+# alert by email when any are found
+#
+# Steps performed:
+#  1. Display configuration
+#  2. Search the kernel log (all retained boots) within the time window
+#  3. Filter out ignored lines
+#  4. Inject a synthetic line if test mode is on
+#  5. Send notification if anything was found
+#  6. Display findings
+#  7. Optionally fail the play
+#  8. Show summary
+
+# Display the configuration being used
+- name: Display segfault check configuration
+  ansible.builtin.debug:
+    msg: |
+      === Segfault Check Configuration ===
+      Target host:   {{ inventory_hostname }}
+      Window:        {{ segfault_check_window }}
+      Pattern:       {{ segfault_check_pattern }}
+      Ignore:        {{ segfault_check_ignore if (segfault_check_ignore | length > 0) else '(none)' }}
+      Notifications: {{ 'Enabled' if (segfault_notify_enabled | default(true) | bool) else 'Disabled' }}
+      Test mode:     {{ 'ON - a synthetic line will be injected' if (segfault_check_test_mode | default(false) | bool) else 'Off' }}
+
+# Search the kernel log. "-t kernel" covers every retained boot (unlike "-k",
+# which only looks at the current boot). "|| true" stops grep's "no match"
+# exit code from failing the task; journalctl problems are caught via stderr.
+- name: Search kernel log for crash lines
+  ansible.builtin.shell:
+    cmd: "journalctl -t kernel --since '{{ segfault_check_window }}' --no-pager -q | grep -E '{{ segfault_check_pattern }}' || true"
+  args:
+    executable: /bin/bash
+  register: segfault_check_raw
+  changed_when: false
+  failed_when: "'Failed to' in segfault_check_raw.stderr"
+
+# Drop lines matching the ignore pattern (only when one is set)
+- name: Filter out ignored lines
+  ansible.builtin.set_fact:
+    segfault_check_lines: >-
+      {{ (segfault_check_raw.stdout_lines
+          | reject('search', segfault_check_ignore) | list)
+         if (segfault_check_ignore | length > 0)
+         else segfault_check_raw.stdout_lines }}
+
+# Test mode: add one synthetic line so the whole alert path can be exercised
+# (including the email) without waiting for a real crash
+- name: Inject synthetic test line
+  ansible.builtin.set_fact:
+    segfault_check_lines: "{{ segfault_check_lines + ['TEST MODE: synthetic segfault line - no real crash occurred'] }}"
+  when: segfault_check_test_mode | default(false) | bool
+
+# Send notification when anything was found
+- name: Send segfault alert notification
+  ansible.builtin.include_role:
+    name: notify_gmail
+  vars:
+    notify_subject: "{{ notify_subject_prefix | default('') }} {{ 'TEST - ' if (segfault_check_test_mode | default(false) | bool) else '' }}WARNING: Segfault detected - {{ inventory_hostname }}"
+    notify_body: |
+      ⚠️ KERNEL CRASH DETECTED ⚠️
+
+      Host: {{ inventory_hostname }}
+      Window searched: {{ segfault_check_window }}
+      Matching lines: {{ segfault_check_lines | length }}
+      Timestamp: {{ ansible_facts['date_time']['iso8601'] | default('N/A') }}
+      {% if segfault_check_test_mode | default(false) | bool %}
+
+      THIS IS A TEST - the line below was injected by the role (segfault_check_test_mode).
+      {% endif %}
+
+      === Matching kernel log lines ===
+      {% for line in segfault_check_lines[:(segfault_check_max_lines | int)] %}
+      {{ line }}
+      {% endfor %}
+      {% if segfault_check_lines | length > (segfault_check_max_lines | int) %}
+      ... {{ segfault_check_lines | length - (segfault_check_max_lines | int) }} more line(s) not shown
+      {% endif %}
+
+      The "likely on CPU n (core m)" part of each line shows which core it ran on.
+      Check the full context with: journalctl -t kernel --since "{{ segfault_check_window }}" --no-pager
+
+      This is an automated message from Ansible Homelab monitoring.
+  when:
+    - segfault_check_lines | length > 0
+    - segfault_notify_enabled | default(true) | bool
+
+# Display findings
+- name: Display crash lines found
+  ansible.builtin.debug:
+    msg: |
+      ⚠️ KERNEL CRASH LINES FOUND ⚠️
+      Host:                {{ inventory_hostname }}
+      Matching lines:      {{ segfault_check_lines | length }}
+      Notification Status: {{ 'Email notification sent!' if (segfault_notify_enabled | default(true) | bool) else 'Email notifications disabled' }}
+
+      {% for line in segfault_check_lines %}
+      {{ line }}
+      {% endfor %}
+  when: segfault_check_lines | length > 0
+
+# Optionally fail the play so Semaphore marks the task as failed
+- name: Fail the play when crashes were found
+  ansible.builtin.fail:
+    msg: "{{ inventory_hostname }}: {{ segfault_check_lines | length }} crash line(s) found (window: since {{ segfault_check_window }})"
+  when:
+    - segfault_check_lines | length > 0
+    - segfault_check_fail_on_find | default(false) | bool
+
+# Display final summary
+- name: Display segfault check summary
+  ansible.builtin.debug:
+    msg: |
+      === Segfault Check Summary ===
+      Host:          {{ inventory_hostname }}
+      Window:        {{ segfault_check_window }}
+      Crash lines:   {{ segfault_check_lines | length }}
+      Status:        {{ 'CRASHES FOUND' if (segfault_check_lines | length > 0) else 'OK' }}
+      Notifications: {{ 'Enabled' if (segfault_notify_enabled | default(true) | bool) else 'Disabled' }}
+      Test mode:     {{ 'ON' if (segfault_check_test_mode | default(false) | bool) else 'Off' }}
+      Timestamp:     {{ ansible_facts['date_time']['iso8601'] | default('N/A') }}

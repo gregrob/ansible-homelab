@@ -1,0 +1,31 @@
+---
+# =============================================================================
+# segfault_check role defaults
+# =============================================================================
+
+# How far back to search the kernel log. Make this slightly longer than the
+# Semaphore schedule interval so a late run does not leave a gap
+# (e.g. schedule every 4 hours, window "5 hours ago").
+segfault_check_window: "5 hours ago"
+
+# Extended regex (grep -E) matching kernel log lines that indicate a crash or
+# a hardware/kernel problem.
+segfault_check_pattern: 'segfault at|general protection fault|traps:|Machine check|Hardware Error|BUG:|Oops|blocked for more than|softirq: huh'
+
+# Optional extended regex of lines to ignore (e.g. 'ld-musl' for a host with
+# known, separate container noise). Empty means ignore nothing.
+segfault_check_ignore: ''
+
+# Send an email when matching lines are found
+segfault_notify_enabled: true
+
+# TEST MODE: inject one synthetic line so the whole alert path (including the
+# email) can be exercised without a real segfault. Leave false in normal use.
+segfault_check_test_mode: false
+
+# Also mark the play as failed when crashes are found (Semaphore then shows the
+# task as failed). Off by default so an alert does not arrive twice.
+segfault_check_fail_on_find: false
+
+# Maximum number of crash lines included in the email body
+segfault_check_max_lines: 50
