@@ -11,9 +11,8 @@
 #       --ask-vault-pass -e skip_confirmation=true
 
 - name: Configure a Debian 13 Target (VM, LXC, or Raspberry Pi)
-  hosts: debian_config_target
+  hosts: debian_hosts
   gather_facts: yes
-  become: yes
   environment: "{{ debian_noninteractive_env }}"
   
   vars_files:
@@ -23,7 +22,6 @@
     - ../group_vars/all/nas.yaml
     - ../group_vars/all/secrets-homelab-paths.yaml # Paths used in the secret server
     - ../group_vars/all/secrets-user.yaml          # Consistent secrets user for all these machines
-    - ../group_vars/all/admin-user.yaml            # Consistent admin user for all these machines
     - ../group_vars/all/topology.yaml              # gateway_ip_dns and friends - needed to resolve network_interfaces-derived vars below
     
     
@@ -174,31 +172,42 @@
       when: not (skip_confirmation | default(false) | bool)
 
   roles:
-    # Identity — everything below assumes this user exists
-    - { role: admin_user,               tags: [base] }
+    # ---------------------------------------------------------
+    # 1. Foundation & Identity (Root Escalation Required)
+    # ---------------------------------------------------------
+    # Identity — creates the admin user, configures sudoers & SSH
+    - { role: admin_user,               tags: [base],    become: true }
 
-    # LXC specific base tuning
-    - { role: disable_systemd_networkd, tags: [base],    when: target_type == 'lxc' }
+    # LXC-specific base tuning (modifies system networking)
+    - { role: disable_systemd_networkd, tags: [base],    become: true, when: target_type == 'lxc' }
 
-    # Common across ALL target types (vm, lxc, rpi)
-    - { role: packages,                 tags: [base] }
-    - { role: timezone,                 tags: [base] }
-    - { role: git_setup,                tags: [git] }
-    - { role: docker_setup,             tags: [docker] }
+    # ---------------------------------------------------------
+    # 2. System Core & Services (Root Escalation Required)
+    # ---------------------------------------------------------
+    # System packages, timekeeping, git tooling, and container runtime
+    - { role: packages,                 tags: [base],    become: true }
+    - { role: timezone,                 tags: [base],    become: true }
+    - { role: git_setup,                tags: [git],     become: true }
+    - { role: docker_setup,             tags: [docker],  become: true }
 
     # Restricted rsync access for admin user (root, scoped to /srv/)
-    - { role: rsync_setup,              tags: [rsync] }
+    - { role: rsync_setup,              tags: [rsync],   become: true }
 
-    # Storage routing
-    #   lxc_share_user is technically only required for unprivileged LXCs,
-    #   but applied to both privileged and unprivileged for simplicity
-    - { role: lxc_share_user,           tags: [storage], when: target_type == 'lxc' }
-    - { role: nfs_mounts,               tags: [storage] }
+    # ---------------------------------------------------------
+    # 3. Storage Routing (Root Escalation Required)
+    # ---------------------------------------------------------
+    # LXC user mapping and network storage mounts (/etc/fstab)
+    - { role: lxc_share_user,           tags: [storage], become: true, when: target_type == 'lxc' }
+    - { role: nfs_mounts,               tags: [storage], become: true }
 
-    # Repos & Secrets
+    # ---------------------------------------------------------
+    # 4. Repositories, Helpers & Secrets (Unprivileged / Admin User)
+    # ---------------------------------------------------------
+    # Clones repos into user space (internal tasks escalate to root only for /srv paths)
     - { role: github_clone,             tags: [repos] }
-    #   homelab_nav: deploys 'cdh' shell shortcut + tab completion for
-    #   jumping to homelab container dirs (depends on docker-homelab repo path)
+    
+    # Deploys 'cdh' shell shortcut and tab completion to home directory
     - { role: homelab_nav,              tags: [helpers] }
-    # Skip fetching secrets on the secrets server itself to prevent a chicken-and-egg bootstrap failure
+    
+    # Dynamically connects and pulls secrets (skipped on the secrets server itself)
     - { role: secrets_connect,          tags: [secrets], when: not (is_secrets_server | default(false) | bool) }
