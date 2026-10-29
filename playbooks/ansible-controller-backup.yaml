@@ -10,17 +10,11 @@
 - name: Backup Ansible Controller Keys and Vault
   hosts: ansible_target
   gather_facts: yes
-  become: yes
 
   vars_files:
     - ../group_vars/all/vault.yaml
-    - ../group_vars/all/admin-user.yaml
     - ../group_vars/all/nas.yaml
 
-  tasks:
-    - name: Run controller backup role
-      ansible.builtin.include_role:
-        name: ansible_backup
-      tags:
-        - backup
+  roles:
+    - { role: ansible_backup, tags: [backup] }
   

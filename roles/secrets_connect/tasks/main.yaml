@@ -111,18 +111,15 @@
         | list
       }}
 
-  # Add the secrets server host to the inventory dynamically.
-  # ansible_user / ansible_ssh_pass / ansible_become_password all reference
-  # the fleet-wide admin_user / admin_password directly (see
-  # group_vars/all/ansible-user.yaml) — the secrets server uses the same
-  # connection identity as every other host, no override needed.
+  # Add the secrets server host to the inventory dynamically
+  # using the standard Debian admin credentials.
   - name: Add secret server host dynamically
     ansible.builtin.add_host:
       name: secrets_server
       ansible_host: "{{ secrets_target_address }}"
       ansible_user: "{{ admin_user }}"
-      ansible_ssh_pass: "{{ admin_password }}"
-      ansible_become_password: "{{ admin_password }}"
+      ansible_ssh_pass: "{{ debian_admin_password }}"
+      ansible_become_password: "{{ debian_admin_password }}"
       groups:
         - secrets_access
     changed_when: false # Don't flag a change for this task, only adding a host
@@ -154,6 +151,3 @@
   - name: Display output of decryption command
     ansible.builtin.debug:
       var: decrypted_output.stdout
-
-  become: yes
-  become_user: "{{ admin_user }}"

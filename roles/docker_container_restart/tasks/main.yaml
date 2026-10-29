@@ -48,12 +48,6 @@
     that: target_container is defined
     msg: "target_container variable must be provided (e.g., -e target_container=frigate, or a list for multiple)"
 
-# accept either a single string or a list, so existing single-container
-# usage keeps working unchanged
-#- name: normalize target_container into a list
-#  ansible.builtin.set_fact:
-#    target_containers: "{{ [target_container] if target_container is string else target_container }}"
-
 # Step 1: Parse the string. If it's a JSON string '["a", "b"]', this converts it to a real list. 
 # If it's a plain string 'frigate', it remains a string.
 - name: parse target_container payload

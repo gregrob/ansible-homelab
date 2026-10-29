@@ -8,9 +8,8 @@
 #   ansible-playbook playbooks/check-docker-updates.yaml --limit dns-001.dns.gregrob.net
 
 - name: Audit fleet Docker container versions
-  hosts: debian_config_target
+  hosts: debian_hosts
   gather_facts: true
-  become: true
 
   vars_files:
     - ../group_vars/all/vault.yaml

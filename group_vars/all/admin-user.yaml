@@ -1,6 +1,0 @@
----
-# Interactive admin account identity on target hosts — referenced by roles
-# (e.g. keepalived) that need to know which local user/group owns things.
-
-admin_user: admin
-admin_group: admin

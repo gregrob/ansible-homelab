@@ -6,17 +6,12 @@
 # restart_container_across_repos.yaml. Expects 'matched_repo' (with .name,
 # .dest, .container_name, .container_dir) to be set by the calling loop.
 #
-# Runs as admin_user (not the default root from play-level become) since
-# that's the identity with working SSH access to the secrets host that
-# docker-stop.sh/docker-start.sh call out to.
-#
 # Under --check, the stop/start command tasks are skipped automatically
 # (the command module has no check-mode support), so a debug line is
 # printed up front to make it clear what would have happened.
 # =============================================================================
 
 - name: "restart container in {{ matched_repo.name }}"
-  become_user: "{{ admin_user }}"
   block:
     # command tasks below are skipped by Ansible under --check, so surface
     # intent explicitly rather than leaving a silent gap in the output

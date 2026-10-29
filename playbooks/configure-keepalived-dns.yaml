@@ -35,11 +35,9 @@
 - name: Configure Keepalived for DNS
   hosts: keepalived_dns_target
   gather_facts: yes
-  become: yes
 
   vars_files:
     - ../group_vars/all/vault.yaml
-    - ../group_vars/all/admin-user.yaml # Scripts called by keepalived will run as admin user
     - ../group_vars/all/topology.yaml   # gateway_ip_dns and friends - needed to resolve network_interfaces-derived vars below
 
   pre_tasks:
@@ -71,4 +69,4 @@
       when: not (skip_confirmation | default(false) | bool)
 
   roles:
-    - { role: keepalived, tags: [keepalived] }
+    - { role: keepalived, tags: [keepalived], become: true }

@@ -35,7 +35,6 @@
 - name: Configure network interfaces
   hosts: network_config_target
   gather_facts: yes
-  become: yes
 
   vars_files:
     - ../group_vars/all/vault.yaml 
@@ -125,4 +124,4 @@
       when: not (skip_confirmation | default(false) | bool)
 
   roles:
-    - { role: network_config, tags: [network] }
+    - { role: network_config, tags: [network], become: true }

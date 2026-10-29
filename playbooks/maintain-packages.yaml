@@ -8,9 +8,8 @@
 #   ansible-playbook playbooks/system-update.yaml --limit '!ansible-002.mgmt.gregrob.net'
 
 - name: Perform System Maintenance and Package Updates
-  hosts: debian_config_target
+  hosts: debian_hosts
   gather_facts: yes
-  become: yes
 
   vars_files:
     - ../group_vars/all/vault.yaml
@@ -22,4 +21,4 @@
         tasks_from: validate_target_type
 
   roles:
-    - { role: packages, tags: [base] }
+    - { role: packages, tags: [base], become: true }

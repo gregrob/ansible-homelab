@@ -8,7 +8,7 @@
 #   ansible-playbook playbooks/docker-prune.yaml --check --limit dns-001.dns.gregrob.net
 
 - name: Prune unused Docker images
-  hosts: debian_config_target
+  hosts: debian_hosts
   gather_facts: false
 
   vars_files:

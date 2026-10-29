@@ -1,0 +1,10 @@
+---
+# =====================================================================
+# Proxmox Host Configuration (Connection, Escalation, & Identity)
+# =====================================================================
+
+# Proxmox nodes connect directly as root with a shared vault password.
+# NOTE: Since ansible_user is root here, ensure roles do not assume 
+# a non-root admin user or attempt redundant privilege escalation.
+ansible_user: root
+ansible_password: "{{ proxmox_root_password }}"

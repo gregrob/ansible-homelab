@@ -17,17 +17,21 @@ all:
     # Unmanaged hosts
     unmanaged:
       hosts:
+        pbs.mgmt.gregrob.net:
+          ansible_host: pbs.mgmt.gregrob.net
+
+        ha-test.home.gregrob.net:
+          ansible_host: ha-test.home.gregrob.net
+
+    # All proxmox hosts
+    proxmox_hosts:
+      hosts:
         atlantis.mgmt.gregrob.net:
           ansible_host: atlantis.mgmt.gregrob.net
         eldorado.mgmt.gregrob.net:
           ansible_host: eldorado.mgmt.gregrob.net
         petra.mgmt.gregrob.net:
           ansible_host: petra.mgmt.gregrob.net
-        pbs.mgmt.gregrob.net:
-          ansible_host: pbs.mgmt.gregrob.net
-
-        ha-test.home.gregrob.net:
-          ansible_host: ha-test.home.gregrob.net
 
     # All LXC's
     lxcs:
@@ -71,7 +75,7 @@ all:
         nut-002.mgmt.gregrob.net:
           ansible_host: nut-002.mgmt.gregrob.net
 
-    debian_config_target:
+    debian_hosts:
       hosts:
         dns-001.dns.gregrob.net: {}
         dns-002.dns.gregrob.net: {}

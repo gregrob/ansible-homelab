@@ -10,14 +10,12 @@
 #
 
 - name: Restart Docker Containers
-  hosts: debian_config_target
+  hosts: debian_hosts
   gather_facts: yes
-  become: yes
 
   vars_files:
     - ../group_vars/all/vault.yaml
     - ../group_vars/all/github-repos-docker.yaml
-    - ../group_vars/all/admin-user.yaml # access to the secrets requires admin user
 
   roles:
     - { role: docker_container_restart, tags: [docker] }
