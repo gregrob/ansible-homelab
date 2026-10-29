@@ -12,22 +12,23 @@
 - name: Git Pull All Repositories in Base Folder
   hosts: git_targets
   gather_facts: yes
-  become: false
 
   vars_files:
     - ../group_vars/all/vault.yaml
-    - ../group_vars/all/admin-user.yaml    # Admin user details
-    - ../group_vars/all/ansible-user.yaml  # Override vault to use admin user
-
-  vars:
-    git_notify_enabled: false  # Enable notifications on failure (can be overridden)
 
   tasks:
     - name: Pull all Git repositories with error handling
       block:
+        # Validation task for the rescue and notification path 
+        - name: Force failure for rescue testing
+          ansible.builtin.fail:
+            msg: "Intentional test failure to verify rescue handling and notifications."
+          when: force_rescue_test | default(false) | bool      
+        
         - name: Include git_pull_repos role
           ansible.builtin.include_role:
             name: git_pull_repos
+
       rescue:
         - name: Send git pull failure notification
           ansible.builtin.include_role:

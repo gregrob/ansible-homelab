@@ -8,7 +8,10 @@ git_base_folder: "/srv"
 git_default_branch: "HEAD"
 
 # User who owns the Git repositories
-git_user: "admin"
+git_user: "{{ admin_user }}"
 
 # Whether to show verbose output
 git_verbose: true
+
+# Enable notifications on failure
+git_notify_enabled: false  
