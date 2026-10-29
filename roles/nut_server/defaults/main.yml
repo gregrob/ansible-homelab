@@ -126,10 +126,9 @@ nut_server_nocommwarntime: 300  # warn about lost communication every 5 minutes
 # =======================================================================
 # Notifications
 # =======================================================================
-# nut_server_notifycmd is empty until upssched.conf is ported; the EXEC flags
-# below do nothing without it. Set it to /usr/sbin/upssched once that is
-# deployed.
-nut_server_notifycmd: ""
+# Program upsmon runs for events whose flags include EXEC. Defaults to upssched
+# when any callbacks are defined below, and to nothing otherwise.
+nut_server_notifycmd: "{{ '/usr/sbin/upssched' if nut_server_upssched_callbacks | length > 0 else '' }}"
 
 nut_server_notifymsg:
   ONLINE: "UPS %s on line power"
@@ -176,6 +175,35 @@ nut_server_web_require:
 # you restrict nut_server_web_require above; the role refuses to enable it while
 # access is still open to everyone.
 nut_server_web_upsset_enabled: false
+
+# =======================================================================
+# Notification Callbacks (upssched)
+# =======================================================================
+# Commands to run when a UPS event happens, optionally after a delay. Empty by
+# default; define them per host or group. Each callback:
+#   event:     upsmon event (ONLINE, ONBATT, LOWBATT, FSD, COMMOK, COMMBAD,
+#              SHUTDOWN, REPLBATT, NOCOMM, NOPARENT). Its entry in
+#              nut_server_notifyflags must include EXEC.
+#   name:      unique label (letters, digits, - and _)
+#   command:   what to run (absolute path to a script, with any arguments)
+#   delay:     seconds to wait after the event before running it (default 0)
+#   desc:      text logged to syslog when it runs (default: the name)
+#   cancel_on: optional events that cancel the callback while it is waiting
+#
+# Example, shut down a NAS 30 seconds after this server starts shutting down:
+#   nut_server_upssched_callbacks:
+#     - event: SHUTDOWN
+#       name: flashstor-shutdown
+#       command: /usr/local/sbin/asustor-flashstor-shutdown.sh
+#       delay: 30
+#       desc: "UPS shutdown event - shutting down the Flashstor NAS"
+#
+# Keep any delay well inside FINALDELAY, or the server powers off before the
+# callback runs. The command runs as nut_server_run_as_user.
+nut_server_upssched_callbacks: []
+
+# Where the command script that runs the callbacks is installed
+nut_server_upssched_cmdscript: /usr/local/sbin/upssched-cmd.sh
 
 # =======================================================================
 # Verification

@@ -1,0 +1,45 @@
+# Managed by Ansible - do not edit by hand
+#
+# Network UPS Tools - upssched.conf
+# This file configures the UPS event scheduler (upssched), which upsmon calls
+# for events whose NOTIFYFLAG includes EXEC (see upsmon.conf).
+#
+# Each callback comes from nut_server_upssched_callbacks and is wired up here:
+#  - delay 0: run the callback as soon as the event happens
+#      AT <event> <ups> EXECUTE <name>
+#  - delay > 0: start a timer and run the callback when it expires
+#      AT <event> <ups> START-TIMER <name> <seconds>
+#  - cancel_on: events that cancel a pending timer before it expires
+#      AT <event> <ups> CANCEL-TIMER <name>
+# Either way upssched then calls the command script below with <name> as its
+# first argument, and the script runs the matching command.
+
+# =======================================================================
+# Core Configuration
+# =======================================================================
+# Command script executed for each callback, called with the callback name
+# as the first argument
+CMDSCRIPT {{ nut_server_upssched_cmdscript }}
+
+# Communication pipe and lock file for inter-process communication
+# These files allow upssched to safely manage event timing
+PIPEFN /run/nut/upssched.pipe    # FIFO pipe for timer communications
+LOCKFN /run/nut/upssched.lock    # Lock file to prevent race conditions
+
+# =======================================================================
+# Event Handlers
+# =======================================================================
+# Format: AT <event> <upsname> <action>
+# - * matches any UPS name
+{% for cb in nut_server_upssched_callbacks %}
+
+# {{ cb.name }}: {{ cb.desc | default(cb.command) }}
+{% if (cb.delay | default(0)) | int > 0 %}
+AT {{ cb.event }} * START-TIMER {{ cb.name }} {{ cb.delay }}    # run {{ cb.delay }} seconds after {{ cb.event }}
+{% else %}
+AT {{ cb.event }} * EXECUTE {{ cb.name }}    # run immediately on {{ cb.event }}
+{% endif %}
+{% for ev in cb.cancel_on | default([]) %}
+AT {{ ev }} * CANCEL-TIMER {{ cb.name }}    # cancel if {{ ev }} happens first
+{% endfor %}
+{% endfor %}

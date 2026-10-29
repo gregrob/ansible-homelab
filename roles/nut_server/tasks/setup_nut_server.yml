@@ -35,6 +35,37 @@
       {{ nut_server_users | selectattr('password', 'equalto', '') | map(attribute='name') | list }}
     quiet: true
 
+# Checks for the upssched callbacks (nut_server_upssched_callbacks).
+# Each name becomes a case label in the command script, so names must be unique
+# and shell-safe.
+- name: Assert the upssched callback names are valid
+  ansible.builtin.assert:
+    that:
+      - nut_server_upssched_callbacks | map(attribute='name') | list | unique | list | length == nut_server_upssched_callbacks | length
+      - nut_server_upssched_callbacks | map(attribute='name') | reject('match', '^[A-Za-z0-9_-]+$') | list | length == 0
+    fail_msg: >-
+      nut_server_upssched_callbacks names must be unique and only use letters,
+      digits, '-' and '_'.
+    quiet: true
+
+# Every callback's event must also have EXEC in nut_server_notifyflags,
+# otherwise upsmon never hands that event to upssched and the callback never
+# runs.
+- name: Assert the upssched callback events are passed to upssched
+  ansible.builtin.assert:
+    that:
+      - >-
+        nut_server_notifyflags | selectattr('event', 'equalto', item.event)
+        | map(attribute='flags') | join(',') is search('EXEC')
+    fail_msg: >-
+      Callback '{{ item.name }}' is on {{ item.event }}, but the {{ item.event }}
+      entry in nut_server_notifyflags does not include EXEC, so upsmon would
+      never pass that event to upssched.
+    quiet: true
+  loop: "{{ nut_server_upssched_callbacks }}"
+  loop_control:
+    label: "{{ item.name }}"
+
 # =======================================================================
 # 2. Configuration files
 # =======================================================================
@@ -95,6 +126,28 @@
     mode: "0640"
   no_log: true
   notify: Restart nut
+
+# upssched: the callbacks run on UPS events (see nut_server_upssched_callbacks).
+# Only deployed when at least one callback is defined. upssched reads its config
+# on every call, so no restart is needed. The command script is root:nut 0750
+# because it runs as the user upsmon runs as (nut_server_run_as_user).
+- name: Deploy upssched.conf (event scheduler)
+  ansible.builtin.template:
+    src: upssched.conf.j2
+    dest: /etc/nut/upssched.conf
+    owner: root
+    group: nut
+    mode: "0640"
+  when: nut_server_upssched_callbacks | length > 0
+
+- name: Deploy the upssched command script
+  ansible.builtin.template:
+    src: upssched-cmd.sh.j2
+    dest: "{{ nut_server_upssched_cmdscript }}"
+    owner: root
+    group: nut
+    mode: "0750"
+  when: nut_server_upssched_callbacks | length > 0
 
 # =======================================================================
 # 3. Dummy device state (testing only)

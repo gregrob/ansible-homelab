@@ -23,7 +23,6 @@
 - name: Configure NUT Server
   hosts: nut_server_target
   gather_facts: yes
-  become: yes
 
   vars_files:
     - ../group_vars/all/vault.yaml                 # Provides the nut_server_*_password secrets
@@ -52,8 +51,7 @@
           Status      : Verified as NUT Server (is_nut_server=true)
           UPS devices : {{ nut_server_ups | default([]) | map(attribute='name') | join(', ') }}
 
-          NOTE: The server is the UPS primary. A shutdown event on this
-          host (low battery / FSD) will also shut down all NUT clients.
+          NOTE: The server is the UPS primary. A shutdown event on this host (low battery / FSD) will also shut down all NUT clients.
 
     # 3. Confirmation gate
     - name: Wait for confirmation to proceed
@@ -62,4 +60,4 @@
       when: not (skip_confirmation | default(false) | bool)
 
   roles:
-    - { role: nut_server, tags: [nut] }
+    - { role: nut_server, tags: [nut], become: true }

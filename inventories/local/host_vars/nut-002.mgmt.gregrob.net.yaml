@@ -107,6 +107,17 @@ nut_server_extra_users:
       - Lets Home Assistant monitor UPS status AND trigger battery tests
     instcmds: [all]
 
+# Commands upssched runs on UPS events (see nut_server_upssched_callbacks in
+# the role defaults). Each event used here must have EXEC in its
+# nut_server_notifyflags entry.
+nut_server_upssched_callbacks:
+  - event: SHUTDOWN
+    name: flashstor-shutdown
+    #command: /usr/local/sbin/asustor-flashstor-shutdown.sh
+    command: 'logger -t nut-test "DRY RUN - would shut down the Flashstor NAS"'
+    delay: 30
+    desc: "UPS shutdown event - shutting down the Flashstor NAS"
+
 # =========================================================
 # NUT web interface (setup_nut_web.yml, needs apache2 + nut-cgi above)
 # =========================================================

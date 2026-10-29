@@ -1,0 +1,33 @@
+#!/bin/sh
+# Managed by Ansible - do not edit by hand
+#
+# upssched-cmd.sh - Command script for NUT upssched events
+# Called by upssched (see upssched.conf) with the callback name as the first
+# argument, either as soon as the event happens or when its timer expires.
+# The callbacks come from nut_server_upssched_callbacks.
+# =======================================================================
+
+# Service/component name used for syslog identification
+SERVICE_NAME="upssched-cmd"
+
+# Process the callback name passed as the first argument
+case $1 in
+{% for cb in nut_server_upssched_callbacks %}
+
+  # {{ cb.name }} - {{ cb.event }}{% if (cb.delay | default(0)) | int > 0 %}, {{ cb.delay }} seconds later{% endif %}
+
+  {{ cb.name }})
+    logger -t $SERVICE_NAME "{{ cb.desc | default(cb.name) }}"
+
+    {{ cb.command }} || logger -t $SERVICE_NAME "{{ cb.name }}: command failed"
+
+    ;;
+{% endfor %}
+
+  # Default case - handle any unrecognized callback
+  *)
+    logger -t $SERVICE_NAME "Unrecognized command: $1"
+
+    ;;
+
+esac
