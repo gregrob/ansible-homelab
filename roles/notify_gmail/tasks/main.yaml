@@ -22,4 +22,5 @@
     body: "{{ notify_body }}"
     secure: starttls
   delegate_to: localhost
+  become: false
   when: notify_enabled | default(true)
