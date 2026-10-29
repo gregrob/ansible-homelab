@@ -14,14 +14,12 @@
 - name: Configure Ansible Machine
   hosts: ansible_target
   gather_facts: yes
-  become: yes
 
   vars_files:
     - ../group_vars/all/vault.yaml
     - ../group_vars/all/github-user.yaml
     - ../group_vars/all/github-repos-ansible.yaml
-    - ../group_vars/all/admin-user.yaml # Loads admin user variables
-
+    
   pre_tasks:
     # Display target-specific info so it's obvious which node is about to
     # be configured before anything actually changes on the host.
@@ -42,6 +40,6 @@
       when: not (skip_confirmation | default(false) | bool)
 
   roles:
-    - { role: ansible_setup, tags: [ansible] }
+    - { role: ansible_setup, tags: [ansible], become: true }
     - { role: github_clone,  tags: [repos] }
   
