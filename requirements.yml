@@ -8,4 +8,5 @@ collections:
     
     # Version constraint: Ensures Ansible downloads version 1.5.0 or newer.
     # Prevents older, potentially incompatible versions from breaking your playbooks.
-    version: ">=1.5.0"
+    #version: ">=1.5.0"
+    version: ">=2.2.0"
