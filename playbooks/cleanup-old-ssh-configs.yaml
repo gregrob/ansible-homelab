@@ -7,13 +7,11 @@
 #   ansible-playbook -i inventories/local/hosts.yaml cleanup-old-ssh-configs.yaml
 
 - name: Clean-up Old SSH Configs
-  hosts: debian_config_target
+  hosts: debian_hosts
   gather_facts: yes
-  become: true
     
   vars_files:
     - ../group_vars/all/vault.yaml
-    - ../group_vars/all/admin-user.yaml  # Provides {{ admin_user }}
 
   tasks:
     - name: Remove old hosts from known_hosts
