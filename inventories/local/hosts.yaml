@@ -126,6 +126,11 @@ all:
       hosts:
         nut-002.mgmt.gregrob.net: {}
 
+    nut_client_target:
+      hosts:
+        failsafe-002.dns.gregrob.net: {}
+        monitoring-001.mgmt.gregrob.net: {}
+
     keepalived_dns_target:
       hosts:
         dns-001.dns.gregrob.net: {}

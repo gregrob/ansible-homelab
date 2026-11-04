@@ -98,3 +98,11 @@ keepalived_check_extra_arg: "{{ keepalived_technitium_api_token_clustered }}"
 
 # Load balancer DISABLED on failsafe-002
 keepalived_load_balancer_enabled: false
+
+# nut client for automatic shutdown
+is_nut_client: true
+
+# Packages installed by the packages role. 'nut-client' provides upsmon and upsc,
+# which is all a NUT client needs (no driver, no upsd, no web interface).
+specific_packages:
+  - nut-client
