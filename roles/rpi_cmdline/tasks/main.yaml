@@ -1,4 +1,13 @@
 ---
+# Raspberry Pi cmdline tasks
+#
+# Makes sure the kernel parameters in rpi_cmdline_params are on the single line
+# in cmdline.txt. Changes notify the reboot handler in handlers/main.yml, which
+# is flushed at the end so later roles (e.g. docker_setup) run on the rebooted Pi.
+
+# Locate cmdline.txt
+# The file is /boot/firmware/cmdline.txt on Bookworm and later, and
+# /boot/cmdline.txt before that. Skipped when rpi_cmdline_path is set.
 - name: Locate cmdline.txt
   ansible.builtin.stat:
     path: "{{ item }}"
@@ -8,6 +17,8 @@
   register: rpi_cmdline_candidates
   when: rpi_cmdline_path | length == 0
 
+# Choose cmdline.txt path
+# Uses rpi_cmdline_path if set, otherwise the first candidate that exists.
 - name: Choose cmdline.txt path
   ansible.builtin.set_fact:
     rpi_cmdline_resolved: >-
@@ -16,25 +27,41 @@
          else (rpi_cmdline_candidates.results
                | selectattr('stat.exists') | map(attribute='item') | first | default('')) }}
 
+# Fail if cmdline.txt cannot be found
+# Stops the role on a host that isn't a Raspberry Pi instead of editing nothing.
 - name: Fail if cmdline.txt cannot be found
   ansible.builtin.assert:
     that: rpi_cmdline_resolved | length > 0
     fail_msg: "No cmdline.txt found. Is this a Raspberry Pi? Set rpi_cmdline_path."
 
+# Keep a one-time copy of the original cmdline.txt
+# A bad cmdline.txt can leave the Pi unbootable. force: false means the copy is
+# only made on the first run, so cmdline.txt.orig always holds the untouched
+# original. The firmware ignores the extra file.
 - name: Keep a one-time copy of the original cmdline.txt
   ansible.builtin.copy:
     src: "{{ rpi_cmdline_resolved }}"
     dest: "{{ rpi_cmdline_resolved }}.orig"
     remote_src: true
-    force: false          # only copies if .orig doesn't exist yet
+    force: false
     mode: preserve
 
+# Ensure kernel parameters are present
+# cmdline.txt must stay a single line, so each missing parameter is appended to
+# the existing line. The regex only matches a line that does not already contain
+# the parameter, which keeps this idempotent and leaves root=PARTUUID and any
+# cloud-init settings alone.
 - name: Ensure kernel parameters are present
   ansible.builtin.lineinfile:
     path: "{{ rpi_cmdline_resolved }}"
-    # Matches the whole line only if it does NOT already contain the parameter
     regexp: '^((?!.*(^|\s){{ item | regex_escape }}(\s|$)).*)$'
     line: '\1 {{ item }}'
     backrefs: true
   loop: "{{ rpi_cmdline_params }}"
   notify: Reboot for kernel cmdline change
+
+# Apply pending reboot before continuing
+# Runs the reboot handler now instead of at the end of the play, so roles that
+# come after this one see the new kernel parameters.
+- name: Apply pending reboot before continuing
+  ansible.builtin.meta: flush_handlers

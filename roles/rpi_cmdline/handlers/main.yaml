@@ -1,8 +1,17 @@
 ---
+# Raspberry Pi cmdline handlers
+#
+# Triggered by the cmdline.txt task in tasks/main.yml. Handlers run once, at the
+# end of the play (or at the flush_handlers task, which this role uses so the Pi
+# is rebooted before later roles such as docker_setup run).
+
+# Reboot for kernel cmdline change
+# Kernel parameters are only read at boot, so the Pi must restart for the new
+# cmdline.txt to take effect. Set rpi_cmdline_reboot: false to skip this and
+# reboot manually.
 - name: Reboot for kernel cmdline change
   ansible.builtin.reboot:
     msg: "Reboot triggered by Ansible: kernel command line (cmdline.txt) changed."
     reboot_timeout: 300
     test_command: whoami
   when: rpi_cmdline_reboot | bool
-  
