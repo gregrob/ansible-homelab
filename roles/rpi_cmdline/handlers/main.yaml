@@ -1,0 +1,8 @@
+---
+- name: Reboot for kernel cmdline change
+  ansible.builtin.reboot:
+    msg: "Reboot triggered by Ansible: kernel command line (cmdline.txt) changed."
+    reboot_timeout: 300
+    test_command: whoami
+  when: rpi_cmdline_reboot | bool
+  

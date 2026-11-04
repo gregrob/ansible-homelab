@@ -1,0 +1,40 @@
+---
+- name: Locate cmdline.txt
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - /boot/firmware/cmdline.txt
+    - /boot/cmdline.txt
+  register: rpi_cmdline_candidates
+  when: rpi_cmdline_path | length == 0
+
+- name: Choose cmdline.txt path
+  ansible.builtin.set_fact:
+    rpi_cmdline_resolved: >-
+      {{ rpi_cmdline_path
+         if rpi_cmdline_path | length > 0
+         else (rpi_cmdline_candidates.results
+               | selectattr('stat.exists') | map(attribute='item') | first | default('')) }}
+
+- name: Fail if cmdline.txt cannot be found
+  ansible.builtin.assert:
+    that: rpi_cmdline_resolved | length > 0
+    fail_msg: "No cmdline.txt found. Is this a Raspberry Pi? Set rpi_cmdline_path."
+
+- name: Keep a one-time copy of the original cmdline.txt
+  ansible.builtin.copy:
+    src: "{{ rpi_cmdline_resolved }}"
+    dest: "{{ rpi_cmdline_resolved }}.orig"
+    remote_src: true
+    force: false          # only copies if .orig doesn't exist yet
+    mode: preserve
+
+- name: Ensure kernel parameters are present
+  ansible.builtin.lineinfile:
+    path: "{{ rpi_cmdline_resolved }}"
+    # Matches the whole line only if it does NOT already contain the parameter
+    regexp: '^((?!.*(^|\s){{ item | regex_escape }}(\s|$)).*)$'
+    line: '\1 {{ item }}'
+    backrefs: true
+  loop: "{{ rpi_cmdline_params }}"
+  notify: Reboot for kernel cmdline change

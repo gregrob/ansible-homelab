@@ -1,0 +1,12 @@
+---
+# Kernel parameters to ensure are present on the single line in cmdline.txt.
+# Defaults are the memory cgroup settings Docker needs on Raspberry Pi OS.
+rpi_cmdline_params:
+  - cgroup_enable=memory
+  - cgroup_memory=1
+
+# Leave empty to auto-detect (/boot/firmware on Bookworm+, /boot before).
+rpi_cmdline_path: ""
+
+# Reboot automatically when the file changed. Set false to reboot yourself later.
+rpi_cmdline_reboot: true
