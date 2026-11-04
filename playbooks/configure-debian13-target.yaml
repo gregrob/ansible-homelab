@@ -185,20 +185,25 @@
     # 2. System Core & Services (Root Escalation Required)
     # ---------------------------------------------------------
     # System packages, timekeeping, git tooling, and container runtime
-    - { role: packages,                 tags: [base],    become: true }
-    - { role: timezone,                 tags: [base],    become: true }
-    - { role: git_setup,                tags: [git],     become: true }
-    - { role: docker_setup,             tags: [docker],  become: true }
+    - { role: packages,                 tags: [base],            become: true }
+    - { role: timezone,                 tags: [base],            become: true }
+    - { role: git_setup,                tags: [git],             become: true }
+    - { role: docker_setup,             tags: [docker],          become: true }
 
     # Restricted rsync access for admin user (root, scoped to /srv/)
-    - { role: rsync_setup,              tags: [rsync],   become: true }
+    - { role: rsync_setup,              tags: [rsync],           become: true }
+
+    # Raspberry Pi only: enable memory cgroups (Docker needs them for
+    # container memory limits). Reboots the Pi if it changed anything, so it
+    # sits before docker_setup and the later roles run on the rebooted host.
+    - { role: rpi_cmdline,              tags: [cmdline, docker], become: true, when: target_type == 'rpi' }
 
     # ---------------------------------------------------------
     # 3. Storage Routing (Root Escalation Required)
     # ---------------------------------------------------------
     # LXC user mapping and network storage mounts (/etc/fstab)
-    - { role: lxc_share_user,           tags: [storage], become: true, when: target_type == 'lxc' }
-    - { role: nfs_mounts,               tags: [storage], become: true }
+    - { role: lxc_share_user,           tags: [storage],         become: true, when: target_type == 'lxc' }
+    - { role: nfs_mounts,               tags: [storage],         become: true }
 
     # ---------------------------------------------------------
     # 4. Repositories, Helpers & Secrets (Unprivileged / Admin User)
