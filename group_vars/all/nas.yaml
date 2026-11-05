@@ -3,7 +3,7 @@
 # group_vars/all/nas.yaml
 
 # Network & Host resolution
-nas_backbone_ip: "{{ flashstor_ip }}"
+nas_ip: "{{ flashstor_ip }}"
 nas_host: "{{ flashstor_host }}"
 
 # Authentication & Target User
