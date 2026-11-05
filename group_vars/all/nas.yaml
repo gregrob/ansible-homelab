@@ -10,5 +10,9 @@ nas_host: "{{ flashstor_host }}"
 nas_user: "admin"
 nas_password: "{{ flashstor_admin_password }}"
 
+# Dedicated shutdown account used by the NUT server (sudo rights only)
+nas_nut_user: "nut-001"
+nas_nut_password: "{{ flashstor_nut_password }}"
+
 # Ansible Controller Backup Destination Path
 nas_folder_ansible_backup: "/share/server-ansible/backups"
