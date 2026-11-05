@@ -1,0 +1,16 @@
+---
+# NUT client handlers
+#
+# Triggered by the config-file tasks in tasks/setup_nut_client.yml. Handlers run
+# once, at the end of the play (or at the flush_handlers task, which this role
+# uses so upsmon is restarted before it is verified).
+
+# Restart nut monitor
+# Restarts upsmon so it re-reads nut.conf and upsmon.conf. This is the only NUT
+# service on a client. Named differently from the server role's 'Restart nut'
+# so the two never share a handler.
+- name: Restart nut monitor
+  ansible.builtin.systemd:
+    name: nut-monitor.service
+    state: restarted
+    daemon_reload: true

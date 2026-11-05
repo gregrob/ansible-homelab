@@ -1,0 +1,93 @@
+---
+# nut_client role defaults
+#
+# Everything overridable lives here (not group_vars) so role defaults sit at the
+# right precedence level. Override per host/group in inventory or host_vars.
+# The password comes from the vault (see Credentials below).
+
+# =======================================================================
+# NUT Server
+# =======================================================================
+# The UPS this host monitors, written as <ups>@<server>. Both are REQUIRED (the
+# role asserts them). They are the same for every client of the same UPS, so set
+# them once for the whole nut_client_target group rather than per host.
+#   nut_client_server: host running upsd (the nut_server role)
+#   nut_client_ups:    UPS name, as defined in nut_server_ups on that server
+nut_client_server: ""
+nut_client_ups: ""
+nut_client_port: 3493
+
+# =======================================================================
+# Credentials
+# =======================================================================
+# Clients log in as the server's observer account: a secondary upsmon user with
+# read-only access and no shutdown authority. The nut_server role creates it, so
+# the same vault secret is reused here and nothing new goes in the vault.
+nut_client_user: "{{ nut_server_observer_user | default('observer') }}"
+nut_client_password: "{{ nut_server_observer_password | default('') }}"
+
+# =======================================================================
+# upsmon (monitoring + shutdown behaviour of this client)
+# =======================================================================
+# Account upsmon runs as. The privileged parent process stays root regardless
+# (it is what runs SHUTDOWNCMD); this only sets the unprivileged monitor child.
+nut_client_run_as_user: nut
+
+nut_client_minsupplies: 1
+nut_client_shutdowncmd: /sbin/shutdown -h +0
+
+# Fire-drill switch. When true, SHUTDOWNCMD only writes a line to syslog (tag
+# nut-test) instead of shutting this host down, so a simulated power cut can be
+# followed end to end, and timed, without anything going offline.
+# Set it back to false (and re-run the playbook) before relying on the host.
+nut_client_dry_run: false
+
+# Timing (seconds)
+# FINALDELAY must stay below the server's HOSTSYNC (nut_server_hostsync, 15):
+# the server waits that long for clients to disconnect, and gives up on any
+# client that takes longer.
+nut_client_finaldelay: 1        # wait after the final shutdown notice before this host shuts down
+nut_client_deadtime: 15         # mark the UPS dead after this long with no communication
+nut_client_pollfreq: 2          # poll the server every N seconds
+nut_client_pollfreqalert: 1     # poll every N seconds while on battery / in alert
+
+# Warnings (seconds)
+nut_client_rbwarntime: 43200    # nag about battery replacement every 12 hours
+nut_client_nocommwarntime: 300  # warn about lost communication every 5 minutes
+
+# =======================================================================
+# Notifications
+# =======================================================================
+# Same messages and flags as the server, minus EXEC: clients run no notifier
+# script. A client's own shutdown is the SHUTDOWN event; the server's actions
+# (its callbacks) are configured on the server.
+nut_client_notifymsg:
+  ONLINE: "UPS %s on line power"
+  ONBATT: "UPS %s on battery"
+  LOWBATT: "UPS %s battery is low"
+  FSD: "UPS %s: forced shutdown in progress"
+  COMMOK: "Communications with UPS %s established"
+  COMMBAD: "Communications with UPS %s lost"
+  SHUTDOWN: "Auto logout and shutdown proceeding"
+  REPLBATT: "UPS %s battery needs to be replaced"
+  NOCOMM: "UPS %s is unavailable"
+  NOPARENT: "upsmon parent process died - shutdown impossible"
+
+nut_client_notifyflags:
+  - { event: ONLINE, flags: SYSLOG+WALL, comment: "Power restored" }
+  - { event: ONBATT, flags: SYSLOG+WALL, comment: "On battery" }
+  - { event: LOWBATT, flags: SYSLOG, comment: "Low battery - log only (no terminal broadcast: it flaps under load)" }
+  - { event: FSD, flags: SYSLOG+WALL, comment: "Forced shutdown" }
+  - { event: COMMOK, flags: SYSLOG+WALL, comment: "Communication restored" }
+  - { event: COMMBAD, flags: SYSLOG+WALL, comment: "Communication lost" }
+  - { event: SHUTDOWN, flags: SYSLOG+WALL, comment: "System shutdown" }
+  - { event: REPLBATT, flags: SYSLOG+WALL, comment: "Replace battery" }
+  - { event: NOCOMM, flags: SYSLOG+WALL, comment: "No communication" }
+  - { event: NOPARENT, flags: SYSLOG+WALL, comment: "Parent died - log only (system unstable)" }
+
+# =======================================================================
+# Verification
+# =======================================================================
+# After applying, query the UPS on the server via upsc (this also proves the
+# network path to port 3493). Set false while the server isn't up yet.
+nut_client_verify: true

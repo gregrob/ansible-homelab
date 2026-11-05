@@ -1,0 +1,11 @@
+# Managed by Ansible - do not edit by hand
+#
+# NUT operating mode for this host. Read by the NUT init/systemd units to
+# decide which services to start; it does not configure the services
+# themselves (see upsmon.conf for that).
+#
+# This role is the client side, so the mode is always 'netclient': the UPS is
+# attached to another host (the NUT server) and only upsmon runs here. No driver
+# or upsd is started.
+
+MODE=netclient

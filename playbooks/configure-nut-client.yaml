@@ -1,0 +1,68 @@
+---
+# Configure NUT Client
+#
+# Sets up a NUT (Network UPS Tools) client: a host with no UPS attached that
+# follows the UPS on the NUT server and shuts itself down when the server
+# announces a forced shutdown. The nut-client package comes from the packages
+# role (specific_packages: [nut-client]).
+#
+# Per host (host_vars), the interlock flag:
+#   is_nut_client: true
+#
+# For the whole nut_client_target group (e.g. group_vars/nut_client_target.yaml),
+# where the UPS is:
+#   nut_client_server: nut-002.mgmt.gregrob.net
+#   nut_client_ups: dummy                # the real UPS name at cutover
+#   nut_client_dry_run: true             # fire drill: log instead of shutting down
+#
+# Usage (one host at a time with --limit; drop it to do the whole group):
+#   ansible-playbook -i inventories/local/hosts.yaml playbooks/configure-nut-client.yaml --limit <host> --ask-vault-pass
+#
+# To skip the interactive confirmation pause (e.g. running from an Ansible
+# GUI/runner with no interactive terminal to press Enter in), pass:
+#   -e skip_confirmation=true
+
+- name: Configure NUT Client
+  hosts: nut_client_target
+  gather_facts: yes
+
+  vars_files:
+    - ../group_vars/all/vault.yaml                 # Provides nut_server_observer_password
+    - ../group_vars/all/topology.yaml              # Provides nut_002_ip
+
+  pre_tasks:
+    # 1. The Safety Interlock
+    - name: SAFETY INTERLOCK - Verify target is a designated NUT client
+      ansible.builtin.assert:
+        that:
+          - is_nut_client | default(false) | bool
+          - not (is_nut_server | default(false) | bool)
+        fail_msg: >-
+          Aborting execution!
+          This host ({{ inventory_hostname }}) is NOT flagged as a NUT client, or is also flagged as the NUT server.
+          Expected 'is_nut_client: true' (and no 'is_nut_server: true') in host_vars.
+        success_msg: "Interlock passed: Target is verified as a designated NUT client."
+
+    # 2. Display target-specific info
+    - name: Display playbook setup guide
+      ansible.builtin.debug:
+        msg: |
+          ┌───────────────────────────────────────────────────────────┐
+          │                 NUT CLIENT SETUP                          │
+          └───────────────────────────────────────────────────────────┘
+          Target Host : {{ inventory_hostname }}
+          Role        : nut_client
+          Status      : Verified as NUT Client (is_nut_client=true)
+          Follows     : {{ nut_client_ups | default('(unset)') }}@{{ nut_client_server | default('(unset)') }}
+          Mode        : {{ 'DRY RUN - will only log, NOT shut down' if (nut_client_dry_run | default(false) | bool) else 'LIVE - will shut down when the UPS runs out' }}
+
+          NOTE: A client shuts down as soon as the server announces a forced shutdown. Use nut_client_dry_run: true for fire drills.
+
+    # 3. Confirmation gate
+    - name: Wait for confirmation to proceed
+      ansible.builtin.pause:
+        prompt: "Press Enter to continue, or Ctrl+C to abort..."
+      when: not (skip_confirmation | default(false) | bool)
+
+  roles:
+    - { role: nut_client, tags: [nut], become: true }

@@ -1,0 +1,64 @@
+# Managed by Ansible - do not edit by hand
+#
+# Network UPS Tools: upsmon.conf
+# This file configures the UPS monitoring daemon (upsmon) on a NUT client
+# Keep this file secure - it contains passwords!
+{% if nut_client_dry_run | bool %}
+#
+# *** DRY RUN (nut_client_dry_run): SHUTDOWNCMD only logs to syslog. ***
+# *** This host will NOT shut down when the UPS runs out.            ***
+{% endif %}
+
+# =======================================================================
+# Security Settings
+# =======================================================================
+RUN_AS_USER {{ nut_client_run_as_user }}
+
+# =======================================================================
+# UPS Monitoring Configuration
+# =======================================================================
+# Format: MONITOR <ups>@<host>[:<port>] <powervalue> <username> <password> <type>
+# - <ups>@<host>: UPS name and the NUT server that has it attached
+# - 1: Number of power supplies this host draws from the UPS
+# - {{ nut_client_user }}: Username from upsd.users with secondary privileges
+# - secondary: This system follows the server (no shutdown authority over the UPS)
+MONITOR {{ nut_client_ups }}@{{ nut_client_server }}:{{ nut_client_port }} 1 {{ nut_client_user }} {{ nut_client_password }} secondary
+
+# =======================================================================
+# System Settings
+# =======================================================================
+{{ '%-37s' | format('MINSUPPLIES ' ~ nut_client_minsupplies) }}# Minimum UPS supplies needed
+{% if nut_client_dry_run | bool %}
+{{ '%-37s' | format('SHUTDOWNCMD "logger -t nut-test DRY RUN - would shut down ' ~ inventory_hostname ~ '"') }} # DRY RUN: logs only, NO shutdown
+{% else %}
+{{ '%-37s' | format('SHUTDOWNCMD "' ~ nut_client_shutdowncmd ~ '"') }}# Immediate system shutdown command
+{% endif %}
+
+# =======================================================================
+# Timing Configuration
+# =======================================================================
+{{ '%-26s' | format('FINALDELAY ' ~ nut_client_finaldelay) }}# Wait {{ nut_client_finaldelay }} seconds before final shutdown
+{{ '%-26s' | format('DEADTIME ' ~ nut_client_deadtime) }}# Mark UPS dead after {{ nut_client_deadtime }} seconds of no communication
+{{ '%-26s' | format('POLLFREQ ' ~ nut_client_pollfreq) }}# Poll the server every {{ nut_client_pollfreq }} seconds
+{{ '%-26s' | format('POLLFREQALERT ' ~ nut_client_pollfreqalert) }}# Poll the server every {{ nut_client_pollfreqalert }} second(s) during alerts
+
+# =======================================================================
+# Warning Timing Settings
+# =======================================================================
+{{ '%-26s' | format('RBWARNTIME ' ~ nut_client_rbwarntime) }}# Warn about battery replacement every {{ (nut_client_rbwarntime / 3600) | round(1) | string | replace('.0', '') }} hours
+{{ '%-26s' | format('NOCOMMWARNTIME ' ~ nut_client_nocommwarntime) }}# Warn about lost communication every {{ (nut_client_nocommwarntime / 60) | round(1) | string | replace('.0', '') }} minutes
+
+# =======================================================================
+# Notification System
+# =======================================================================
+# Custom notification messages
+{% for event, msg in nut_client_notifymsg.items() %}
+{{ 'NOTIFYMSG %-10s "%s"' | format(event, msg) }}
+{% endfor %}
+
+# Notification delivery methods:
+# - SYSLOG: Log to system log
+# - WALL: Display message to all logged-in users
+{% for n in nut_client_notifyflags %}
+{{ 'NOTIFYFLAG %-10s %-19s # %s' | format(n.event, n.flags, n.comment) }}
+{% endfor %}

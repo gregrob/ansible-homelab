@@ -1,0 +1,9 @@
+---
+# nut_client role entry point
+#
+# Container for the NUT client tasks, in the same shape as the nut_server role.
+# Add further imports (with their own tags) here if the role grows.
+
+- name: Set up the NUT client
+  ansible.builtin.import_tasks: setup_nut_client.yml
+  tags: [nut_client]

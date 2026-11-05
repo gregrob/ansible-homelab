@@ -1,0 +1,152 @@
+---
+# NUT client tasks (imported by main.yml)
+#
+# Sets up a NUT (Network UPS Tools) client: a host that has no UPS attached and
+# follows the UPS on a NUT server, shutting itself down cleanly when the server
+# announces a forced shutdown (FSD).
+#
+# Order of operation:
+#   1. Validate inputs (fail early, before touching the host)
+#   2. Back up the original configuration files (once)
+#   3. Deploy the configuration files
+#   4. Apply changes: flush handlers, then enable and start upsmon
+#   5. Verify the UPS on the server answers
+#
+# NOTE: This role does not install the NUT package. The packages role must
+# already have installed nut-client (which provides upsmon and upsc, and the
+# /etc/nut directory and 'nut' group used below).
+
+# =======================================================================
+# 1. Validation
+# =======================================================================
+# Stops the play before any change is made if the inputs are unusable.
+# The password is checked because an empty one would make upsmon fail to log in
+# (and with no logins the server would not wait for this host to shut down).
+- name: Assert required variables are set
+  ansible.builtin.assert:
+    that:
+      - nut_client_server | length > 0
+      - nut_client_ups | length > 0
+      - nut_client_password | length > 0
+    fail_msg: >-
+      nut_client needs nut_client_server (the NUT server's hostname),
+      nut_client_ups (the UPS name on that server) and a non-empty
+      nut_client_password (the observer secret, supplied from the vault).
+    quiet: true
+
+# Applying this role to the NUT server would replace its nut.conf with
+# MODE=netclient and stop it serving the UPS. The playbook has the same check;
+# this one protects any other playbook that includes the role.
+- name: Assert this host is not the NUT server
+  ansible.builtin.assert:
+    that:
+      - not (is_nut_server | default(false) | bool)
+    fail_msg: >-
+      {{ inventory_hostname }} is flagged is_nut_server: true. Refusing to apply
+      nut_client, which would turn it into a client of itself.
+    quiet: true
+
+# =======================================================================
+# 2. Back up the original files
+# =======================================================================
+# Keeps the package's own nut.conf and upsmon.conf as <file>.orig before the
+# role replaces them, so the starting point can be restored or compared. The
+# copy is made once (force: false): later runs leave the .orig alone, so it
+# never becomes a copy of a file this role wrote. Skipped for a file that does
+# not exist yet.
+- name: Check which original NUT config files exist
+  ansible.builtin.stat:
+    path: "/etc/nut/{{ item }}"
+  register: nut_client_originals
+  loop:
+    - nut.conf
+    - upsmon.conf
+  loop_control:
+    label: "{{ item }}"
+
+- name: Back up the original NUT config files (once)
+  ansible.builtin.copy:
+    src: "/etc/nut/{{ item.item }}"
+    dest: "/etc/nut/{{ item.item }}.orig"
+    remote_src: true
+    owner: root
+    group: nut
+    mode: "0640"
+    force: false
+  loop: "{{ nut_client_originals.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.stat.exists
+
+# =======================================================================
+# 3. Configuration files
+# =======================================================================
+# Both files are root:nut 0640 so upsmon (which runs as 'nut') can read them but
+# other users cannot: upsmon.conf contains the observer password.
+# Every change notifies the 'Restart nut monitor' handler.
+
+# Operating mode (netclient), read by the systemd units.
+- name: Deploy nut.conf (mode)
+  ansible.builtin.template:
+    src: nut.conf.j2
+    dest: /etc/nut/nut.conf
+    owner: root
+    group: nut
+    mode: "0640"
+  notify: Restart nut monitor
+
+# Which UPS to follow, the login to use, and what to do when it runs out
+# (contains the observer password, hence no_log).
+- name: Deploy upsmon.conf (monitoring and shutdown)
+  ansible.builtin.template:
+    src: upsmon.conf.j2
+    dest: /etc/nut/upsmon.conf
+    owner: root
+    group: nut
+    mode: "0640"
+  no_log: true
+  notify: Restart nut monitor
+
+# =======================================================================
+# 4. Services
+# =======================================================================
+# Run any pending restart now rather than at the end of the play, so the
+# verification in step 5 tests the new configuration.
+- name: Apply pending handlers before enabling services
+  ansible.builtin.meta: flush_handlers
+
+# Make sure upsmon starts at boot and is running now. A no-op if the handler has
+# just restarted it. Only upsmon runs on a client: no driver, no upsd.
+- name: Enable and start the NUT monitor
+  ansible.builtin.systemd:
+    name: nut-monitor.service
+    enabled: true
+    state: started
+
+# =======================================================================
+# 5. Verification
+# =======================================================================
+# Ask the server for the UPS status, as upsmon does. Retries because the
+# network or upsd may take a moment. Failing here means the server is down, the
+# UPS name is wrong, or something (e.g. a firewall) blocks TCP 3493. Skipped
+# when nut_client_verify is false (e.g. the server is not up yet). upsc needs no
+# login, so this does not prove the observer password: after the first run,
+# check on the server that this host appears under 'LIST CLIENT'.
+- name: Verify the UPS is reachable on the NUT server
+  ansible.builtin.command: "upsc {{ nut_client_ups }}@{{ nut_client_server }}:{{ nut_client_port }} ups.status"
+  register: nut_client_upsc
+  changed_when: false
+  retries: 5
+  delay: 3
+  until: nut_client_upsc.rc == 0
+  when:
+    - nut_client_verify | bool
+    - not ansible_check_mode
+
+# Show the status (OL, OB, ...) in the play output.
+- name: Report UPS status
+  ansible.builtin.debug:
+    msg: "{{ nut_client_ups }}@{{ nut_client_server }}: {{ nut_client_upsc.stdout }}"
+  when:
+    - nut_client_verify | bool
+    - not ansible_check_mode
