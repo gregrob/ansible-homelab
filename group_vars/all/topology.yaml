@@ -29,3 +29,7 @@ dns_servers_internal: 10.24.19.20
 
 # Internal DNS server - technitium V2
 dns_servers_internal_technitium: 10.24.19.29
+
+# NUT server (nut-002). Clients use the IP, not the name, so a forced shutdown
+# never depends on DNS being up.
+nut_002_ip: 10.24.2.102
