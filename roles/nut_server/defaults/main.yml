@@ -128,7 +128,7 @@ nut_server_nocommwarntime: 300  # warn about lost communication every 5 minutes
 # =======================================================================
 # Program upsmon runs for events whose flags include EXEC. Defaults to upssched
 # when any callbacks are defined below, and to nothing otherwise.
-nut_server_notifycmd: "{{ '/usr/sbin/upssched' if nut_server_upssched_callbacks | length > 0 else '' }}"
+nut_server_notifycmd: "{{ '/usr/sbin/upssched' if nut_server_upssched_all_callbacks | length > 0 else '' }}"
 
 nut_server_notifymsg:
   ONLINE: "UPS %s on line power"
@@ -145,7 +145,7 @@ nut_server_notifymsg:
 nut_server_notifyflags:
   - { event: ONLINE, flags: SYSLOG+WALL+EXEC, comment: "Power restored" }
   - { event: ONBATT, flags: SYSLOG+WALL+EXEC, comment: "On battery" }
-  - { event: LOWBATT, flags: SYSLOG+WALL, comment: "Low battery - log and display only" }
+  - { event: LOWBATT, flags: SYSLOG, comment: "Low battery - log only (no terminal broadcast: it flaps under load)" }
   - { event: FSD, flags: SYSLOG+WALL+EXEC, comment: "Forced shutdown" }
   - { event: COMMOK, flags: SYSLOG+WALL+EXEC, comment: "Communication restored" }
   - { event: COMMBAD, flags: SYSLOG+WALL+EXEC, comment: "Communication lost" }
@@ -190,20 +190,75 @@ nut_server_web_upsset_enabled: false
 #   desc:      text logged to syslog when it runs (default: the name)
 #   cancel_on: optional events that cancel the callback while it is waiting
 #
-# Example, shut down a NAS 30 seconds after this server starts shutting down:
+# Example, run a script 60 seconds after going on battery, unless power returns
+# first:
 #   nut_server_upssched_callbacks:
-#     - event: SHUTDOWN
-#       name: flashstor-shutdown
-#       command: /usr/local/sbin/asustor-flashstor-shutdown.sh
-#       delay: 30
-#       desc: "UPS shutdown event - shutting down the Flashstor NAS"
+#     - event: ONBATT
+#       name: notify-onbatt
+#       command: /usr/local/sbin/notify-onbatt.sh
+#       delay: 60
+#       desc: "UPS on battery for 60 seconds"
+#       cancel_on: [ONLINE]
+#
+# The NAS shutdown (below) adds its own callback, so it does not go in this list.
 #
 # Keep any delay well inside FINALDELAY, or the server powers off before the
 # callback runs. The command runs as nut_server_run_as_user.
 nut_server_upssched_callbacks: []
 
+# The callbacks the role actually installs: the ones above, plus the NAS
+# shutdown callback when the NAS section below is enabled. Not meant to be
+# overridden.
+nut_server_upssched_all_callbacks: "{{ nut_server_upssched_callbacks + ([nut_server_nas_callback] if nut_server_nas_enabled | bool else []) }}"
+
 # Where the command script that runs the callbacks is installed
 nut_server_upssched_cmdscript: /usr/local/sbin/upssched-cmd.sh
+
+# =======================================================================
+# NAS Shutdown (setup_nut_nas.yml)
+# =======================================================================
+# Shuts the NAS down over SSH when this server's shutdown begins: a script is
+# deployed and run by upssched on the SHUTDOWN event, after a delay. Off by
+# default, because it is specific to one site. Needs sshpass (installed by the
+# packages role, so add it to specific_packages) and a route and firewall rule
+# from this host to the NAS on TCP 22. Setting nut_server_nas_enabled to false
+# removes the script and its callback together.
+nut_server_nas_enabled: false
+
+# Dry run: the script only logs what it would do (syslog tag nut-nas) and sends
+# nothing to the NAS. It needs no password, so it is safe for fire drills.
+nut_server_nas_dry_run: false
+
+# The NAS to shut down. Set these per host, mapped from your central NAS settings
+# (e.g. nut_server_nas_ip: "{{ nas_ip }}"). The account is a dedicated one on the
+# NAS with sudo rights, not the NAS admin; its password comes from the vault.
+# The ip and user are REQUIRED once enabled, and the password too unless
+# nut_server_nas_dry_run is true; the role asserts them.
+nut_server_nas_ip: ""
+nut_server_nas_user: ""
+nut_server_nas_password: ""
+
+# Seconds after the SHUTDOWN event before the script runs. The server waits
+# nut_server_finaldelay after that event before it powers off, so the delay plus
+# the worst case of every attempt below must stay inside it (the role asserts it).
+nut_server_nas_delay: 30
+
+# Where the script is installed
+nut_server_nas_script: /usr/local/sbin/nas-shutdown.sh
+
+# Connection attempts, the pause between them and the per-attempt timeout (seconds)
+nut_server_nas_attempts: 3
+nut_server_nas_retry_delay: 5
+nut_server_nas_connect_timeout: 10
+
+# The callback added to the list above while the NAS section is enabled. Not
+# meant to be overridden.
+nut_server_nas_callback:
+  event: SHUTDOWN
+  name: nas-shutdown
+  command: "{{ nut_server_nas_script }}"
+  delay: "{{ nut_server_nas_delay }}"
+  desc: "UPS shutdown event - shutting down the NAS"
 
 # =======================================================================
 # Verification

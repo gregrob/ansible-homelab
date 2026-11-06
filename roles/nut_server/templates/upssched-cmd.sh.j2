@@ -4,7 +4,7 @@
 # upssched-cmd.sh - Command script for NUT upssched events
 # Called by upssched (see upssched.conf) with the callback name as the first
 # argument, either as soon as the event happens or when its timer expires.
-# The callbacks come from nut_server_upssched_callbacks.
+# The callbacks come from nut_server_upssched_all_callbacks (the host's own plus the NAS shutdown).
 # =======================================================================
 
 # Service/component name used for syslog identification
@@ -12,7 +12,7 @@ SERVICE_NAME="upssched-cmd"
 
 # Process the callback name passed as the first argument
 case $1 in
-{% for cb in nut_server_upssched_callbacks %}
+{% for cb in nut_server_upssched_all_callbacks %}
 
   # {{ cb.name }} - {{ cb.event }}{% if (cb.delay | default(0)) | int > 0 %}, {{ cb.delay }} seconds later{% endif %}
 

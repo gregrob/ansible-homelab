@@ -1,0 +1,155 @@
+---
+# NUT NAS shutdown tasks (imported by main.yml)
+#
+# Shuts down the NAS when the UPS shutdown begins, by deploying
+# a script that logs in to the NAS over SSH and powers it off. The script is run
+# by upssched: the role adds a SHUTDOWN callback for it (nut_server_nas_callback)
+# to the callbacks in nut_server_upssched_all_callbacks. Everything for the NAS
+# is in this file and its nut_server_nas_* settings, so setting
+# nut_server_nas_enabled to false removes both the script and its callback.
+#
+# Order of operation:
+#   1. Validate inputs (fail early, before touching the host)
+#   2. Deploy the shutdown script
+#   3. Verify the script can run and the NAS accepts the login (no shutdown)
+#
+# NOTE: This role does not install packages. The packages role must already
+# have installed sshpass (not needed in dry-run mode).
+
+# =======================================================================
+# 1. Validation
+# =======================================================================
+# Stops the play before any change is made if the inputs are unusable. The
+# password is checked only for a live run, because a dry run never uses it. A
+# single quote is refused because the password is written inside single quotes
+# in the script.
+- name: Assert the NAS settings are set
+  ansible.builtin.assert:
+    that:
+      - nut_server_nas_ip | length > 0
+      - nut_server_nas_user | length > 0
+      - nut_server_nas_dry_run | bool or nut_server_nas_password | length > 0
+      - nut_server_nas_password is not search("'")
+      - nut_server_nas_delay | int >= 0
+      - nut_server_nas_attempts | int >= 1
+    fail_msg: >-
+      nut_server_nas needs nut_server_nas_ip and
+      nut_server_nas_user, and, unless nut_server_nas_dry_run is true, a
+      non-empty nut_server_nas_password (from the vault)
+      with no single quote in it.
+    quiet: true
+
+# The worst case for the script is every attempt timing out, after the callback
+# delay. All of that has to finish before the server powers off.
+- name: Assert the NAS shutdown fits inside FINALDELAY
+  ansible.builtin.assert:
+    that:
+      - >-
+        (nut_server_nas_delay | int)
+        + (nut_server_nas_attempts | int)
+        * ((nut_server_nas_connect_timeout | int) + (nut_server_nas_retry_delay | int))
+        < (nut_server_finaldelay | int)
+    fail_msg: >-
+      The NAS callback can take up to
+      {{ (nut_server_nas_delay | int) + (nut_server_nas_attempts | int) * ((nut_server_nas_connect_timeout | int) + (nut_server_nas_retry_delay | int)) }}
+      seconds (delay {{ nut_server_nas_delay }} plus {{ nut_server_nas_attempts }} attempts),
+      which is not inside nut_server_finaldelay ({{ nut_server_finaldelay }}).
+      Lower the delay, the attempts or the timeouts.
+    quiet: true
+
+# A live run needs sshpass to log in with the password.
+- name: Look for sshpass
+  ansible.builtin.stat:
+    path: /usr/bin/sshpass
+  register: nut_server_nas_sshpass
+  when: not (nut_server_nas_dry_run | bool)
+
+- name: Assert sshpass is installed
+  ansible.builtin.assert:
+    that:
+      - nut_server_nas_sshpass.stat.exists
+    fail_msg: >-
+      sshpass is not installed on {{ inventory_hostname }}. Add it to
+      specific_packages so the packages role installs it.
+    quiet: true
+  when: not (nut_server_nas_dry_run | bool)
+
+# =======================================================================
+# 2. Shutdown script
+# =======================================================================
+# root:nut 0750 so the NUT user (which runs upssched, and so this script) can run
+# it and nobody else can read it: a live script contains the NAS password, hence
+# no_log. It is rewritten on every change, including a switch to or from dry run.
+- name: Deploy the NAS shutdown script
+  ansible.builtin.template:
+    src: nas-shutdown.sh.j2
+    dest: "{{ nut_server_nas_script }}"
+    owner: root
+    group: nut
+    mode: "0750"
+  no_log: true
+
+# =======================================================================
+# 3. Verification
+# =======================================================================
+# Neither check shuts anything down. Both are skipped in --check mode, where the
+# script may not exist yet.
+
+# The script runs as the user upsmon runs as, so test with that user.
+- name: Verify the NUT user can run the NAS script
+  ansible.builtin.command: "runuser -u {{ nut_server_run_as_user }} -- test -x {{ nut_server_nas_script }}"
+  changed_when: false
+  when: not ansible_check_mode
+
+# Log in to the NAS as the NUT user and run 'echo ok', which proves the route,
+# firewall, account and password without powering anything off. Skipped in dry
+# run (no password) and when nut_server_verify is false (e.g. the NAS firewall
+# rule is not in place yet). failed_when is off so the next task can report the
+# reason; no_log keeps the password out of the output.
+- name: Try logging in to the NAS (no shutdown)
+  ansible.builtin.command:
+    argv:
+      - runuser
+      - -u
+      - "{{ nut_server_run_as_user }}"
+      - --
+      - sshpass
+      - -e
+      - ssh
+      - -o
+      - LogLevel=ERROR
+      - -o
+      - StrictHostKeyChecking=no
+      - -o
+      - UserKnownHostsFile=/dev/null
+      - -o
+      - "ConnectTimeout={{ nut_server_nas_connect_timeout }}"
+      - "{{ nut_server_nas_user }}@{{ nut_server_nas_ip }}"
+      - echo ok
+  environment:
+    SSHPASS: "{{ nut_server_nas_password }}"
+  register: nut_server_nas_login
+  changed_when: false
+  failed_when: false
+  no_log: true
+  retries: 3
+  delay: 5
+  until: nut_server_nas_login.rc == 0
+  when:
+    - nut_server_verify | bool
+    - not (nut_server_nas_dry_run | bool)
+    - not ansible_check_mode
+
+- name: Assert the NAS accepted the login
+  ansible.builtin.assert:
+    that:
+      - nut_server_nas_login.rc == 0
+    fail_msg: >-
+      Could not log in to the NAS as {{ nut_server_nas_user }}@{{ nut_server_nas_ip }}
+      (ssh said: {{ nut_server_nas_login.stderr | default('nothing') | trim }}).
+      Check the route and firewall (TCP 22) from this host, the account and the password.
+    success_msg: "NAS login OK: {{ nut_server_nas_user }}@{{ nut_server_nas_ip }} (nothing was shut down)"
+  when:
+    - nut_server_verify | bool
+    - not (nut_server_nas_dry_run | bool)
+    - not ansible_check_mode

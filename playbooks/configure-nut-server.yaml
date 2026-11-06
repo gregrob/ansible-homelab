@@ -3,7 +3,9 @@
 #
 # Sets up the NUT (Network UPS Tools) server: the host that talks to the UPS
 # and serves its status to NUT clients over TCP 3493, plus the NUT web interface
-# (apache2 + nut-cgi, installed by the packages role).
+# (apache2 + nut-cgi, installed by the packages role) and, when
+# nut_server_nas_enabled is true, the shutdown of the NAS over SSH
+# (needs sshpass from the packages role).
 #
 # UPS devices are defined per host in host_vars via nut_server_ups. For testing
 # without hardware, use the dummy driver:
@@ -25,7 +27,8 @@
   gather_facts: yes
 
   vars_files:
-    - ../group_vars/all/vault.yaml                 # Provides the nut_server_*_password secrets
+    - ../group_vars/all/vault.yaml                 # Provides the nut_server_*_password secrets and flashstor_nut_password
+    - ../group_vars/all/nas.yaml                   # Provides nas_ip and nas_nut_user / nas_nut_password (NAS shutdown)
 
   pre_tasks:
     # 1. The Safety Interlock
@@ -50,6 +53,7 @@
           Role        : nut_server
           Status      : Verified as NUT Server (is_nut_server=true)
           UPS devices : {{ nut_server_ups | default([]) | map(attribute='name') | join(', ') }}
+          NAS shutdown: {{ ('DRY RUN - logs only, does not shut the NAS down' if (nut_server_nas_dry_run | default(false) | bool) else 'LIVE - shuts the NAS down') if (nut_server_nas_enabled | default(false) | bool) else 'disabled' }}
 
           NOTE: The server is the UPS primary. A shutdown event on this host (low battery / FSD) will also shut down all NUT clients.
 

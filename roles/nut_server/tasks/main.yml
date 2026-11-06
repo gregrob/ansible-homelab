@@ -3,6 +3,8 @@
 #
 # This file only decides what runs; the work is in the imported task files:
 #   setup_nut_server.yml  upsd, upsmon and the UPS drivers (always runs)
+#   setup_nut_nas.yml     shutting down the NAS over SSH
+#                         (skipped unless nut_server_nas_enabled is true)
 #   setup_nut_web.yml     the NUT web interface: apache2 + nut-cgi
 #                         (skipped when nut_server_web_enabled is false)
 #
@@ -10,9 +12,10 @@
 # --check behaviour apply to the imported tasks, and the playbook can run just
 # one part:
 #   --tags nut_server    server only
+#   --tags nut_nas       NAS shutdown only
 #   --tags nut_web       web interface only
-#   --tags nut           both
-# The playbook tags the role itself 'nut' only, so these two tags stay separate.
+#   --tags nut           all of them
+# The playbook tags the role itself 'nut' only, so these tags stay separate.
 
 # =======================================================================
 # NUT server (upsd, upsmon, drivers)
@@ -20,6 +23,15 @@
 - name: Set up the NUT server
   ansible.builtin.import_tasks: setup_nut_server.yml
   tags: [nut_server]
+
+# =======================================================================
+# NAS shutdown (over SSH)
+# =======================================================================
+# Runs after the server tasks, which wire the NAS callback into upssched.
+- name: Set up the NAS shutdown
+  ansible.builtin.import_tasks: setup_nut_nas.yml
+  when: nut_server_nas_enabled | bool
+  tags: [nut_nas]
 
 # =======================================================================
 # NUT web interface (apache2 + nut-cgi)

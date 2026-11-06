@@ -1,0 +1,139 @@
+#!/bin/bash
+# Managed by Ansible - do not edit by hand
+#
+# ------------------------------------------------------------------------------
+# NUT (Network UPS Tools) NAS Graceful Shutdown Script
+# ------------------------------------------------------------------------------
+# This script safely shuts down a NAS during a power outage
+# so its data is intact before power is lost. It performs a remote shutdown
+# using SSH.
+#
+# Run by upssched on the UPS SHUTDOWN event, {{ nut_server_nas_delay }} seconds after the event (the
+# callback is added by the nut_server role when nut_server_nas_enabled is true).
+# Output goes to syslog under the tag 'nut-nas'.
+#
+# Dependencies:
+# - sshpass: Used to provide password authentication for non-interactive SSH
+#            connection to the NAS device.
+# - ssh:     Used to establish secure connection to the NAS for sending the
+#            shutdown command.
+# ------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
+# Configuration Parameters
+# ------------------------------------------------------------------------------
+# NAS IP address (nut_server_nas_ip)
+NAS_IP="{{ nut_server_nas_ip }}"
+
+# NAS username - must have sudo privileges (nut_server_nas_user)
+NAS_USER="{{ nut_server_nas_user }}"
+{% if nut_server_nas_dry_run | bool %}
+
+# NAS password - not written in dry-run mode (nut_server_nas_dry_run)
+NAS_PASS=""
+{% else %}
+
+# NAS password, from the vault (nut_server_nas_password)
+NAS_PASS='{{ nut_server_nas_password }}'
+{% endif %}
+
+# Connection attempts, and the pause between them (seconds)
+ATTEMPTS={{ nut_server_nas_attempts }}
+RETRY_DELAY={{ nut_server_nas_retry_delay }}
+CONNECT_TIMEOUT={{ nut_server_nas_connect_timeout }}
+
+# Dry run: log what would happen and send nothing to the NAS
+DRY_RUN={{ 'true' if nut_server_nas_dry_run | bool else 'false' }}
+
+# Syslog tag
+LOG_TAG="nut-nas"
+
+# ------------------------------------------------------------------------------
+# Function: log
+# Purpose: Print a message and send it to syslog
+# ------------------------------------------------------------------------------
+log() {
+  echo "$*"
+  logger -t "$LOG_TAG" "$*"
+
+}
+
+# ------------------------------------------------------------------------------
+# Function: check_dependencies
+# Purpose: Verify that all required dependencies are installed
+# Returns: Exits with error code 1 if any dependency is missing
+# ------------------------------------------------------------------------------
+check_dependencies() {
+  # Check for sshpass
+  if ! command -v sshpass &> /dev/null; then
+    log "ERROR: sshpass is not installed. Please install it with 'apt install sshpass'."
+    exit 1
+
+  fi
+
+  # Check for ssh
+  if ! command -v ssh &> /dev/null; then
+    log "ERROR: ssh is not installed. Please install with 'apt install openssh-client'."
+    exit 1
+
+  fi
+
+}
+
+# ------------------------------------------------------------------------------
+# Function: display_intro
+# Purpose: Log introductory message with script information
+# ------------------------------------------------------------------------------
+display_intro() {
+  log "NAS SHUTDOWN: target $NAS_IP (user: $NAS_USER), dry run: $DRY_RUN"
+
+}
+
+# ------------------------------------------------------------------------------
+# Main Execution
+# ------------------------------------------------------------------------------
+
+# Log intro message
+display_intro
+
+# Dry run: stop here, nothing is sent to the NAS
+if [ "$DRY_RUN" = "true" ]; then
+  log "DRY RUN - would shut down the NAS at $NAS_IP"
+  exit 0
+
+fi
+
+# Check for required dependencies
+check_dependencies
+
+# sshpass reads the password from this variable (keeps it off the command line)
+export SSHPASS="$NAS_PASS"
+
+# Try the shutdown up to ATTEMPTS times. A connection dropped because the NAS
+# is already going down can look like a failure; a retry then finds it shutting
+# down, which is harmless.
+attempt=1
+while [ "$attempt" -le "$ATTEMPTS" ]; do
+  log "Initiating NAS shutdown (attempt $attempt of $ATTEMPTS)..."
+
+  if output=$(sshpass -e ssh -o LogLevel=ERROR -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+      -o ConnectTimeout="$CONNECT_TIMEOUT" "$NAS_USER@$NAS_IP" "echo '$NAS_PASS' | sudo -S poweroff" 2>&1); then
+
+    log "Shutdown command sent to $NAS_IP"
+    exit 0
+
+  fi
+
+  log "WARNING: attempt $attempt failed: $output"
+  attempt=$((attempt + 1))
+
+  if [ "$attempt" -le "$ATTEMPTS" ]; then
+    sleep "$RETRY_DELAY"
+
+  fi
+
+done
+
+log "ERROR: Failed to shut down the NAS at $NAS_IP after $ATTEMPTS attempts"
+log "Please check network connectivity and credentials"
+exit 1

@@ -68,11 +68,13 @@ nfs_mounts: []
 
 # Packages installed by the packages role. 'nut' is Debian's metapackage that
 # pulls in nut-server and nut-client, which the nut_server role expects.
-# 'apache2' and 'nut-cgi' are for the nut web interface.
+# 'apache2' and 'nut-cgi' are for the nut web interface. 'sshpass' is for the
+# NAS shutdown script, which logs in to the NAS with a password.
 specific_packages:
   - nut
   - apache2
   - nut-cgi
+  - sshpass
 
 # =========================================================
 # NUT server (nut_server role, configure-nut-server.yaml)
@@ -107,17 +109,6 @@ nut_server_extra_users:
       - Lets Home Assistant monitor UPS status AND trigger battery tests
     instcmds: [all]
 
-# Commands upssched runs on UPS events (see nut_server_upssched_callbacks in
-# the role defaults). Each event used here must have EXEC in its
-# nut_server_notifyflags entry.
-nut_server_upssched_callbacks:
-  - event: SHUTDOWN
-    name: flashstor-shutdown
-    #command: /usr/local/sbin/asustor-flashstor-shutdown.sh
-    command: 'logger -t nut-test "DRY RUN - would shut down the Flashstor NAS"'
-    delay: 30
-    desc: "UPS shutdown event - shutting down the Flashstor NAS"
-
 # =========================================================
 # NUT web interface (setup_nut_web.yml, needs apache2 + nut-cgi above)
 # =========================================================
@@ -128,8 +119,28 @@ nut_server_upssched_callbacks:
 nut_server_web_require:
   - ip 192.168.0.0/16
   - ip 10.24.0.0/16
- 
+
 # Enable upsset.cgi, the web admin page (logs in with the webadmin user).
 # The role default is false. Safe to turn on here because access is restricted
 # to the networks above.
 nut_server_web_upsset_enabled: true
+
+# =========================================================
+# NAS shutdown (setup_nut_nas.yml, needs sshpass above)
+# =========================================================
+# Shuts the NAS down over SSH when this server's shutdown begins. The role adds
+# the upssched callback itself, so do NOT also list it under
+# nut_server_upssched_callbacks. The NAS details come from the central NAS
+# settings in group_vars/all/nas.yaml (loaded by the playbook).
+nut_server_nas_enabled: true
+
+# Fire drills: the script only logs (syslog tag nut-nas) and sends nothing to the
+# NAS. Remove this line (or set false) for the real thing, after checking the
+# login with a normal run: the role tests it with 'echo ok', not a shutdown.
+nut_server_nas_dry_run: false
+
+# Dedicated shutdown account on the NAS (sudo rights, not the NAS admin); its
+# name and password are defined in nas.yaml.
+nut_server_nas_ip: "{{ nas_ip }}"
+nut_server_nas_user: "{{ nas_nut_user }}"
+nut_server_nas_password: "{{ nas_nut_password }}"

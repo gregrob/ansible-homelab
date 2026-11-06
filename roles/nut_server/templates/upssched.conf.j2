@@ -4,7 +4,7 @@
 # This file configures the UPS event scheduler (upssched), which upsmon calls
 # for events whose NOTIFYFLAG includes EXEC (see upsmon.conf).
 #
-# Each callback comes from nut_server_upssched_callbacks and is wired up here:
+# Each callback comes from nut_server_upssched_all_callbacks and is wired up here:
 #  - delay 0: run the callback as soon as the event happens
 #      AT <event> <ups> EXECUTE <name>
 #  - delay > 0: start a timer and run the callback when it expires
@@ -31,7 +31,7 @@ LOCKFN /run/nut/upssched.lock    # Lock file to prevent race conditions
 # =======================================================================
 # Format: AT <event> <upsname> <action>
 # - * matches any UPS name
-{% for cb in nut_server_upssched_callbacks %}
+{% for cb in nut_server_upssched_all_callbacks %}
 
 # {{ cb.name }}: {{ cb.desc | default(cb.command) }}
 {% if (cb.delay | default(0)) | int > 0 %}
