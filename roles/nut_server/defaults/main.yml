@@ -113,7 +113,7 @@ nut_server_shutdowncmd: /sbin/shutdown -h +0
 nut_server_powerdownflag: /etc/killpower
 
 # Timing (seconds)
-nut_server_finaldelay: 300      # wait after the final shutdown notice before this host shuts down
+nut_server_finaldelay: 360      # wait after the final shutdown notice before this host shuts down
 nut_server_hostsync: 15         # how long the primary waits for secondaries to disconnect
 nut_server_deadtime: 15         # mark UPS dead after this long with no communication
 nut_server_pollfreq: 2          # poll UPS every N seconds
