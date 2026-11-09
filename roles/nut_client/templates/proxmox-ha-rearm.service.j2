@@ -1,0 +1,17 @@
+# Managed by Ansible - do not edit by hand
+#
+# Re-arms Proxmox HA after a UPS shutdown disarmed it (see
+# {{ nut_client_proxmox_rearm_script }}). Type=simple so a node that is waiting
+# for quorum does not hold up the rest of the boot.
+
+[Unit]
+Description=Re-arm Proxmox HA after a UPS shutdown
+After=pve-cluster.service corosync.service pve-ha-crm.service pve-ha-lrm.service
+Wants=pve-cluster.service
+
+[Service]
+Type=simple
+ExecStart={{ nut_client_proxmox_rearm_script }}
+
+[Install]
+WantedBy=multi-user.target

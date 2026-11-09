@@ -5,7 +5,7 @@
 # Keep this file secure - it contains passwords!
 {% if nut_client_dry_run | bool %}
 #
-# *** DRY RUN (nut_client_dry_run): SHUTDOWNCMD only logs to syslog. ***
+# *** DRY RUN (nut_client_dry_run): SHUTDOWNCMD only logs. ***
 # *** This host will NOT shut down when the UPS runs out.            ***
 {% endif %}
 
@@ -28,7 +28,9 @@ MONITOR {{ nut_client_ups }}@{{ nut_client_server }}:{{ nut_client_port }} 1 {{ 
 # System Settings
 # =======================================================================
 {{ '%-37s' | format('MINSUPPLIES ' ~ nut_client_minsupplies) }}# Minimum UPS supplies needed
-{% if nut_client_dry_run | bool %}
+{% if nut_client_dry_run | bool and nut_client_proxmox_enabled | bool %}
+{{ '%-37s' | format('SHUTDOWNCMD "env DEBUG_MODE=1 ' ~ nut_client_proxmox_script ~ '"') }} # DRY RUN: the Proxmox script in debug mode, logs only, NO shutdown
+{% elif nut_client_dry_run | bool %}
 {{ '%-37s' | format('SHUTDOWNCMD "logger -t nut-test DRY RUN - would shut down ' ~ inventory_hostname ~ '"') }} # DRY RUN: logs only, NO shutdown
 {% else %}
 {{ '%-37s' | format('SHUTDOWNCMD "' ~ nut_client_shutdowncmd ~ '"') }}# Immediate system shutdown command

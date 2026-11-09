@@ -1,0 +1,58 @@
+#!/bin/bash
+# Managed by Ansible - do not edit by hand
+#
+# ------------------------------------------------------------------------------
+# Proxmox HA re-arm after a UPS shutdown
+# ------------------------------------------------------------------------------
+# The UPS shutdown script ({{ nut_client_proxmox_script }}) disarms HA before it
+# shuts the cluster down. The disarm is stored in the cluster, so it is still in
+# place after the power returns and the nodes boot. This script, run at boot by
+# {{ nut_client_proxmox_rearm_service }}.service, waits until the cluster has
+# quorum and then re-arms HA ('ha-manager crm-command arm-ha'), which puts the HA
+# resources back under HA control in the state they were in.
+#
+# Safe to run on every node at every boot: it does nothing when HA is armed.
+# It gives up after {{ nut_client_proxmox_rearm_timeout }} seconds (nut_client_proxmox_rearm_timeout); HA then stays
+# disarmed until 'ha-manager crm-command arm-ha' is run by hand.
+#
+# Output goes to the journal and to syslog under the tag 'nut-pve'.
+# ------------------------------------------------------------------------------
+
+TIMEOUT={{ nut_client_proxmox_rearm_timeout }}
+LOG_TAG="nut-pve"
+
+log() {
+  echo "$*"
+  logger -t "$LOG_TAG" -- "$*"
+}
+
+# The cluster answers HA commands only when it has quorum
+quorate() {
+  pvecm status 2>/dev/null | grep -Eq '^Quorate:[[:space:]]+Yes'
+}
+
+waited=0
+while [ "$waited" -lt "$TIMEOUT" ]; do
+  if quorate; then
+    status="$(ha-manager status 2>/dev/null)" || status=""
+    if [ -n "$status" ]; then
+      if ! echo "$status" | grep -q '^fencing disarmed'; then
+        log "HA is armed, nothing to do."
+        exit 0
+      fi
+      log "Cluster has quorum and HA is disarmed: re-arming HA."
+      if ha-manager crm-command arm-ha; then
+        # Give the CRM a moment, then report what it says
+        sleep 15
+        ha-manager status 2>/dev/null | grep -E '^fencing' | while read -r line; do log "$line"; done
+        exit 0
+      fi
+      log "WARNING: the arm request failed, will retry."
+    fi
+  fi
+  sleep 10
+  waited=$((waited + 10))
+done
+
+log "WARNING: gave up after ${TIMEOUT}s with HA still disarmed or the cluster not quorate. Run: ha-manager crm-command arm-ha"
+exit 1

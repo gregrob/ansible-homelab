@@ -34,11 +34,15 @@ nut_client_password: "{{ nut_server_observer_password | default('') }}"
 nut_client_run_as_user: nut
 
 nut_client_minsupplies: 1
-nut_client_shutdowncmd: /sbin/shutdown -h +0
+# On a Proxmox node (nut_client_proxmox_enabled below) this is the cluster
+# shutdown script instead of a plain shutdown.
+nut_client_shutdowncmd: "{{ nut_client_proxmox_script if nut_client_proxmox_enabled | bool else '/sbin/shutdown -h +0' }}"
 
 # Fire-drill switch. When true, SHUTDOWNCMD only writes a line to syslog (tag
 # nut-test) instead of shutting this host down, so a simulated power cut can be
 # followed end to end, and timed, without anything going offline.
+# On a Proxmox node the dry run is the shutdown script in debug mode: it logs
+# (tag nut-pve) what it would do, and changes nothing.
 # Set it back to false (and re-run the playbook) before relying on the host.
 nut_client_dry_run: false
 
@@ -84,6 +88,42 @@ nut_client_notifyflags:
   - { event: REPLBATT, flags: SYSLOG+WALL, comment: "Replace battery" }
   - { event: NOCOMM, flags: SYSLOG+WALL, comment: "No communication" }
   - { event: NOPARENT, flags: SYSLOG+WALL, comment: "Parent died - log only (system unstable)" }
+
+# =======================================================================
+# Proxmox node (setup_nut_client_proxmox.yml)
+# =======================================================================
+# For a Proxmox VE cluster node. A plain shutdown is not safe there: HA and
+# Ceph make the last node of a full-cluster shutdown hang or get fenced. When
+# enabled, upsmon runs a script (nut_client_proxmox_script) instead, which:
+#   1. disarms HA ('ha-manager crm-command disarm-ha ignore'), which releases the
+#      HA watchdogs cluster-wide and takes the resources out of HA tracking, so
+#      HA cannot restart guests or fence this node while the cluster goes down
+#   2. shuts down every VM and container on this node (graceful, then forced)
+#   3. waits for them to finish, then shuts the node down
+# The disarm is stored in the cluster, so it survives the power cut: a boot-time
+# service (nut_client_proxmox_rearm_service) re-arms HA once the cluster has
+# quorum again. Needs jq (add it to specific_packages) and pve-ha-manager with
+# disarm-ha support. Set this per group (group_vars/nut_client_proxmox.yaml).
+nut_client_proxmox_enabled: false
+
+# Where the shutdown script is installed
+nut_client_proxmox_script: /usr/local/sbin/proxmox-cluster-shutdown.sh
+
+# Seconds to wait for HA to report it is disarmed before carrying on anyway
+nut_client_proxmox_disarm_wait: 30
+
+# Seconds each guest gets to shut down gracefully, and the extra time allowed for
+# the forced stop that follows if it does not. The script waits their sum, always,
+# so every node stops its guests before any node stops its Ceph OSDs. Keep the
+# script's total (disarm wait + this sum + the node's own poweroff) well inside
+# the server's nut_server_finaldelay, counted from the forced shutdown: measure it.
+nut_client_proxmox_stop_timeout: 90
+nut_client_proxmox_force_buffer: 10
+
+# Boot-time re-arm of HA (script, systemd unit, and how long it waits for quorum)
+nut_client_proxmox_rearm_script: /usr/local/sbin/proxmox-ha-rearm.sh
+nut_client_proxmox_rearm_service: nut-pve-ha-rearm
+nut_client_proxmox_rearm_timeout: 3600
 
 # =======================================================================
 # Verification

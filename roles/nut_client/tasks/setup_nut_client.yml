@@ -129,7 +129,8 @@
 # Ask the server for the UPS status, as upsmon does. Retries because the
 # network or upsd may take a moment. Failing here means the server is down, the
 # UPS name is wrong, or something (e.g. a firewall) blocks TCP 3493. Skipped
-# when nut_client_verify is false (e.g. the server is not up yet). upsc needs no
+# when nut_client_verify is false (e.g. the server is not up yet) and in --check
+# mode, where nothing has been applied and the command would not run. upsc needs no
 # login, so this does not prove the observer password: after the first run,
 # check on the server that this host appears under 'LIST CLIENT'.
 - name: Verify the UPS is reachable on the NUT server

@@ -1,0 +1,186 @@
+#!/bin/bash
+# Managed by Ansible - do not edit by hand
+#
+# ------------------------------------------------------------------------------
+# NUT (Network UPS Tools) Proxmox Node Graceful Shutdown Script
+# ------------------------------------------------------------------------------
+# Run by upsmon as SHUTDOWNCMD when the NUT server announces a forced shutdown
+# (nut_client_proxmox_enabled). It shuts this Proxmox node down cleanly:
+#
+# 1. Disarms HA ('ha-manager crm-command disarm-ha ignore'). This releases the HA
+#    watchdogs cluster-wide and removes the HA resources from HA tracking, so HA
+#    cannot restart guests while they are being stopped, and cannot fence a node
+#    that has lost quorum because the rest of the cluster is already gone.
+# 2. Gracefully shuts down every VM and container on this node, forcing them off
+#    if they do not stop in time.
+# 3. Waits for that to finish, then shuts the node itself down.
+#
+# HA is re-armed at the next boot by {{ nut_client_proxmox_rearm_service }}.service
+# ({{ nut_client_proxmox_rearm_script }}).
+#
+# Output goes to the journal and to syslog under the tag 'nut-pve'.
+# To try it without changing anything, run it with DEBUG_MODE=1:
+#   DEBUG_MODE=1 {{ nut_client_proxmox_script }}
+#
+# Dependencies:
+# - pvesh:      Proxmox API client (guest list, guest and node shutdown)
+# - ha-manager: HA disarm
+# - jq:         parses the JSON from pvesh
+# ------------------------------------------------------------------------------
+
+# Seconds to wait for HA to report it is disarmed (nut_client_proxmox_disarm_wait)
+HA_DISARM_WAIT={{ nut_client_proxmox_disarm_wait }}
+
+# Seconds each guest gets to shut down gracefully before it is forced off
+# (nut_client_proxmox_stop_timeout)
+SHUTDOWN_TIMEOUT={{ nut_client_proxmox_stop_timeout }}
+
+# Extra seconds for the forced stop that follows if a guest did not stop in time
+# (nut_client_proxmox_force_buffer)
+SHUTDOWN_TIMEOUT_FORCE_STOP={{ nut_client_proxmox_force_buffer }}
+
+LOG_TAG="nut-pve"
+NODE="$(hostname)"
+
+# Set DEBUG_MODE=1 in the environment to log what would happen and change nothing
+DEBUG_MODE="${DEBUG_MODE:-}"
+
+# ------------------------------------------------------------------------------
+# Function: log
+# Purpose: Write a line to the output (the journal, via upsmon) and to syslog
+# ------------------------------------------------------------------------------
+log() {
+  echo "$*"
+  logger -t "$LOG_TAG" -- "$*"
+}
+
+# ------------------------------------------------------------------------------
+# Function: check_dependencies
+# Purpose: Verify that all required commands are installed
+# Returns: Exits with error code 1 if any is missing
+# ------------------------------------------------------------------------------
+check_dependencies() {
+  for cmd in pvesh ha-manager jq; do
+    if ! command -v "$cmd" > /dev/null 2>&1; then
+      log "ERROR: $cmd is not installed or not in PATH."
+      exit 1
+    fi
+  done
+}
+
+# ------------------------------------------------------------------------------
+# Function: ha_is_disarmed
+# Purpose: True when the cluster reports HA disarmed and this node's LRM has
+#          released its watchdog
+# ------------------------------------------------------------------------------
+ha_is_disarmed() {
+  local status
+  status="$(ha-manager status 2>/dev/null)" || return 1
+  echo "$status" | grep -q '^fencing disarmed' || return 1
+  echo "$status" | grep -q "^lrm $NODE (disarm mode, watchdog released" || return 1
+}
+
+# ------------------------------------------------------------------------------
+# Function: disarm_ha
+# Purpose: Disarm HA, then wait (up to HA_DISARM_WAIT) until it has taken effect.
+#          Never fatal: if HA cannot be disarmed (e.g. no quorum) the guests are
+#          still stopped and the node still shuts down.
+# ------------------------------------------------------------------------------
+disarm_ha() {
+  if [ -n "$DEBUG_MODE" ]; then
+    log "[DEBUG] Would disarm HA: ha-manager crm-command disarm-ha ignore"
+    return 0
+  fi
+
+  if ha_is_disarmed; then
+    log "HA is already disarmed."
+    return 0
+  fi
+
+  log "Disarming HA (resources ignored, watchdogs released)..."
+  ha-manager crm-command disarm-ha ignore || log "WARNING: the disarm request failed, carrying on."
+
+  local waited=0
+  while [ "$waited" -lt "$HA_DISARM_WAIT" ]; do
+    if ha_is_disarmed; then
+      log "HA disarmed after ${waited}s."
+      return 0
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+  log "WARNING: HA is not reported disarmed after ${HA_DISARM_WAIT}s, carrying on anyway."
+}
+
+# ------------------------------------------------------------------------------
+# Function: stop_all_machines
+# Purpose: Ask every running VM and container on this node to shut down, forcing
+#          it off after the timeout. The requests run in parallel.
+# ------------------------------------------------------------------------------
+stop_all_machines() {
+  local guests count=0 type vmid name
+
+  guests="$(pvesh get /cluster/resources --output-format=json | \
+    jq -r --arg node "$NODE" \
+    '.[] | select((.type=="qemu" or .type=="lxc") and .status=="running" and .node==$node) | "\(.type) \(.vmid) \(.name)"')" || {
+    log "WARNING: could not list the guests on $NODE."
+    return 0
+  }
+
+  while read -r type vmid name; do
+    [ -n "$vmid" ] || continue
+    count=$((count + 1))
+    if [ -n "$DEBUG_MODE" ]; then
+      log "[DEBUG] Would shut down $type $vmid ($name) with a timeout of ${SHUTDOWN_TIMEOUT}s."
+    else
+      log "Shutting down $type $vmid ($name) with a timeout of ${SHUTDOWN_TIMEOUT}s."
+      pvesh create "/nodes/$NODE/$type/$vmid/status/shutdown" --timeout "$SHUTDOWN_TIMEOUT" --forceStop 1 > /dev/null &
+    fi
+  done <<< "$guests"
+
+  log "Asked $count guest(s) on $NODE to shut down."
+}
+
+# ------------------------------------------------------------------------------
+# Function: shutdown_node
+# Purpose: Shut this node down through the Proxmox API, then keep this script
+#          alive until the system goes down (exiting early could cancel it).
+#          Falls back to systemctl if the API call fails.
+# ------------------------------------------------------------------------------
+shutdown_node() {
+  if [ -n "$DEBUG_MODE" ]; then
+    log "[DEBUG] Would shut down the node now: pvesh create /nodes/$NODE/status --command shutdown"
+    return 0
+  fi
+
+  log "Initiating node shutdown..."
+  if ! pvesh create "/nodes/$NODE/status" --command shutdown; then
+    log "WARNING: the API shutdown failed, using systemctl poweroff."
+    systemctl poweroff
+  fi
+  log "Waiting for shutdown to complete..."
+  sleep infinity
+}
+
+# ------------------------------------------------------------------------------
+# Main Execution
+# ------------------------------------------------------------------------------
+log "Proxmox shutdown script started on $NODE${DEBUG_MODE:+ (DEBUG MODE, no changes)}"
+
+check_dependencies
+disarm_ha
+stop_all_machines
+
+# Wait for the graceful timeout plus the forced-stop buffer, always, even when
+# the guests stop sooner. Every node does the same, so no node stops its Ceph OSDs
+# while another node's guests are still shutting down on Ceph storage.
+shutdown_total_timeout=$((SHUTDOWN_TIMEOUT + SHUTDOWN_TIMEOUT_FORCE_STOP))
+if [ -n "$DEBUG_MODE" ]; then
+  log "[DEBUG] Would wait ${shutdown_total_timeout}s for the guests to stop."
+else
+  log "Waiting ${shutdown_total_timeout}s for all guests to stop..."
+  sleep "$shutdown_total_timeout"
+  log "Wait completed. Guests are stopped."
+fi
+
+shutdown_node

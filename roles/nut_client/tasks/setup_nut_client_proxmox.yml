@@ -1,0 +1,136 @@
+---
+# NUT client tasks for a Proxmox node (imported by main.yml)
+#
+# Makes the UPS shutdown of a Proxmox VE cluster node safe: instead of a plain
+# shutdown, upsmon runs a script that disarms HA, stops the guests and then shuts
+# the node down (nut_client_proxmox_script). A boot-time service re-arms HA
+# afterwards. Everything for Proxmox is in this file and its nut_client_proxmox_*
+# settings, so setting nut_client_proxmox_enabled to false goes back to a plain
+# shutdown (upsmon.conf is rewritten with the standard SHUTDOWNCMD).
+#
+# Order of operation:
+#   1. Validate inputs and the node (fail early, before touching the host)
+#   2. Deploy the shutdown script and the boot-time HA re-arm service
+#   3. Verify the shutdown script runs (debug mode: it changes nothing)
+#
+# This runs before setup_nut_client.yml, so a node that is not ready is refused
+# before any NUT config is changed. NOTE: This role does not install packages.
+# The packages role must already have installed jq (specific_packages).
+
+# =======================================================================
+# 1. Validation
+# =======================================================================
+- name: Assert the Proxmox settings are valid
+  ansible.builtin.assert:
+    that:
+      - nut_client_proxmox_disarm_wait | int >= 0
+      - nut_client_proxmox_stop_timeout | int >= 1
+      - nut_client_proxmox_force_buffer | int >= 0
+      - nut_client_proxmox_rearm_timeout | int >= 10
+    fail_msg: >-
+      nut_client_proxmox_disarm_wait and nut_client_proxmox_force_buffer must be
+      0 or more, nut_client_proxmox_stop_timeout at least 1 and
+      nut_client_proxmox_rearm_timeout at least 10 (all in seconds).
+    quiet: true
+
+- name: Look for the Proxmox and jq commands
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: nut_client_proxmox_commands
+  loop:
+    - /usr/bin/pvesh
+    - /usr/sbin/ha-manager
+    - /usr/bin/jq
+  loop_control:
+    label: "{{ item }}"
+
+- name: Assert this is a Proxmox node with jq installed
+  ansible.builtin.assert:
+    that:
+      - nut_client_proxmox_commands.results | map(attribute='stat.exists') | min
+    fail_msg: >-
+      nut_client_proxmox_enabled is true, but {{ inventory_hostname }} is missing
+      one of pvesh, ha-manager or jq (looked in {{ nut_client_proxmox_commands.results | map(attribute='item') | join(', ') }}).
+      It must be a Proxmox VE node; add jq to specific_packages so the packages role installs it.
+    quiet: true
+
+# The shutdown script relies on 'ha-manager crm-command disarm-ha', which older
+# Proxmox versions do not have. Read-only, so it runs in --check mode too.
+- name: Check that ha-manager supports disarm-ha
+  ansible.builtin.command: ha-manager help crm-command
+  register: nut_client_proxmox_hahelp
+  changed_when: false
+  check_mode: false
+
+- name: Assert ha-manager supports disarm-ha and arm-ha
+  ansible.builtin.assert:
+    that:
+      - "'disarm-ha' in nut_client_proxmox_hahelp.stdout"
+      - "'arm-ha' in nut_client_proxmox_hahelp.stdout"
+    fail_msg: >-
+      This version of ha-manager has no 'crm-command disarm-ha' / 'arm-ha'. Update
+      pve-ha-manager (the disarm feature needs a recent Proxmox VE 9).
+    quiet: true
+
+# =======================================================================
+# 2. Scripts and service
+# =======================================================================
+# The shutdown script is run by the upsmon parent process, which stays root, so
+# it is root-only (0750). It contains no secrets.
+- name: Deploy the Proxmox shutdown script
+  ansible.builtin.template:
+    src: proxmox-cluster-shutdown.sh.j2
+    dest: "{{ nut_client_proxmox_script }}"
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Deploy the HA re-arm script
+  ansible.builtin.template:
+    src: proxmox-ha-rearm.sh.j2
+    dest: "{{ nut_client_proxmox_rearm_script }}"
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Deploy the HA re-arm service
+  ansible.builtin.template:
+    src: proxmox-ha-rearm.service.j2
+    dest: "/etc/systemd/system/{{ nut_client_proxmox_rearm_service }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  register: nut_client_proxmox_rearm_unit
+
+# Only enabled, not started: it runs at the next boot. (Starting it now would be
+# harmless - it does nothing while HA is armed - but it is not needed.)
+- name: Enable the HA re-arm service (runs at boot)
+  ansible.builtin.systemd:
+    name: "{{ nut_client_proxmox_rearm_service }}.service"
+    enabled: true
+    daemon_reload: "{{ nut_client_proxmox_rearm_unit is changed }}"
+
+# =======================================================================
+# 3. Verification
+# =======================================================================
+# Runs the shutdown script in debug mode: it checks the commands, lists the
+# guests it would stop and logs what it would do, and changes nothing (no HA
+# disarm, no guest or node shutdown). Skipped in --check mode, where the script
+# may not exist yet, and when nut_client_verify is false.
+- name: Run the Proxmox shutdown script in debug mode (no changes)
+  ansible.builtin.command: "{{ nut_client_proxmox_script }}"
+  environment:
+    DEBUG_MODE: "1"
+  register: nut_client_proxmox_debug
+  changed_when: false
+  when:
+    - nut_client_verify | bool
+    - not ansible_check_mode
+
+# One line per step, so it reads as the script's own output rather than a list.
+- name: Report what the shutdown script would do
+  ansible.builtin.debug:
+    msg: "{{ nut_client_proxmox_debug.stdout_lines | join('\n') }}"
+  when:
+    - nut_client_verify | bool
+    - not ansible_check_mode

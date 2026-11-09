@@ -2,7 +2,14 @@
 # nut_client role entry point
 #
 # Container for the NUT client tasks, in the same shape as the nut_server role.
-# Add further imports (with their own tags) here if the role grows.
+# The Proxmox tasks come first, so a node that is not ready is refused before any
+# NUT config is changed. Add further imports (with their own tags) here if the
+# role grows.
+
+- name: Set up the Proxmox node shutdown
+  ansible.builtin.import_tasks: setup_nut_client_proxmox.yml
+  when: nut_client_proxmox_enabled | bool
+  tags: [nut_client_proxmox]
 
 - name: Set up the NUT client
   ansible.builtin.import_tasks: setup_nut_client.yml
