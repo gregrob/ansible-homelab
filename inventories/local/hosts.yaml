@@ -131,6 +131,10 @@ all:
         failsafe-002.dns.gregrob.net: {}
         monitoring-001.mgmt.gregrob.net: {}
 
+        atlantis.mgmt.gregrob.net: {}
+        eldorado.mgmt.gregrob.net: {}
+        petra.mgmt.gregrob.net: {}
+        
     keepalived_dns_target:
       hosts:
         dns-001.dns.gregrob.net: {}

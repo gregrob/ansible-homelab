@@ -1,0 +1,16 @@
+--- 
+# ----------------------------------------------------------
+# Host-specific variables for eldorado.mgmt.gregrob.net
+# ----------------------------------------------------------
+
+# nut client for automatic shutdown
+is_nut_client: true
+
+# nut client is a proxmox host (part of cluster)
+nut_client_proxmox_enabled: true
+
+# Packages installed by the packages role. 'nut-client' provides upsmon and upsc,
+# which is all a NUT client needs (no driver, no upsd, no web interface).
+# CURRENTLY THIS NEEDS TO BE MANUALLY HANDLED
+specific_packages:
+  - nut-client
