@@ -113,7 +113,7 @@ nut_server_shutdowncmd: /sbin/shutdown -h +0
 nut_server_powerdownflag: /etc/killpower
 
 # Timing (seconds)
-nut_server_finaldelay: 175      # wait after the final shutdown notice before this host shuts down
+nut_server_finaldelay: 300      # wait after the final shutdown notice before this host shuts down
 nut_server_hostsync: 15         # how long the primary waits for secondaries to disconnect
 nut_server_deadtime: 15         # mark UPS dead after this long with no communication
 nut_server_pollfreq: 2          # poll UPS every N seconds
@@ -241,7 +241,7 @@ nut_server_nas_password: ""
 # Seconds after the SHUTDOWN event before the script runs. The server waits
 # nut_server_finaldelay after that event before it powers off, so the delay plus
 # the worst case of every attempt below must stay inside it (the role asserts it).
-nut_server_nas_delay: 30
+nut_server_nas_delay: 1
 
 # Where the script is installed
 nut_server_nas_script: /usr/local/sbin/nas-shutdown.sh
