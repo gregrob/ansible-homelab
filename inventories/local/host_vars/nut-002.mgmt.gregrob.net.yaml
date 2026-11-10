@@ -101,7 +101,7 @@ nut_server_ups:
       ignorelb: true
       #override.battery.charge.low: 95
       #override.battery.charge.warning: 98
-      override.battery.runtime.low: 1200
+      override.battery.runtime.low: 1440
   - name: dummy
     driver: dummy-ups
     port: /etc/nut/dummy.dev
