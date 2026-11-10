@@ -179,16 +179,35 @@
 - name: Apply pending handlers before enabling services
   ansible.builtin.meta: flush_handlers
 
-# The enumerator is a one-shot unit: it runs, regenerates the per-UPS driver
-# units and exits, so it never stays "started" and the module would report a
-# change on every run. Running it each time is harmless and guarantees the
-# driver units exist even if an earlier run failed before its handler fired,
-# so the change is suppressed rather than the start skipped.
-- name: Enable and run the NUT driver enumerator
+# The enumerator creates the per-UPS driver units (see nut_server_enumerator_auto).
+# Whether it runs by itself is controlled here; the 'Restart nut' handler runs it
+# explicitly whenever a config file changes.
+- name: Set whether the NUT driver enumerator watches ups.conf by itself
+  ansible.builtin.systemd:
+    name: nut-driver-enumerator.path
+    enabled: "{{ nut_server_enumerator_auto | bool }}"
+    state: "{{ 'started' if nut_server_enumerator_auto | bool else 'stopped' }}"
+
+- name: Set whether the NUT driver enumerator runs at boot
   ansible.builtin.systemd:
     name: nut-driver-enumerator.service
-    enabled: true
+    enabled: "{{ nut_server_enumerator_auto | bool }}"
+
+# Recovery only: if an earlier run failed before its handler fired, a driver unit
+# may not exist yet. Running the enumerator then is safe (there is no driver to spin).
+- name: Look for the generated NUT driver units
+  ansible.builtin.stat:
+    path: "/etc/systemd/system/nut-driver@{{ item.name }}.service.d/nut-driver-enumerator-generated-checksum.conf"
+  register: nut_server_driver_units
+  loop: "{{ nut_server_ups }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Run the NUT driver enumerator if a driver unit is missing
+  ansible.builtin.systemd:
+    name: nut-driver-enumerator.service
     state: started
+  when: not (nut_server_driver_units.results | map(attribute='stat.exists') | min)
   changed_when: false
 
 # Make sure the services start at boot and are running now. A no-op if the

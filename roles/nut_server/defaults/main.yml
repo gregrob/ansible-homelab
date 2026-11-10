@@ -6,6 +6,19 @@
 # Secrets (the *_password variables below) are supplied from the vault.
 
 # =======================================================================
+# BUG FIXES & WORK AROUNDS
+# =======================================================================
+# NUT 2.8.1 (Debian 13) bug, fixed in 2.8.3: nut-driver-enumerator live-reloads the
+# running drivers, which breaks their socket to upsd and leaves usbhid-ups spinning
+# a CPU core. With false, the enumerator never runs by itself (not at boot, not when
+# ups.conf changes); the 'Restart nut' handler runs it and then restarts the drivers.
+# Set to true once the packaged NUT is 2.8.3 or later.
+# https://github.com/networkupstools/nut/issues/1904
+# https://github.com/networkupstools/nut/issues/2484
+
+nut_server_enumerator_auto: false
+
+# =======================================================================
 # Operating Mode
 # =======================================================================
 # netserver = this host talks to the UPS and serves data to remote clients
