@@ -9,19 +9,25 @@
 # - nut-driver-enumerator: re-reads ups.conf and (re)creates the per-UPS
 #   nut-driver@<name> units, so added, removed or changed UPS definitions take
 #   effect.
+# - nut-driver@<name>: restarts the driver of every UPS. Driver options (such as
+#   the override.* settings) are only read when the driver starts, so changed
+#   options do not apply until it is restarted.
 # - nut-server: restarts upsd to pick up upsd.conf and upsd.users.
 # - nut-monitor: restarts upsmon to pick up upsmon.conf.
-# One handler restarts all three, in this order, because the later services
+# One handler restarts all of them, in this order, because the later services
 # depend on the earlier ones. daemon_reload picks up any regenerated units.
 - name: Restart nut
   ansible.builtin.systemd:
     name: "{{ item }}"
     state: restarted
     daemon_reload: true
-  loop:
-    - nut-driver-enumerator.service
-    - nut-server.service
-    - nut-monitor.service
+  loop: >-
+    {{ ['nut-driver-enumerator.service']
+       + (nut_server_ups | map(attribute='name')
+          | map('regex_replace', '^', 'nut-driver@')
+          | map('regex_replace', '$', '.service') | list)
+       + ['nut-server.service']
+       + ['nut-monitor.service'] }}
 
 # Restart apache2
 # Used by the web interface tasks (setup_nut_web.yml). A restart rather than a
