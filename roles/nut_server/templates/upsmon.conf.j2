@@ -18,7 +18,7 @@ RUN_AS_USER {{ nut_server_run_as_user }}
 # - 1: Number of power supplies this UPS feeds
 # - {{ nut_server_admin_user }}: Username from upsd.users with master privileges
 # - master: This system is the primary/master (has shutdown authority)
-{% for ups in nut_server_ups %}
+{% for ups in nut_server_ups if ups.monitor | default(true) %}
 MONITOR {{ ups.name }}@localhost 1 {{ nut_server_admin_user }} {{ nut_server_admin_password }} master
 {% endfor %}
 
