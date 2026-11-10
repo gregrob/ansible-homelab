@@ -3,7 +3,7 @@
 
 # The UPS the clients follow, as <ups>@<server>
 nut_client_server: "{{ nut_002_ip }}"
-nut_client_ups: dummy  # change to the real UPS name at cutover
+nut_client_ups: cyberpower-cluster
 
 # Fire drill: log instead of shutting down. Set to false for live running.
 nut_client_dry_run: false
