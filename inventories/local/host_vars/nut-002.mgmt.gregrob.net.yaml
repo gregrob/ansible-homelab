@@ -87,17 +87,26 @@ specific_packages:
 is_nut_server: true
 
 # UPS devices served by this host (rendered into ups.conf).
-# Currently a dummy device for testing (edit /etc/nut/dummy.dev on the server
-# to simulate events). Replace it with the real UPS at cutover, e.g.:
-#   - name: cyberpower-cluster
-#     driver: usbhid-ups      # assumed: copy driver/port from nut-001's /etc/nut/ups.conf
-#     port: auto
-#     desc: "CyberPower UPS"
 nut_server_ups:
+  - name: cyberpower-cluster
+    driver: usbhid-ups
+    port: auto
+    desc: "CyberPower CP1600EPFCLCD Cluster"
+    options:
+      vendorid: "0764"
+      productid: "0601"
+      serial: BH8QN2000149
+      offdelay: 0
+      ondelay: 0
+      ignorelb: true
+      #override.battery.charge.low: 95
+      #override.battery.charge.warning: 98
+      override.battery.runtime.low: 1200
   - name: dummy
     driver: dummy-ups
     port: /etc/nut/dummy.dev
     desc: "Dummy test UPS"
+    monitor: false # wont trigger shutdowns while false
 
 # Extra upsd users beyond the core admin / observer / webadmin set.
 # Fields: name, password, desc, actions, instcmds, upsmon (see role defaults).
