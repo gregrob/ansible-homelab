@@ -146,6 +146,7 @@ all:
         lxcs:
         vms:
         pms:
+        proxmox_hosts:
     
     update_targets:
       children:
