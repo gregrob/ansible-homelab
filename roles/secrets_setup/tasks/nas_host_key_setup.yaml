@@ -13,7 +13,7 @@
     name: "{{ nas_host }}"
     key: "{{ item }}"
     state: present
-  loop: "{{ flashstor_ssh_public_keys }}"
+  loop: "{{ nas_ssh_public_keys }}"
 
 - name: Ensure correct ownership and permissions on known_hosts
   ansible.builtin.file:

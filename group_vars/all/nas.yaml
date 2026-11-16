@@ -5,6 +5,7 @@
 # Network & Host resolution
 nas_ip: "{{ flashstor_ip }}"
 nas_host: "{{ flashstor_host }}"
+nas_ssh_public_keys: "{{ flashstor_ssh_public_keys }}"
 
 # Authentication & Target User
 nas_user: "admin"
