@@ -73,9 +73,10 @@
 # ───────────────────────────────────────────────────────────────────────
 
 - name: disable cloud-init globally via sentinel file on Raspberry Pi
-  ansible.builtin.file:
-    path: /etc/cloud/cloud-init.disabled
-    state: touch
+  ansible.builtin.copy:
+    content: ""
+    dest: /etc/cloud/cloud-init.disabled
+    force: false
     owner: root
     group: root
     mode: '0644'
