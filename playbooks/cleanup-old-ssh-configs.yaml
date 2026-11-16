@@ -21,6 +21,7 @@
         state: absent
       loop:
         - "secrets.max.lan"
+        - "flashstor.max.lan"
         # Add future old hosts here as you migrate them
         # - "another-old-host.max.lan"
 
@@ -31,6 +32,7 @@
         state: absent
       loop:
         - "secrets.max.lan"
+        - "flashstor.max.lan"
         # Add future old hosts here as you migrate them
         # - "another-old-host.max.lan"
 
